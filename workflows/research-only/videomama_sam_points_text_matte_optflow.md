@@ -12,6 +12,8 @@ Video matting pipeline: SAM 3 point/text-prompted segmentation feeds VideoMaMa f
 **Commercial status: `research-only`**
 At least one dependency below is CC-BY-NC-4.0 or otherwise restricted to research/education use. Do not use this workflow's output commercially without separately clearing that dependency.
 
+> This workflow file and its original documentation are licensed under MIT. It requires third-party software and models that remain subject to their own licences. The MIT licence on this workflow does not grant rights to those dependencies.
+
 ## Dependencies
 
 - **ComfyUI-VideoMaMa — CC-BY-NC-4.0 code, checkpoint under Stability AI Community License (blocks commercial use)**
@@ -21,5 +23,5 @@ At least one dependency below is CC-BY-NC-4.0 or otherwise restricted to researc
 - ComfyUI-RMBG (GPL-3.0)
 - rgthree-comfy (MIT)
 
-Install with `../../install.sh` (see repo root) or manually via ComfyUI-Manager.
+Install with `../../scripts/install-dependencies.sh` (see repo root) or manually via ComfyUI-Manager.
 Full license detail for every dependency: [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md).

@@ -12,6 +12,8 @@ Side-by-side test harness comparing four frame-interpolation methods on the same
 **Commercial status: `research-only`**
 At least one dependency below is CC-BY-NC-4.0 or otherwise restricted to research/education use. Do not use this workflow's output commercially without separately clearing that dependency.
 
+> This workflow file and its original documentation are licensed under MIT. It requires third-party software and models that remain subject to their own licences. The MIT licence on this workflow does not grant rights to those dependencies.
+
 ## Dependencies
 
 - **BiM-VFI — research/education only, commercial use requires permission from KAIST (blocks commercial use)**
@@ -20,5 +22,5 @@ At least one dependency below is CC-BY-NC-4.0 or otherwise restricted to researc
 - ComfyUI-Tween — SGM-VFI (Apache-2.0)
 - ComfyUI-VideoHelperSuite (GPL-3.0)
 
-Install with `../../install.sh` (see repo root) or manually via ComfyUI-Manager.
+Install with `../../scripts/install-dependencies.sh` (see repo root) or manually via ComfyUI-Manager.
 Full license detail for every dependency: [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md).

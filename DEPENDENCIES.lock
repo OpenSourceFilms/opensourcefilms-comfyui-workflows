@@ -1,0 +1,345 @@
+# DEPENDENCIES.lock
+#
+# Machine-readable dependency manifest, one block per workflow file.
+# This is the canonical source for each workflow's commercial_status — the
+# .md sidecar next to each workflow is the human-readable rendering of the
+# same data. If they ever disagree, this file wins.
+#
+# Fields:
+#   name          - dependency name
+#   version       - upstream tag/version, where pinned
+#   commit        - upstream git commit sha, where pinned (preferred over version)
+#   license       - SPDX identifier or license name
+#   distribution  - "external" (fetched by install script, never vendored in
+#                   this repo) or "vendored" (source included in this repo)
+#   optional      - true if the workflow can run without it (rare here)
+#   commercial_status - only set when it differs from the workflow's own
+#                   status, i.e. the dependency that's actually the blocker
+#
+# Verified 2026-07-22. See THIRD_PARTY_LICENSES.md for full detail per
+# component (upstream URLs, redistribution notes, etc).
+
+workflows/commercial-compatible/sam3_custompkg_probe.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-SAM3
+      version: v0.1.6
+      license: GPL-3.0
+      distribution: external
+    - name: SAM 3 (model weights)
+      license: SAM License (Meta, custom, source-available)
+      distribution: external
+
+workflows/commercial-compatible/step4_5_sam3_mask.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (SCAIL-2 fork, native SAM3+SCAIL-2 core nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+    - name: SAM 3 (model weights)
+      license: SAM License (Meta, custom, source-available)
+      distribution: external
+
+workflows/commercial-compatible/step6_animation_mode.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (SCAIL-2 fork, native SAM3+SCAIL-2 core nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+    - name: SAM 3 (model weights)
+      license: SAM License (Meta, custom, source-available)
+      distribution: external
+    - name: SCAIL-2 / Wan2.1-14B (model weights)
+      license: Apache-2.0
+      distribution: external
+
+workflows/commercial-compatible/step7_replacement_mode.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (SCAIL-2 fork, native SAM3+SCAIL-2 core nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+    - name: SAM 3 (model weights)
+      license: SAM License (Meta, custom, source-available)
+      distribution: external
+    - name: SCAIL-2 / Wan2.1-14B (model weights)
+      license: Apache-2.0
+      distribution: external
+
+workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI-DownsampleFPS
+      commit: 4d741ef8e33b0c5111ad21033f9408acffc63651
+      license: Apache-2.0
+      distribution: external
+    - name: rgthree-comfy
+      version: v1.0.2512112053
+      license: MIT
+      distribution: external
+    - name: ComfyUI-GIMM-VFI
+      commit: 4c9a3123762af85e7c796e41737da0b70c75d72d
+      license: ISC
+      distribution: external
+    - name: ComfyUI-Tween (provides SGM-VFI)
+      commit: 91947c0b8c795cf504d3848274d4217f0432a324
+      license: Apache-2.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+
+workflows/commercial-compatible/mm_upscale_video_workflow.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI-Florence2
+      version: v1.0.9
+      license: MIT
+      distribution: external
+    - name: ComfyUI-GGUF
+      version: v1.1.10
+      license: Apache-2.0
+      distribution: external
+    - name: ComfyUI_UltimateSDUpscale
+      version: v1.7.2
+      license: GPL-3.0
+      distribution: external
+    - name: rgthree-comfy
+      version: v1.0.2512112053
+      license: MIT
+      distribution: external
+    - name: ComfyUI-Custom-Scripts (pysssss)
+      license: MIT
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+
+workflows/commercial-compatible/wan22_fmlf_first_middle_last_frame.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (native Wan video nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+    - name: Wan 2.2 (model weights)
+      license: Apache-2.0
+      distribution: external
+
+workflows/commercial-compatible/video_wan2_2_14B_flf2v.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (native Wan video nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: rgthree-comfy
+      version: v1.0.2512112053
+      license: MIT
+      distribution: external
+    - name: Wan 2.2 14B (model weights)
+      license: Apache-2.0
+      distribution: external
+
+workflows/commercial-compatible/video_wan2_2_14B_fmlf2v.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (native Wan video nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: Wan 2.2 14B (model weights)
+      license: Apache-2.0
+      distribution: external
+
+workflows/commercial-compatible/video_wan2_2_14B_i2v.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (native Wan video nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: rgthree-comfy
+      version: v1.0.2512112053
+      license: MIT
+      distribution: external
+    - name: Wan 2.2 14B (model weights)
+      license: Apache-2.0
+      distribution: external
+
+workflows/commercial-compatible/video_wan_vace_14B_v2v.json:
+  osf_license: MIT
+  commercial_status: commercial-compatible
+  dependencies:
+    - name: ComfyUI (native Wan video + VACE nodes)
+      license: GPL-3.0
+      distribution: external
+    - name: Wan VACE 14B (model weights)
+      license: Apache-2.0
+      distribution: external
+
+workflows/research-only/videomama_sam_points_text_matte_optflow.json:
+  osf_license: MIT
+  commercial_status: research-only
+  dependencies:
+    - name: ComfyUI-VideoMaMa
+      license: CC-BY-NC-4.0 (code)
+      commercial_status: research-only
+      distribution: external
+    - name: VideoMaMa checkpoint (SammyLim/VideoMaMa)
+      license: Stability AI Community License
+      commercial_status: research-only
+      distribution: external
+    - name: ComfyUI-SAM3
+      version: v0.1.6
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+    - name: mask_propagate_optical_flow
+      license: MIT
+      distribution: vendored
+    - name: ComfyUI-RMBG
+      license: GPL-3.0
+      distribution: external
+    - name: rgthree-comfy
+      version: v1.0.2512112053
+      license: MIT
+      distribution: external
+
+workflows/research-only/videomama_split_sam_points_text_matte_optflow.json:
+  osf_license: MIT
+  commercial_status: research-only
+  dependencies:
+    - name: ComfyUI-VideoMaMa
+      license: CC-BY-NC-4.0 (code)
+      commercial_status: research-only
+      distribution: external
+    - name: VideoMaMa checkpoint (SammyLim/VideoMaMa)
+      license: Stability AI Community License
+      commercial_status: research-only
+      distribution: external
+    - name: ComfyUI-SAM3
+      version: v0.1.6
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-Easy-Sam3
+      commit: 88fe578a1a5e03d95281197303d5d3a73fd5a089
+      license: Apache-2.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+    - name: mask_propagate_optical_flow
+      license: MIT
+      distribution: vendored
+    - name: ComfyUI-RMBG
+      license: GPL-3.0
+      distribution: external
+    - name: rgthree-comfy
+      version: v1.0.2512112053
+      license: MIT
+      distribution: external
+
+workflows/research-only/sam_effecteraser_points_text_matte_optflow.json:
+  osf_license: MIT
+  commercial_status: research-only
+  dependencies:
+    - name: EffectErase
+      license: CC-BY-NC-4.0
+      commercial_status: research-only
+      distribution: external
+    - name: ComfyUI-SAM3
+      version: v0.1.6
+      license: GPL-3.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+    - name: mask_propagate_optical_flow
+      license: MIT
+      distribution: vendored
+    - name: ComfyUI-RMBG
+      license: GPL-3.0
+      distribution: external
+    - name: rgthree-comfy
+      version: v1.0.2512112053
+      license: MIT
+      distribution: external
+
+workflows/research-only/frame_interpolation_test.json:
+  osf_license: MIT
+  commercial_status: research-only
+  dependencies:
+    - name: BiM-VFI
+      commit: df79cbcad4214d48911040def459174d0a4c9791
+      license: research/education only (KAIST-VICLab)
+      commercial_status: research-only
+      distribution: external
+    - name: EMA-VFI
+      license: Apache-2.0
+      distribution: external
+    - name: ComfyUI-GIMM-VFI
+      commit: 4c9a3123762af85e7c796e41737da0b70c75d72d
+      license: ISC
+      distribution: external
+    - name: ComfyUI-Tween (provides SGM-VFI)
+      commit: 91947c0b8c795cf504d3848274d4217f0432a324
+      license: Apache-2.0
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external
+
+workflows/research-only/tween_interpolate_loop.json:
+  osf_license: MIT
+  commercial_status: research-only
+  dependencies:
+    - name: BiM-VFI
+      commit: df79cbcad4214d48911040def459174d0a4c9791
+      license: research/education only (KAIST-VICLab)
+      commercial_status: research-only
+      distribution: external
+    - name: EMA-VFI
+      license: Apache-2.0
+      distribution: external
+    - name: ComfyUI-GIMM-VFI
+      commit: 4c9a3123762af85e7c796e41737da0b70c75d72d
+      license: ISC
+      distribution: external
+    - name: ComfyUI-VideoHelperSuite
+      commit: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+      license: GPL-3.0
+      distribution: external

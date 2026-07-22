@@ -12,6 +12,8 @@ Drives a reference character with a SAM3-masked source video using SCAIL-2, in a
 **Commercial status: `commercial-compatible`**
 All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution obligations, not a commercial-use ban) — safe for commercial use as far as this audit could determine.
 
+> This workflow file and its original documentation are licensed under MIT. It requires third-party software and models that remain subject to their own licences. The MIT licence on this workflow does not grant rights to those dependencies.
+
 ## Dependencies
 
 - ComfyUI core fork with native SCAIL-2 + SAM 3 support (GPL-3.0)
@@ -20,5 +22,5 @@ All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution 
 - Model: SCAIL-2 / Wan2.1-14B (Apache-2.0, zai-org)
 - Wan CLIP/VAE components (Apache-2.0)
 
-Install with `../../install.sh` (see repo root) or manually via ComfyUI-Manager.
+Install with `../../scripts/install-dependencies.sh` (see repo root) or manually via ComfyUI-Manager.
 Full license detail for every dependency: [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md).

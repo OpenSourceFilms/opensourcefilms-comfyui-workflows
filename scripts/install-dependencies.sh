@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# install.sh - Install ComfyUI custom nodes from opensourcefilms-comfyui-workflows
+# scripts/install-dependencies.sh - Install ComfyUI custom nodes required by
+# the workflows in this repo. Does not vendor third-party code (clones
+# pinned commits from upstream) and does not download model weights.
 set -o pipefail
 
 usage() {
@@ -19,6 +21,9 @@ fi
 
 CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
 mkdir -p "$CUSTOM_NODES_DIR"
+
+# Resolve repository root directory (since this script now lives in scripts/)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # --- package list: commercial-compatible dependencies ---
 PACKAGES='ComfyUI-VideoHelperSuite|https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite|2984ec4c4b93292421888f38db74a5e8802a8ff8|all video workflows
@@ -69,6 +74,18 @@ while IFS='|' read -r name url ref used_by; do
 done <<< "$PACKAGES"
 
 echo ""
+echo "== Open Source Films' own node (vendored in this repo) =="
+dest_dir="$CUSTOM_NODES_DIR/mask_propagate_optical_flow"
+if [ -d "$dest_dir" ]; then
+    echo "skip mask_propagate_optical_flow (already present at $dest_dir)"
+else
+    echo "copying mask_propagate_optical_flow (OSF, vendored in this repo)..."
+    cp -r "$REPO_ROOT/custom_nodes/mask_propagate_optical_flow" "$dest_dir" || {
+        echo "ERROR: failed to copy mask_propagate_optical_flow" >&2
+    }
+fi
+
+echo ""
 echo "== research-only dependencies (only needed for workflows/research-only/*) =="
 echo "(Set INSTALL_RESTRICTED=1 to install these.)"
 
@@ -84,13 +101,8 @@ fi
 
 echo ""
 echo "============================================================================="
-echo "REMINDER: This script does NOT install:"
-echo "  1. Open Source Films' own mask_propagate_optical_flow custom node"
-echo "     (MIT license, not yet published separately)."
-echo "  2. Model weights for SAM 3, SCAIL-2/Wan, and (research-only)"
-echo "     VideoMaMa/EffectErase workflows."
-echo "     Please refer to each workflow's .md sidecar file and"
-echo "     THIRD_PARTY_LICENSES.md for download instructions."
+echo "REMINDER: This script does NOT install model weights for SAM 3, SCAIL-2/Wan, and (research-only) VideoMaMa/EffectErase workflows."
+echo "         Please refer to each workflow's .md sidecar file and THIRD_PARTY_LICENSES.md for download instructions."
 echo "============================================================================="
 echo ""
 echo "Restart ComfyUI after installing new custom nodes."

@@ -2,20 +2,31 @@
 
 ComfyUI workflow graphs used in production by [Open Source Films](https://github.com/OpenSourceFilms),
 released under MIT. These are the actual workflow graphs we use — not vendored
-copies of other people's tools.
+copies of other people's tools — plus one custom node package that's genuinely
+ours.
 
-GPU compute for developing these workflows is generously supported by
-[Runpod](https://www.runpod.io/).
+> Unless otherwise stated, original code, workflow files and documentation
+> authored by Open Source Films are licensed under the MIT License.
+> Third-party software, models, weights and datasets remain subject to their
+> respective licences. The MIT licence applied to an OSF workflow or
+> integration does not grant additional rights to its dependencies.
+> Commercial suitability depends on the complete dependency set selected by
+> the user.
 
 ## What's in here vs. what isn't
 
 - **In this repo**: the workflow graph JSON files (node connections,
-  parameters, prompts) and a pinned installer script. That's it.
+  parameters, prompts), one OSF-authored custom node package
+  (`custom_nodes/mask_propagate_optical_flow/`), a pinned installer script,
+  and full dependency documentation.
 - **Not in this repo**: ComfyUI itself, third-party custom node source code,
-  or any model weights. `install.sh` fetches the custom nodes you need from
-  their own upstream repos, pinned to a commit we've verified. Model weights
-  are your own responsibility to download — see the license/source notes in
-  each workflow's `.md` sidecar.
+  or any model weights. `scripts/install-dependencies.sh` fetches the
+  third-party custom nodes you need from their own upstream repos, pinned to
+  commits we've verified. Model weights are your own responsibility to
+  download — see the license/source notes in each workflow's `.md` sidecar,
+  [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), and
+  [DEPENDENCIES.lock](DEPENDENCIES.lock) (machine-readable, canonical if it
+  ever disagrees with the prose docs).
 
 ## Commercial use
 
@@ -65,29 +76,53 @@ Verify independently before any commercial distribution.
 | `frame_interpolation_test.json` | 4-way interpolation comparison | BiM-VFI (research/education only) |
 | `tween_interpolate_loop.json` | Looping interpolation via ComfyUI-Tween | BiM-VFI (research/education only) |
 
+## Custom nodes
+
+`custom_nodes/mask_propagate_optical_flow/` is Open Source Films' own code —
+two nodes (`MaskPropagateOpticalFlow`, `MaskPropagateFromFlow`) that
+propagate a single mask across a video's frames using OpenCV Farneback
+optical flow, so you draw or generate one mask instead of one per frame. No
+external model weights, no third-party dependencies beyond OpenCV/NumPy/
+PyTorch (which ComfyUI already requires). Used by the matting/object-removal
+workflows in `workflows/research-only/`. Published here for the first time,
+MIT-licensed — see its own [README](custom_nodes/mask_propagate_optical_flow/README.md).
+
 ## Install
 
 ```bash
-./install.sh /path/to/ComfyUI
+./scripts/install-dependencies.sh /path/to/ComfyUI
 ```
 
-This installs the commercial-compatible custom node dependencies by default.
-To also install the research-only dependencies (needed for
-`workflows/research-only/*`):
+This installs the commercial-compatible custom node dependencies, plus
+`mask_propagate_optical_flow`, by default. To also install the research-only
+dependencies (needed for `workflows/research-only/*`):
 
 ```bash
-INSTALL_RESTRICTED=1 ./install.sh /path/to/ComfyUI
+INSTALL_RESTRICTED=1 ./scripts/install-dependencies.sh /path/to/ComfyUI
 ```
-
-Open Source Films' own `mask_propagate_optical_flow` node (used by the
-matting/erase workflows) isn't published separately yet — see the installer
-output for a pointer.
 
 Then in ComfyUI: **Workflow → Open** and pick a `.json` from `workflows/`.
 
+## Requirements
+
+A ComfyUI installation and an NVIDIA GPU. Requirements vary a lot by
+workflow — the SAM 3 / interpolation workflows are comfortable on a single
+mid-range GPU, while the Wan 2.2 14B and SCAIL-2 video workflows want 24GB+
+of VRAM. We develop and run all of these on GPU pods from
+[Runpod](https://www.runpod.io/), our GPU compute sponsor — their on-demand
+pricing makes it practical to spin up a large-VRAM card just for a session
+rather than owning one outright, which is how we test the heavier workflows
+here.
+
 ## License
 
-Workflow graphs and `install.sh`: MIT, see [LICENSE](LICENSE).
+Workflow graphs, `custom_nodes/mask_propagate_optical_flow/`, and
+`scripts/install-dependencies.sh`: MIT, see [LICENSE](LICENSE).
 Third-party custom nodes and models referenced (not bundled) by these
 workflows keep their own original licenses — see
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) and
+[DEPENDENCIES.lock](DEPENDENCIES.lock).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
