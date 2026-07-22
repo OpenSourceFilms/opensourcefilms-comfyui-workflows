@@ -25,5 +25,5 @@ SOFTWARE.
 This license covers the workflow graph files (JSON) and scripts authored by
 Open Source Films in this repository. It does NOT cover the third-party
 ComfyUI custom nodes, models, or model weights that these workflows reference
-and that the install script fetches from upstream sources — those retain
+and that the install script fetches from upstream sources, those retain
 their own original licenses. See THIRD_PARTY_LICENSES.md for the full list.
