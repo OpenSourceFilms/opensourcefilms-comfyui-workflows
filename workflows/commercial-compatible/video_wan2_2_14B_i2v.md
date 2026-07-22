@@ -1,0 +1,22 @@
+---
+title: "Wan 2.2 14B Image to Video"
+osf_license: MIT
+commercial_status: commercial-compatible
+source: workflows/commercial-compatible/video_wan2_2_14B_i2v.json
+---
+
+# Wan 2.2 14B Image to Video
+
+Single-image-conditioned video generation with Wan 2.2 14B.
+
+**Commercial status: `commercial-compatible`**
+All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution obligations, not a commercial-use ban) — safe for commercial use as far as this audit could determine.
+
+## Dependencies
+
+- ComfyUI core — native Wan video nodes (GPL-3.0)
+- rgthree-comfy (MIT)
+- Model: Wan 2.2 14B (Apache-2.0)
+
+Install with `../../install.sh` (see repo root) or manually via ComfyUI-Manager.
+Full license detail for every dependency: [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md).

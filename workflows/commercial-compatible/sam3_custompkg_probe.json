@@ -1,0 +1,81 @@
+{
+  "1": {
+    "class_type": "LoadSAM3Model",
+    "inputs": {
+      "precision": "auto",
+      "compile": false
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "scail2_test_reference_character.jpg"
+    }
+  },
+  "3": {
+    "class_type": "SAM3CreatePoint",
+    "inputs": {
+      "x": 0.45,
+      "y": 0.35,
+      "is_foreground": true
+    }
+  },
+  "4": {
+    "class_type": "SAM3CombinePoints",
+    "inputs": {
+      "point_1": [
+        "3",
+        0
+      ]
+    }
+  },
+  "5": {
+    "class_type": "SAM3Segmentation",
+    "inputs": {
+      "sam3_model_config": [
+        "1",
+        0
+      ],
+      "image": [
+        "2",
+        0
+      ],
+      "positive_points": [
+        "4",
+        0
+      ],
+      "refinement_iterations": 2,
+      "use_multimask": false,
+      "output_best_mask": true
+    }
+  },
+  "6": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": [
+        "5",
+        0
+      ]
+    }
+  },
+  "7": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "6",
+        0
+      ],
+      "filename_prefix": "sam3_custompkg_test_mask"
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "5",
+        2
+      ],
+      "filename_prefix": "sam3_custompkg_test_overlay"
+    }
+  }
+}

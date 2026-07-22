@@ -1,0 +1,282 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "person",
+      "clip": [
+        "1",
+        1
+      ]
+    }
+  },
+  "3": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "scail2_test_driving_video.mp4",
+      "force_rate": 0,
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_load_cap": 49,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "AnimateDiff"
+    }
+  },
+  "4": {
+    "class_type": "SAM3_VideoTrack",
+    "inputs": {
+      "images": [
+        "3",
+        0
+      ],
+      "model": [
+        "1",
+        0
+      ],
+      "conditioning": [
+        "2",
+        0
+      ],
+      "detection_threshold": 0.5,
+      "max_objects": 4,
+      "detect_interval": 1
+    }
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "scail2_test_reference_character.jpg"
+    }
+  },
+  "6": {
+    "class_type": "SAM3_Detect",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "image": [
+        "5",
+        0
+      ],
+      "conditioning": [
+        "2",
+        0
+      ],
+      "threshold": 0.5,
+      "refine_iterations": 2,
+      "individual_masks": false
+    }
+  },
+  "7": {
+    "class_type": "SCAIL2ColoredMask",
+    "inputs": {
+      "driving_track_data": [
+        "4",
+        0
+      ],
+      "ref_track_data": [
+        "6",
+        0
+      ],
+      "object_indices": "",
+      "sort_by": "left_to_right",
+      "replacement_mode": false
+    }
+  },
+  "10": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "wan2.1_14B_SCAIL_2_fp16.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "11": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "umt5_xxl_fp16.safetensors",
+      "type": "wan"
+    }
+  },
+  "12": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "wan_2.1_vae.safetensors"
+    }
+  },
+  "13": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "clip_vision_h.safetensors"
+    }
+  },
+  "14": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {
+      "model": [
+        "10",
+        0
+      ],
+      "shift": 8.0
+    }
+  },
+  "15": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a person, cinematic lighting, high quality, sharp focus",
+      "clip": [
+        "11",
+        0
+      ]
+    }
+  },
+  "16": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, low quality, distorted, watermark, text, deformed",
+      "clip": [
+        "11",
+        0
+      ]
+    }
+  },
+  "17": {
+    "class_type": "CLIPVisionEncode",
+    "inputs": {
+      "clip_vision": [
+        "13",
+        0
+      ],
+      "image": [
+        "5",
+        0
+      ],
+      "crop": "none"
+    }
+  },
+  "20": {
+    "class_type": "WanSCAILToVideo",
+    "inputs": {
+      "positive": [
+        "15",
+        0
+      ],
+      "negative": [
+        "16",
+        0
+      ],
+      "vae": [
+        "12",
+        0
+      ],
+      "width": 512,
+      "height": 768,
+      "length": 49,
+      "batch_size": 1,
+      "pose_strength": 1.0,
+      "pose_start": 0.0,
+      "pose_end": 1.0,
+      "pose_video": [
+        "3",
+        0
+      ],
+      "pose_video_mask": [
+        "7",
+        0
+      ],
+      "replacement_mode": false,
+      "reference_image": [
+        "5",
+        0
+      ],
+      "reference_image_mask": [
+        "7",
+        1
+      ],
+      "clip_vision_output": [
+        "17",
+        0
+      ],
+      "video_frame_offset": 0,
+      "previous_frame_count": 5
+    }
+  },
+  "21": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "14",
+        0
+      ],
+      "seed": 42,
+      "steps": 20,
+      "cfg": 3.0,
+      "sampler_name": "uni_pc",
+      "scheduler": "simple",
+      "positive": [
+        "20",
+        0
+      ],
+      "negative": [
+        "20",
+        1
+      ],
+      "latent_image": [
+        "20",
+        2
+      ],
+      "denoise": 1.0
+    }
+  },
+  "22": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "21",
+        0
+      ],
+      "vae": [
+        "12",
+        0
+      ]
+    }
+  },
+  "23": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "22",
+        0
+      ],
+      "fps": 24.0
+    }
+  },
+  "24": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "23",
+        0
+      ],
+      "filename_prefix": "scail2_step6_animation_mode",
+      "format": "auto",
+      "codec": "auto"
+    }
+  },
+  "25": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "22",
+        0
+      ],
+      "filename_prefix": "scail2_step6_animation_mode_frames"
+    }
+  }
+}

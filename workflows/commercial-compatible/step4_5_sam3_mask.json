@@ -1,0 +1,128 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "person",
+      "clip": [
+        "1",
+        1
+      ]
+    }
+  },
+  "3": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "scail2_test_driving_video.mp4",
+      "force_rate": 0,
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_load_cap": 49,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "AnimateDiff"
+    }
+  },
+  "4": {
+    "class_type": "SAM3_VideoTrack",
+    "inputs": {
+      "images": [
+        "3",
+        0
+      ],
+      "model": [
+        "1",
+        0
+      ],
+      "conditioning": [
+        "2",
+        0
+      ],
+      "detection_threshold": 0.5,
+      "max_objects": 4,
+      "detect_interval": 1
+    }
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "scail2_test_reference_character.jpg"
+    }
+  },
+  "6": {
+    "class_type": "SAM3_Detect",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "image": [
+        "5",
+        0
+      ],
+      "conditioning": [
+        "2",
+        0
+      ],
+      "threshold": 0.5,
+      "refine_iterations": 2,
+      "individual_masks": false
+    }
+  },
+  "7": {
+    "class_type": "SCAIL2ColoredMask",
+    "inputs": {
+      "driving_track_data": [
+        "4",
+        0
+      ],
+      "ref_track_data": [
+        "6",
+        0
+      ],
+      "object_indices": "",
+      "sort_by": "left_to_right",
+      "replacement_mode": false
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "7",
+        0
+      ],
+      "filename_prefix": "scail2_step5_pose_mask"
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "7",
+        1
+      ],
+      "filename_prefix": "scail2_step5_ref_mask"
+    }
+  },
+  "10": {
+    "class_type": "SAM3_TrackPreview",
+    "inputs": {
+      "track_data": [
+        "4",
+        0
+      ],
+      "opacity": 0.5,
+      "fps": 25.0,
+      "images": [
+        "3",
+        0
+      ]
+    }
+  }
+}
