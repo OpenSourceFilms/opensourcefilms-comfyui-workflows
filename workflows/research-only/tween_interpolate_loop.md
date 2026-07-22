@@ -16,7 +16,7 @@ At least one dependency below is CC-BY-NC-4.0 or otherwise restricted to researc
 
 ## Dependencies
 
-- **BiM-VFI — research/education only, commercial use requires permission from KAIST (blocks commercial use)**
+- **BiM-VFI: research/education only, commercial use requires permission from KAIST (blocks commercial use)**
 - EMA-VFI (Apache-2.0)
 - ComfyUI-GIMM-VFI (ISC)
 - ComfyUI-VideoHelperSuite (GPL-3.0)

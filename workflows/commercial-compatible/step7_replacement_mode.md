@@ -1,16 +1,16 @@
 ---
-title: "SCAIL-2 Pipeline Step 7 — Character Replacement Mode"
+title: "SCAIL-2 Pipeline Step 7; Character Replacement Mode"
 osf_license: MIT
 commercial_status: commercial-compatible
 source: workflows/commercial-compatible/step7_replacement_mode.json
 ---
 
-# SCAIL-2 Pipeline Step 7 — Character Replacement Mode
+# SCAIL-2 Pipeline Step 7; Character Replacement Mode
 
 Same SCAIL-2 pipeline as step 6, configured for character-replacement rather than motion transfer.
 
 **Commercial status: `commercial-compatible`**
-All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution obligations, not a commercial-use ban) — safe for commercial use as far as this audit could determine.
+All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution obligations, not a commercial-use ban). Safe for commercial use as far as this audit could determine.
 
 > This workflow file and its original documentation are licensed under MIT. It requires third-party software and models that remain subject to their own licences. The MIT licence on this workflow does not grant rights to those dependencies.
 

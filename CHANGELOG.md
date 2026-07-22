@@ -13,10 +13,10 @@ Initial release.
   first-middle-last-frame, image-to-video, video-to-video).
 - 5 `research-only` workflows: two VideoMaMa mask-guided matting pipelines,
   one EffectErase object-removal pipeline, and two frame-interpolation
-  comparisons using BiM-VFI — each blocked from commercial use by a
+  comparisons using BiM-VFI; each blocked from commercial use by a
   specific named dependency, documented in
   [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
-- `custom_nodes/mask_propagate_optical_flow/` — Open Source Films' own
+- `custom_nodes/mask_propagate_optical_flow/`; Open Source Films' own
   ComfyUI node package (optical-flow mask propagation), published here for
   the first time.
 - `LICENSE` (MIT), `THIRD_PARTY_LICENSES.md`, `DEPENDENCIES.lock`, and

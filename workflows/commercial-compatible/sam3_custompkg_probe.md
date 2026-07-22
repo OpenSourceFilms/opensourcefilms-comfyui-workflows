@@ -10,7 +10,7 @@ source: workflows/commercial-compatible/sam3_custompkg_probe.json
 Minimal SAM 3 segmentation test: point/box prompts in, combined mask out. Useful as a smoke test after installing ComfyUI-SAM3.
 
 **Commercial status: `commercial-compatible`**
-All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution obligations, not a commercial-use ban) — safe for commercial use as far as this audit could determine.
+All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution obligations, not a commercial-use ban); safe for commercial use as far as this audit could determine.
 
 > This workflow file and its original documentation are licensed under MIT. It requires third-party software and models that remain subject to their own licences. The MIT licence on this workflow does not grant rights to those dependencies.
 

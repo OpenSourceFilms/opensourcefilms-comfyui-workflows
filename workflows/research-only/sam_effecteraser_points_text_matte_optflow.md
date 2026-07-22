@@ -1,11 +1,11 @@
 ---
-title: "EffectErase Object Removal — SAM3 Points + Text + Optical Flow"
+title: "EffectErase Object Removal; SAM3 Points + Text + Optical Flow"
 osf_license: MIT
 commercial_status: research-only
 source: workflows/research-only/sam_effecteraser_points_text_matte_optflow.json
 ---
 
-# EffectErase Object Removal — SAM3 Points + Text + Optical Flow
+# EffectErase Object Removal; SAM3 Points + Text + Optical Flow
 
 Object/effect removal pipeline: SAM 3 point/text-prompted segmentation feeds EffectErase, with optical-flow mask propagation.
 
@@ -16,10 +16,10 @@ At least one dependency below is CC-BY-NC-4.0 or otherwise restricted to researc
 
 ## Dependencies
 
-- **EffectErase — CC-BY-NC-4.0 (blocks commercial use)**
+- **EffectErase: CC-BY-NC-4.0 (blocks commercial use)**
 - ComfyUI-SAM3 (GPL-3.0)
 - ComfyUI-VideoHelperSuite (GPL-3.0)
-- mask_propagate_optical_flow — OSF's own code (MIT)
+- mask_propagate_optical_flow; OSF's own code (MIT)
 - ComfyUI-RMBG (GPL-3.0)
 - rgthree-comfy (MIT)
 
