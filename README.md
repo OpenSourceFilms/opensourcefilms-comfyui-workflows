@@ -109,10 +109,10 @@ A ComfyUI installation and an NVIDIA GPU. Requirements vary a lot by
 workflow; the SAM 3 / interpolation workflows are comfortable on a single
 mid-range GPU, while the Wan 2.2 14B and SCAIL-2 video workflows want 24GB+
 of VRAM. We develop and run all of these on GPU pods from
-[Runpod](https://www.runpod.io/), our GPU compute sponsor: their on-demand
-pricing makes it practical to spin up a large-VRAM card just for a session
-rather than owning one outright, which is how we test the heavier workflows
-here.
+[Runpod](https://www.runpod.io/), in collaboration with them on GPU compute:
+their on-demand pricing makes it practical to spin up a large-VRAM card just
+for a session rather than owning one outright, which is how we test the
+heavier workflows here.
 
 ## License
 
