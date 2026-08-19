@@ -101,7 +101,7 @@ integration type (all "external"; none are vendored here except
 | ComfyUI-GIMM-VFI | github.com/kijai/ComfyUI-GIMM-VFI | ISC | `4c9a3123762af85e7c796e41737da0b70c75d72d` | external |
 | ComfyUI-Tween | github.com/Ethanfel/ComfyUI-Tween | Apache-2.0 | `91947c0b8c795cf504d3848274d4217f0432a324` | external |
 | ComfyUI-DownsampleFPS | github.com/Austat/ComfyUI-DownsampleFPS | Apache-2.0 | `4d741ef8e33b0c5111ad21033f9408acffc63651` | external |
-| ComfyUI-WanVideoWrapper | github.com/kijai/ComfyUI-WanVideoWrapper | Apache-2.0 | v1.4.7 | external |
+| ComfyUI-WanVideoWrapper | github.com/kijai/ComfyUI-WanVideoWrapper | Apache-2.0 | `088128b224242e110d3906c6750e9a3a348a659b` | external |
 | comfyui_controlnet_aux | github.com/Fannovel16/comfyui_controlnet_aux | Apache-2.0 | unpinned; verify commit before install | external |
 | ComfyUI-RMBG | github.com/1038lab/ComfyUI-RMBG | GPL-3.0 | unpinned; verify commit before install | external |
 | EMA-VFI (wrapper) | bundled within ComfyUI-Tween; upstream research code Apache-2.0 | Apache-2.0 | see ComfyUI-Tween | external |

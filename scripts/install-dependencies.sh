@@ -40,7 +40,7 @@ ComfyUI_UltimateSDUpscale|https://github.com/ssitu/ComfyUI_UltimateSDUpscale|v1.
 ComfyUI-GIMM-VFI|https://github.com/kijai/ComfyUI-GIMM-VFI|4c9a3123762af85e7c796e41737da0b70c75d72d|interpolation workflows
 ComfyUI-Tween|https://github.com/Ethanfel/ComfyUI-Tween|91947c0b8c795cf504d3848274d4217f0432a324|interpolation workflows
 ComfyUI-DownsampleFPS|https://github.com/Austat/ComfyUI-DownsampleFPS|4d741ef8e33b0c5111ad21033f9408acffc63651|interpolation workflows
-ComfyUI-WanVideoWrapper|https://github.com/kijai/ComfyUI-WanVideoWrapper|v1.4.7|Wan video workflows
+ComfyUI-WanVideoWrapper|https://github.com/kijai/ComfyUI-WanVideoWrapper|088128b224242e110d3906c6750e9a3a348a659b|Wan video workflows
 comfyui_controlnet_aux|https://github.com/Fannovel16/comfyui_controlnet_aux|main|optical-flow preprocessing (verify commit before use)
 ComfyUI-RMBG|https://github.com/1038lab/ComfyUI-RMBG|main|matting workflows (verify commit before use)'
 

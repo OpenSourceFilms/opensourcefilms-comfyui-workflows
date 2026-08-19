@@ -103,6 +103,18 @@ INSTALL_RESTRICTED=1 ./scripts/install-dependencies.sh /path/to/ComfyUI
 
 Then in ComfyUI: **Workflow → Open** and pick a `.json` from `workflows/`.
 
+## Run on RunPod
+
+We develop and run these workflows on [RunPod](https://www.runpod.io/) GPU pods. For the full
+walkthrough — base image, GPU/VRAM tiers by workflow family, storage, and a verified
+"fresh pod → clone → install → open workflow" path — see [RUNPOD.md](RUNPOD.md). Short version:
+
+```bash
+git clone https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows.git
+cd opensourcefilms-comfyui-workflows
+./scripts/setup-runpod.sh /path/to/ComfyUI
+```
+
 ## Requirements
 
 A ComfyUI installation and an NVIDIA GPU. Requirements vary a lot by
