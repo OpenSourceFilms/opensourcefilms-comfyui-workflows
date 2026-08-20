@@ -27,16 +27,16 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # --- package list: commercial-compatible dependencies ---
 PACKAGES='ComfyUI-VideoHelperSuite|https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite|2984ec4c4b93292421888f38db74a5e8802a8ff8|all video workflows
-rgthree-comfy|https://github.com/rgthree/rgthree-comfy|v1.0.2512112053|several workflows (UI convenience nodes)
-ComfyUI-KJNodes|https://github.com/kijai/ComfyUI-KJNodes|v1.3.6|matting/masking workflows
-ComfyUI-SAM3|https://github.com/PozzettiAndrea/ComfyUI-SAM3|v0.1.6|SAM3-based workflows
+rgthree-comfy|https://github.com/rgthree/rgthree-comfy|d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4|several workflows (UI convenience nodes)
+ComfyUI-KJNodes|https://github.com/kijai/ComfyUI-KJNodes|3f20054214fec9f9234fd3841ae6f1e4287948f6|matting/masking workflows
+ComfyUI-SAM3|https://github.com/PozzettiAndrea/ComfyUI-SAM3|de0ff5d2c2ea435d29f800abfa568cffdfb94773|SAM3-based workflows
 ComfyUI-Easy-Sam3|https://github.com/yolain/ComfyUI-Easy-Sam3|88fe578a1a5e03d95281197303d5d3a73fd5a089|VideoMaMa split workflow
 ComfyUI-Easy-Use|https://github.com/yolain/ComfyUI-Easy-Use|main|VideoMaMa/EffectErase workflows (verify commit before use)
 ComfyUI-Video-Reverse|https://github.com/Sean-Bradley/ComfyUI-Video-Reverse|main|verify commit before use
-ComfyUI-Florence2|https://github.com/kijai/ComfyUI-Florence2|v1.0.9|upscale workflow
+ComfyUI-Florence2|https://github.com/kijai/ComfyUI-Florence2|9ece3de914214c5f581d725167bc9d0eeb0d1120|upscale workflow
 ComfyUI_essentials|https://github.com/cubiq/ComfyUI_essentials|9d9f4bedfc9f0321c19faf71855e228c93bd0dc9|upscale workflow
-ComfyUI-GGUF|https://github.com/city96/ComfyUI-GGUF|v1.1.10|upscale workflow
-ComfyUI_UltimateSDUpscale|https://github.com/ssitu/ComfyUI_UltimateSDUpscale|v1.7.2|upscale workflow
+ComfyUI-GGUF|https://github.com/city96/ComfyUI-GGUF|6ea2651e7df66d7585f6ffee804b20e92fb38b8a|upscale workflow
+ComfyUI_UltimateSDUpscale|https://github.com/ssitu/ComfyUI_UltimateSDUpscale|a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df|upscale workflow
 ComfyUI-GIMM-VFI|https://github.com/kijai/ComfyUI-GIMM-VFI|4c9a3123762af85e7c796e41737da0b70c75d72d|interpolation workflows
 ComfyUI-Tween|https://github.com/Ethanfel/ComfyUI-Tween|91947c0b8c795cf504d3848274d4217f0432a324|interpolation workflows
 ComfyUI-DownsampleFPS|https://github.com/Austat/ComfyUI-DownsampleFPS|4d741ef8e33b0c5111ad21033f9408acffc63651|interpolation workflows
@@ -47,6 +47,8 @@ ComfyUI-RMBG|https://github.com/1038lab/ComfyUI-RMBG|main|matting workflows (ver
 # --- package list: research-only / commercially-restricted dependencies ---
 RESTRICTED_PACKAGES='BiM-VFI|https://github.com/KAIST-VICLab/BiM-VFI|df79cbcad4214d48911040def459174d0a4c9791|frame_interpolation_test.json, tween_interpolate_loop.json (research/education only - see THIRD_PARTY_LICENSES.md)
 ComfyUI-VideoMaMa|https://github.com/okdalto/ComfyUI-VideoMaMa|main|videomama_*.json (CC-BY-NC-4.0 code + Stability AI Community License checkpoint - see THIRD_PARTY_LICENSES.md)'
+
+FAILED_PACKAGES=""
 
 install_pkg() {
     local name="$1" url="$2" ref="$3"
@@ -60,10 +62,17 @@ install_pkg() {
     echo "cloning $name from $url (ref $ref)..."
     git clone "$url" "$dest" || {
         echo "ERROR: failed to clone $name" >&2
+        rm -rf "$dest"
+        FAILED_PACKAGES="$FAILED_PACKAGES $name"
         return 1
     }
     ( cd "$dest" && git checkout "$ref" ) || {
-        echo "ERROR: failed to checkout $ref for $name" >&2
+        echo "ERROR: failed to checkout $ref for $name -- pin may be stale (tag/commit no longer exists upstream)." >&2
+        # Don't leave a directory sitting on the wrong (default-branch) commit:
+        # a bad checkout would otherwise look "already present" on the next run
+        # and get silently skipped forever, masking the failure.
+        rm -rf "$dest"
+        FAILED_PACKAGES="$FAILED_PACKAGES $name"
         return 1
     }
 }
@@ -106,3 +115,15 @@ echo "         Please refer to each workflow's .md sidecar file and THIRD_PARTY_
 echo "============================================================================="
 echo ""
 echo "Restart ComfyUI after installing new custom nodes."
+
+if [ -n "$FAILED_PACKAGES" ]; then
+    echo ""
+    echo "============================================================================="
+    echo "FAILED to install:$FAILED_PACKAGES"
+    echo "See the ERROR lines above. A pinned tag/commit may have gone stale upstream"
+    echo "(this has happened before -- see DEPENDENCIES.lock / THIRD_PARTY_LICENSES.md"
+    echo "and please report it). Re-run this script after the pin is fixed; nothing"
+    echo "was left half-installed for the packages listed above."
+    echo "============================================================================="
+    exit 1
+fi

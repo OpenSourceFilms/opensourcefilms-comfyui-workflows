@@ -49,7 +49,9 @@ The machine-readable version of everything below, mapped per workflow file,
 is [DEPENDENCIES.lock](DEPENDENCIES.lock); if the two ever disagree, the
 lock file is canonical.
 
-Verified: 2026-07-22.
+Verified: 2026-07-22. Custom-node pins re-checked against live upstream 2026-08-20;
+see [DEPENDENCIES.lock](DEPENDENCIES.lock) for what changed (five tags had gone
+stale upstream and were repinned to commits).
 
 ---
 
@@ -87,17 +89,17 @@ integration type (all "external"; none are vendored here except
 | Package | Upstream | License | Pinned | Integration |
 |---|---|---|---|---|
 | ComfyUI-VideoHelperSuite | github.com/Kosinkadink/ComfyUI-VideoHelperSuite | GPL-3.0 | `2984ec4c4b93292421888f38db74a5e8802a8ff8` | external |
-| rgthree-comfy | github.com/rgthree/rgthree-comfy | MIT | v1.0.2512112053 | external |
-| ComfyUI-KJNodes | github.com/kijai/ComfyUI-KJNodes | GPL-3.0 | v1.3.6 | external |
-| ComfyUI-SAM3 | github.com/PozzettiAndrea/ComfyUI-SAM3 | GPL-3.0 | v0.1.6 | external |
+| rgthree-comfy | github.com/rgthree/rgthree-comfy | MIT | `d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4` | external |
+| ComfyUI-KJNodes | github.com/kijai/ComfyUI-KJNodes | GPL-3.0 | `3f20054214fec9f9234fd3841ae6f1e4287948f6` | external |
+| ComfyUI-SAM3 | github.com/PozzettiAndrea/ComfyUI-SAM3 | GPL-3.0 | `de0ff5d2c2ea435d29f800abfa568cffdfb94773` | external |
 | comfyui_sam3 | github.com/wouterverweirder/comfyui_sam3 | MIT | v0.2.1 | external (unused by current workflows; documented for completeness) |
 | ComfyUI-Easy-Sam3 | github.com/yolain/ComfyUI-Easy-Sam3 | Apache-2.0 | `88fe578a1a5e03d95281197303d5d3a73fd5a089` | external |
 | ComfyUI-Easy-Use | github.com/yolain/ComfyUI-Easy-Use | GPL-3.0 | unpinned; verify commit before install | external |
 | ComfyUI-Video-Reverse | github.com/Sean-Bradley/ComfyUI-Video-Reverse | Apache-2.0 | unpinned; verify commit before install | external |
-| ComfyUI-Florence2 | github.com/kijai/ComfyUI-Florence2 | MIT | v1.0.9 | external |
+| ComfyUI-Florence2 | github.com/kijai/ComfyUI-Florence2 | MIT | `9ece3de914214c5f581d725167bc9d0eeb0d1120` | external |
 | ComfyUI_essentials | github.com/cubiq/ComfyUI_essentials | MIT | `9d9f4bedfc9f0321c19faf71855e228c93bd0dc9` | external |
-| ComfyUI-GGUF | github.com/city96/ComfyUI-GGUF | Apache-2.0 | v1.1.10 | external |
-| ComfyUI_UltimateSDUpscale | github.com/ssitu/ComfyUI_UltimateSDUpscale | GPL-3.0 | v1.7.2 | external |
+| ComfyUI-GGUF | github.com/city96/ComfyUI-GGUF | Apache-2.0 | `6ea2651e7df66d7585f6ffee804b20e92fb38b8a` | external |
+| ComfyUI_UltimateSDUpscale | github.com/ssitu/ComfyUI_UltimateSDUpscale | GPL-3.0 | `a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df` | external |
 | ComfyUI-GIMM-VFI | github.com/kijai/ComfyUI-GIMM-VFI | ISC | `4c9a3123762af85e7c796e41737da0b70c75d72d` | external |
 | ComfyUI-Tween | github.com/Ethanfel/ComfyUI-Tween | Apache-2.0 | `91947c0b8c795cf504d3848274d4217f0432a324` | external |
 | ComfyUI-DownsampleFPS | github.com/Austat/ComfyUI-DownsampleFPS | Apache-2.0 | `4d741ef8e33b0c5111ad21033f9408acffc63651` | external |

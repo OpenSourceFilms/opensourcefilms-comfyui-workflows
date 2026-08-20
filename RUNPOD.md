@@ -25,7 +25,11 @@ a pod, watch VRAM usage on a real run, and resize if needed rather than over-pro
 Model weights for these workflows run from single-digit GB (interpolation) to tens of GB (Wan
 14B, SCAIL-2, SAM 3) each, and a Network Volume survives pod termination — the container disk
 does not. Size it for whichever workflow families you're actually installing weights for; there's
-no fixed number that's honest for "all of them."
+no fixed number that's honest for "all of them." This is recommended, not strictly required: for
+a single short session where you don't mind re-downloading weights (or re-running the install
+script) next time, the container disk alone works fine and it's one less thing to set up. It
+matters once you're running pods repeatedly and don't want to re-download tens of GB of weights
+each time.
 
 ## Setup
 
@@ -50,9 +54,33 @@ To also install the dependencies needed for `workflows/research-only/*`:
 INSTALL_RESTRICTED=1 ./scripts/install-dependencies.sh /path/to/ComfyUI
 ```
 
-This step was re-verified against the live upstream repos while writing this document — one
-pin (`ComfyUI-WanVideoWrapper`) had gone stale (its `v1.4.7` tag no longer exists upstream) and
-has been repinned to the last commit on its default branch. The rest resolved cleanly.
+This step was re-verified against the live upstream repos twice: once while writing this document
+(one pin, `ComfyUI-WanVideoWrapper`, had gone stale and was repinned to the last commit on its
+default branch), and again on 2026-08-20, which caught five more stale tags
+(`rgthree-comfy`, `ComfyUI-KJNodes`, `ComfyUI-SAM3`, `ComfyUI-Florence2`, `ComfyUI-GGUF`,
+`ComfyUI_UltimateSDUpscale` — their upstream repos had dropped the tagged releases entirely, not
+just moved them). All six are now pinned to commit SHAs instead of tags, matching the rest of
+`DEPENDENCIES.lock`, since a commit can't go stale the way a mutable tag can. The install script
+was also hardened at the same time: previously, a failed checkout (stale pin) left the custom-node
+directory cloned-but-unpinned and the script still exited `0`, so a later re-run would silently
+"skip" that node forever without ever getting the right commit. It now removes the bad clone and
+exits non-zero with a clear summary if any pin fails to resolve — re-run the script after such a
+failure is fixed rather than assuming a `0` exit meant everything installed correctly.
+
+**Idempotent re-runs (e.g. after a pod restart):** running `install-dependencies.sh` again against
+a `ComfyUI` directory that already has these custom nodes present is safe — it skips any
+`custom_nodes/<name>` directory that already exists rather than re-cloning or erroring. It does
+*not* check whether an existing directory is actually at the pinned commit, though (that's only
+enforced on first install); if you suspect drift, delete the specific `custom_nodes/<name>`
+directory and re-run.
+
+**Where custom nodes land, and the Network Volume:** `install-dependencies.sh` clones custom nodes
+into `<ComfyUI dir>/custom_nodes/`, i.e. wherever your ComfyUI installation itself lives. If your
+`ComfyUI` directory is on the pod's container disk rather than the Network Volume, the custom nodes
+cloned into it are just as ephemeral as ComfyUI itself and you'll re-run the installer after every
+pod restart (harmless, just re-clones everything from scratch, ~30-60s for the commercial-compatible
+set). Put the whole `ComfyUI` directory — not just a `models/` folder — on the Network Volume if you
+want custom nodes to survive restarts too.
 
 ## Model weights
 

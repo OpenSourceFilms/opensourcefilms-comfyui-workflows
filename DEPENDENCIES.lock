@@ -16,8 +16,16 @@
 #   commercial_status - only set when it differs from the workflow's own
 #                   status, i.e. the dependency that's actually the blocker
 #
-# Verified 2026-07-22. See THIRD_PARTY_LICENSES.md for full detail per
-# component (upstream URLs, redistribution notes, etc).
+# Verified 2026-07-22, re-verified 2026-08-20. See THIRD_PARTY_LICENSES.md for
+# full detail per component (upstream URLs, redistribution notes, etc).
+#
+# 2026-08-20: rgthree-comfy, ComfyUI-SAM3, ComfyUI-Florence2, ComfyUI-GGUF, and
+# ComfyUI_UltimateSDUpscale had their pinned tags disappear upstream (the tags
+# no longer exist in any of those repos' `git ls-remote --tags`). Re-pinned to
+# the last commit on each repo's default branch as of 2026-08-20, and switched
+# from `version` to `commit` fields for the same reason WanVideoWrapper was
+# switched on 2026-08-19: a commit SHA can't go stale the way a mutable tag
+# can.
 
 workflows/commercial-compatible/sam3_custompkg_probe.json:
   osf_license: MIT
@@ -27,7 +35,7 @@ workflows/commercial-compatible/sam3_custompkg_probe.json:
       license: GPL-3.0
       distribution: external
     - name: ComfyUI-SAM3
-      version: v0.1.6
+      commit: de0ff5d2c2ea435d29f800abfa568cffdfb94773
       license: GPL-3.0
       distribution: external
     - name: SAM 3 (model weights)
@@ -94,7 +102,7 @@ workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json:
       license: Apache-2.0
       distribution: external
     - name: rgthree-comfy
-      version: v1.0.2512112053
+      commit: d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4
       license: MIT
       distribution: external
     - name: ComfyUI-GIMM-VFI
@@ -115,19 +123,19 @@ workflows/commercial-compatible/mm_upscale_video_workflow.json:
   commercial_status: commercial-compatible
   dependencies:
     - name: ComfyUI-Florence2
-      version: v1.0.9
+      commit: 9ece3de914214c5f581d725167bc9d0eeb0d1120
       license: MIT
       distribution: external
     - name: ComfyUI-GGUF
-      version: v1.1.10
+      commit: 6ea2651e7df66d7585f6ffee804b20e92fb38b8a
       license: Apache-2.0
       distribution: external
     - name: ComfyUI_UltimateSDUpscale
-      version: v1.7.2
+      commit: a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df
       license: GPL-3.0
       distribution: external
     - name: rgthree-comfy
-      version: v1.0.2512112053
+      commit: d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4
       license: MIT
       distribution: external
     - name: ComfyUI-Custom-Scripts (pysssss)
@@ -161,7 +169,7 @@ workflows/commercial-compatible/video_wan2_2_14B_flf2v.json:
       license: GPL-3.0
       distribution: external
     - name: rgthree-comfy
-      version: v1.0.2512112053
+      commit: d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4
       license: MIT
       distribution: external
     - name: Wan 2.2 14B (model weights)
@@ -187,7 +195,7 @@ workflows/commercial-compatible/video_wan2_2_14B_i2v.json:
       license: GPL-3.0
       distribution: external
     - name: rgthree-comfy
-      version: v1.0.2512112053
+      commit: d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4
       license: MIT
       distribution: external
     - name: Wan 2.2 14B (model weights)
@@ -218,7 +226,7 @@ workflows/research-only/videomama_sam_points_text_matte_optflow.json:
       commercial_status: research-only
       distribution: external
     - name: ComfyUI-SAM3
-      version: v0.1.6
+      commit: de0ff5d2c2ea435d29f800abfa568cffdfb94773
       license: GPL-3.0
       distribution: external
     - name: ComfyUI-VideoHelperSuite
@@ -232,7 +240,7 @@ workflows/research-only/videomama_sam_points_text_matte_optflow.json:
       license: GPL-3.0
       distribution: external
     - name: rgthree-comfy
-      version: v1.0.2512112053
+      commit: d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4
       license: MIT
       distribution: external
 
@@ -249,7 +257,7 @@ workflows/research-only/videomama_split_sam_points_text_matte_optflow.json:
       commercial_status: research-only
       distribution: external
     - name: ComfyUI-SAM3
-      version: v0.1.6
+      commit: de0ff5d2c2ea435d29f800abfa568cffdfb94773
       license: GPL-3.0
       distribution: external
     - name: ComfyUI-Easy-Sam3
@@ -267,7 +275,7 @@ workflows/research-only/videomama_split_sam_points_text_matte_optflow.json:
       license: GPL-3.0
       distribution: external
     - name: rgthree-comfy
-      version: v1.0.2512112053
+      commit: d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4
       license: MIT
       distribution: external
 
@@ -280,7 +288,7 @@ workflows/research-only/sam_effecteraser_points_text_matte_optflow.json:
       commercial_status: research-only
       distribution: external
     - name: ComfyUI-SAM3
-      version: v0.1.6
+      commit: de0ff5d2c2ea435d29f800abfa568cffdfb94773
       license: GPL-3.0
       distribution: external
     - name: ComfyUI-VideoHelperSuite
@@ -294,7 +302,7 @@ workflows/research-only/sam_effecteraser_points_text_matte_optflow.json:
       license: GPL-3.0
       distribution: external
     - name: rgthree-comfy
-      version: v1.0.2512112053
+      commit: d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4
       license: MIT
       distribution: external
 
