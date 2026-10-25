@@ -76,6 +76,10 @@ Verify independently before any commercial distribution.
 | `frame_interpolation_test.json` | 4-way interpolation comparison | BiM-VFI (research/education only) |
 | `tween_interpolate_loop.json` | Looping interpolation via ComfyUI-Tween | BiM-VFI (research/education only) |
 
+For a no-GPU structural check of exported graphs, use the
+[offline workflow validator](docs/validate-workflows.md). It does not check model
+availability or runtime correctness.
+
 ## Custom nodes
 
 `custom_nodes/mask_propagate_optical_flow/` is Open Source Films' own code:
