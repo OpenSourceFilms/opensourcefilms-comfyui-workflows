@@ -54,6 +54,27 @@ GPU pod (we use [Runpod](https://www.runpod.io/)) is usually the fastest way
 to get one; most of these workflows need real VRAM, so a local CPU-only
 ComfyUI install won't get you far enough to verify the graph actually runs.
 
+### Offline validation (no ComfyUI or GPU required)
+
+Before submitting a pull request, run the standard-library tests and
+validate both editor and API-exported workflow JSON:
+
+```bash
+python3 -B -m unittest discover -s tests -p 'test_*.py' -v
+python3 scripts/validate-workflow-json.py workflows
+```
+
+The repository also runs these checks automatically on relevant pull
+requests and changes to `main`. Its GitHub Actions job uses read-only
+repository permission and does not download models or custom node packages.
+This verifies **structural integrity and synthetic file handling only**, not
+installation of all node dependencies, model licensing, actual inference,
+or temporal visual quality. Real workflow inference remains a separate
+explicit review step.
+
+For source-byte checks of native output PNG files or a saved baseline report,
+see [the PNG auditor](docs/audit-native-png-sequence.md).
+
 ## License
 
 By contributing, you agree your contribution is licensed under this repo's
