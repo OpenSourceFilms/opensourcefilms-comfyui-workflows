@@ -41,6 +41,31 @@ class WorkflowValidatorTests(unittest.TestCase):
         doc["links"] = []
         self.assertTrue(validator.validate(doc)[0])
 
+    def test_orphaned_output_reference(self):
+        doc = self.ui()
+        doc["nodes"][0]["outputs"][0]["links"].append(99)
+        self.assertIn("output references missing link", " ".join(validator.validate(doc)[0]))
+
+    def test_missing_output_backreference(self):
+        doc = self.ui()
+        doc["nodes"][0]["outputs"][0]["links"] = None
+        self.assertIn("origin output backreference missing", " ".join(validator.validate(doc)[0]))
+
+    def test_mismatched_existing_input_link(self):
+        doc = self.ui()
+        doc["nodes"].append({"id": 3, "type": "Sink", "inputs": [{"link": 1}], "outputs": []})
+        self.assertIn("misrouted link", " ".join(validator.validate(doc)[0]))
+
+    def test_mismatched_existing_output_link(self):
+        doc = self.ui()
+        doc["nodes"].append({"id": 3, "type": "Generator", "inputs": [], "outputs": [{"links": [1]}]})
+        self.assertIn("misrouted link", " ".join(validator.validate(doc)[0]))
+
+    def test_wrong_target_backreference(self):
+        doc = self.ui()
+        doc["nodes"][1]["inputs"][0]["link"] = None
+        self.assertIn("target input backreference mismatch", " ".join(validator.validate(doc)[0]))
+
     def test_valid_api(self):
         doc = {"1": {"class_type": "Loader", "inputs": {}},
                "2": {"class_type": "Saver", "inputs": {"image": ["1", 0]}}}
