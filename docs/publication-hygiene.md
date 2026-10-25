@@ -10,7 +10,8 @@ python3 scripts/validate-workflow-json.py workflows
 
 The first command detects selected local file paths, RFC1918 or loopback URLs,
 RunPod proxy endpoints, secret-shaped credentials, personal email addresses,
-nonpublic storage/heartbeat URLs, file URIs and embedded preview/cache keys.
+nonpublic storage/heartbeat URLs, file URIs, embedded preview/cache keys,
+and common raster image data-URIs or substantial PNG/JPEG base64 payloads.
 It reports only the rule and indexed JSON location, **not the sensitive value**.
 It returns nonzero when a finding is present. The separate graph validator
 checks node/link connectivity. Both checks run in the public repository's

@@ -58,6 +58,28 @@ class PublicationHygieneTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertTrue(tool.scan_data(value))
 
+    def test_embedded_preview_data_uri_rejected(self):
+        graph = {"nodes": [{"properties": {"thumbnail": "data:image/png;base64," + "A" * 96}}]}
+        self.assertIn("embedded_image_data", [x["rule"] for x in tool.scan_data(graph)])
+
+    def test_raw_png_and_jpeg_base64_rejected(self):
+        for prefix in ("iVBORw0KGgo", "/9j/"):
+            with self.subTest(prefix=prefix):
+                payload = prefix + "A" * 120
+                self.assertIn("embedded_image_data", [x["rule"] for x in tool.scan_data(payload)])
+
+    def test_short_base64_fragments_and_text_data_uri_allowed(self):
+        for value in ("iVBORw0KGgo" + "A" * 20, "data:text/plain;base64,YWJj",
+                      "https://huggingface.co/repository"):
+            with self.subTest(value=value):
+                self.assertEqual(tool.scan_data(value), [])
+
+    def test_embedded_image_content_never_echoed(self):
+        payload = "data:image/jpeg;base64," + "A" * 128
+        findings = json.dumps(tool.scan_data({"preview": payload}))
+        self.assertIn("embedded_image_data", findings)
+        self.assertNotIn(payload, findings)
+
     def test_corrupt_json_or_symlink_is_refused(self):
         p = self.root / "bad.json"
         p.write_text("{broken")

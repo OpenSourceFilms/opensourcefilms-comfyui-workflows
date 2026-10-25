@@ -37,11 +37,20 @@ CHECKS = {
 EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
 PUBLIC_EXAMPLE_DOMAINS = {"example.com", "example.net", "example.org", "opensourcefilms.org"}
 
+# Workflows can embed screenshots without naming a preview/cache property.
+# Detect common raster data-URIs and substantial raw PNG/JPEG base64 payloads.
+# These are release-hygiene signals, not image decoding or full content inspection.
+INLINE_MEDIA_DATA_URI = re.compile(r"data:image/(?:png|jpe?g|gif|webp|bmp|avif);base64,", re.I)
+RAW_BASE64_IMAGE = re.compile(r"(?<![A-Za-z0-9+/])(?:iVBORw0KGgo|/9j/)[A-Za-z0-9+/=]{80,}")
+
+
 
 def scan_data(data) -> list[dict]:
     issues = []
 
     def inspect_text(value, location):
+        if INLINE_MEDIA_DATA_URI.search(value) or RAW_BASE64_IMAGE.search(value):
+            issues.append({"rule": "embedded_image_data", "location": location})
         for rule, pattern in CHECKS.items():
             if pattern.search(value):
                 issues.append({"rule": rule, "location": location})
