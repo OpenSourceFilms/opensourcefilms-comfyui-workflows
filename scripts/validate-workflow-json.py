@@ -52,6 +52,45 @@ def _ui(graph):
                 errors.append(f"node {ident} has non-object input")
             elif inp.get("link") is not None and inp["link"] not in link_ids:
                 errors.append(f"node {ident} input references missing link {inp['link']}")
+    by_link = {
+        link[0]: link for link in links
+        if isinstance(link, list) and len(link) >= 6 and isinstance(link[0], int)
+    }
+    for lid, link in by_link.items():
+        _, origin, output_slot, target, input_slot = link[:5]
+        out_node = indexed.get(origin)
+        in_node = indexed.get(target)
+        if out_node and isinstance(output_slot, int) and 0 <= output_slot < len(out_node.get("outputs", [])):
+            port = out_node["outputs"][output_slot]
+            if not isinstance(port, dict) or not isinstance(port.get("links"), list) or lid not in port["links"]:
+                errors.append(f"link {lid} origin output backreference missing")
+        if in_node and isinstance(input_slot, int) and 0 <= input_slot < len(in_node.get("inputs", [])):
+            port = in_node["inputs"][input_slot]
+            if not isinstance(port, dict) or port.get("link") != lid:
+                errors.append(f"link {lid} target input backreference mismatch")
+    for ident, node in indexed.items():
+        for slot, port in enumerate(node.get("outputs", []) if isinstance(node.get("outputs"), list) else []):
+            if not isinstance(port, dict):
+                errors.append(f"node {ident} has non-object output")
+                continue
+            refs = port.get("links")
+            if refs is None:
+                continue
+            if not isinstance(refs, list):
+                errors.append(f"node {ident} output links must be array/null")
+                continue
+            for lid in refs:
+                link = by_link.get(lid)
+                if link is None:
+                    errors.append(f"node {ident} output references missing link {lid}")
+                elif link[1:3] != [ident, slot]:
+                    errors.append(f"node {ident} output references misrouted link {lid}")
+        for slot, port in enumerate(node.get("inputs", []) if isinstance(node.get("inputs"), list) else []):
+            if not isinstance(port, dict) or port.get("link") is None:
+                continue
+            link = by_link.get(port["link"])
+            if link is not None and link[3:5] != [ident, slot]:
+                errors.append(f"node {ident} input references misrouted link {port['link']}")
     return errors
 
 
