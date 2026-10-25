@@ -101,6 +101,58 @@ def audit(directory: Path, pattern: str, count: int, width=None, height=None, de
             "no_image_modification": True}
 
 
+
+MAX_REFERENCE_BYTES = 32 * 1024 * 1024
+
+
+def verify_reference(current: dict, path: Path) -> dict:
+    """Compare new source-byte identity to a previously saved audit report.
+
+    A reference JSON is evidence only if stored in a trusted location;
+    this checks its internal hash, not its signature or provenance.
+    """
+    if path.is_symlink() or not path.is_file():
+        raise AuditError("reference report missing or symlink")
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        with os.fdopen(fd, "rb", closefd=True) as f:
+            fd = -1
+            before = os.fstat(f.fileno())
+            if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_REFERENCE_BYTES:
+                raise AuditError("reference report too large or not regular")
+            payload = f.read(MAX_REFERENCE_BYTES + 1)
+            after = os.fstat(f.fileno())
+            identity = lambda x: (x.st_dev, x.st_ino, x.st_size, x.st_mtime_ns)
+            if identity(before) != identity(after) or len(payload) != before.st_size:
+                raise AuditError("reference report changed during read")
+    finally:
+        if fd >= 0:
+            os.close(fd)
+    try:
+        saved = json.loads(payload)
+    except (UnicodeError, ValueError) as exc:
+        raise AuditError("reference report invalid JSON") from exc
+    if (not isinstance(saved, dict) or saved.get("status") != "PASS"
+            or saved.get("schema") != current["schema"]):
+        raise AuditError("reference report schema or status mismatch")
+    entries = saved.get("frames")
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 100000:
+        raise AuditError("reference report has invalid frame list")
+    check = hashlib.sha256(json.dumps(
+        entries, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    if (saved.get("manifest_sha256") != check
+            or saved.get("frame_count") != len(entries)):
+        raise AuditError("reference report has inconsistent manifest identity")
+    if (saved["frame_count"] != current["frame_count"]
+            or saved["manifest_sha256"] != current["manifest_sha256"]):
+        different = next((
+            new["name"] for old, new in zip(entries, current["frames"])
+            if old != new
+        ), None)
+        label = different or "different frame count/metadata"
+        raise AuditError(f"source sequence differs from reference: {label}")
+    return {**current, "reference_match": True}
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("directory", type=Path)
@@ -109,9 +161,13 @@ def main(argv=None):
     p.add_argument("--width", type=int)
     p.add_argument("--height", type=int)
     p.add_argument("--bit-depth", type=int)
+    p.add_argument("--reference", type=Path, help="previously saved audit JSON to verify against")
     a = p.parse_args(argv)
     try:
-        print(json.dumps(audit(a.directory, a.pattern, a.count, a.width, a.height, a.bit_depth), sort_keys=True))
+        report = audit(a.directory, a.pattern, a.count, a.width, a.height, a.bit_depth)
+        if a.reference is not None:
+            report = verify_reference(report, a.reference)
+        print(json.dumps(report, sort_keys=True))
         return 0
     except (AuditError, OSError, struct.error) as e:
         print(json.dumps({"status": "FAIL", "error": str(e)}), file=sys.stderr)
