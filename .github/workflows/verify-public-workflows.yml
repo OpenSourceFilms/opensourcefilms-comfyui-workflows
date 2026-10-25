@@ -1,0 +1,41 @@
+name: Validate ComfyUI workflows and native output tools
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-public-workflows.yml"
+      - "scripts/**"
+      - "tests/**"
+      - "workflows/**"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-public-workflows.yml"
+      - "scripts/**"
+      - "tests/**"
+      - "workflows/**"
+  workflow_dispatch:
+
+# No repository secrets, custom nodes, model weights or GPU required.
+permissions:
+  contents: read
+
+concurrency:
+  group: structure-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout public source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Pin standard-library Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+      - name: Run synthetic regression tests
+        run: python -B -m unittest discover -s tests -p "test_*.py" -v
+      - name: Validate every published workflow graph
+        run: python scripts/validate-workflow-json.py workflows > "${{ runner.temp }}/graph-audit.json"
