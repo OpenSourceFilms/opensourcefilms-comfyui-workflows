@@ -62,6 +62,7 @@ validate both editor and API-exported workflow JSON:
 ```bash
 python3 -B -m unittest discover -s tests -p 'test_*.py' -v
 python3 scripts/validate-workflow-json.py workflows
+python3 scripts/check-workflow-publication.py workflows
 ```
 
 The repository also runs these checks automatically on relevant pull

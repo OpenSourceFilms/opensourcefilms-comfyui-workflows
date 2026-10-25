@@ -39,3 +39,5 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_*.py" -v
       - name: Validate every published workflow graph
         run: python scripts/validate-workflow-json.py workflows > "${{ runner.temp }}/graph-audit.json"
+      - name: Reject common private values and cache metadata
+        run: python scripts/check-workflow-publication.py workflows > "${{ runner.temp }}/publication-audit.json"
