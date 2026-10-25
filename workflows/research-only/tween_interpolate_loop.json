@@ -664,7 +664,7 @@
         {
           "name": "emavfi_model",
           "type": "EMAVFI_MODEL",
-          "link": 31
+          "link": null
         }
       ],
       "outputs": [
@@ -727,7 +727,7 @@
         {
           "name": "bimvfi_model",
           "type": "BIMVFI_MODEL",
-          "link": 21
+          "link": null
         }
       ],
       "outputs": [
@@ -1067,14 +1067,6 @@
     }
   ],
   "links": [
-    [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null
-    ],
     [
       1,
       5,
