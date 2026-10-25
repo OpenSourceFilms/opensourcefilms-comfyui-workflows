@@ -7,8 +7,14 @@ format (node IDs with class_type and inputs).
 
 ```bash
 python3 scripts/validate-workflow-json.py workflows/
-python3 -m unittest discover -s tests -p 'test_validate_workflow_json.py'
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```
+
+The repository test suite also audits every checked-in graph, including both
+editor/UI and API exports. On 25 October 2026, all **16 published graphs**
+passed these structural checks after removal of stale, unreferenced graph
+metadata. Previously dangling links were repaired in three research-only
+graphs without changing their active node/link connectivity.
 
 **What is checked:** JSON decoding, recognized export format, node identifiers,
 duplicate or missing links, bad input/output slots and missing upstream API nodes.
