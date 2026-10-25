@@ -80,6 +80,11 @@ For a no-GPU structural check of exported graphs, use the
 [offline workflow validator](docs/validate-workflows.md). It does not check model
 availability or runtime correctness.
 
+For byte-level verification of delivered native `SaveImage` sequences, use the
+[read-only PNG sequence audit](docs/audit-native-png-sequence.md). It verifies
+frame counts, dimensions, bit depth, chunk CRCs and file hashes without
+compositing or changing pixels.
+
 ## Custom nodes
 
 `custom_nodes/mask_propagate_optical_flow/` is Open Source Films' own code:
