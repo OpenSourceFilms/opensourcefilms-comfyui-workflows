@@ -17,7 +17,8 @@ metadata. Previously dangling links were repaired in three research-only
 graphs without changing their active node/link connectivity.
 
 **What is checked:** JSON decoding, recognized export format, node identifiers,
-duplicate or missing links, bad input/output slots and missing upstream API nodes.
+duplicate or missing links, bad input/output slots, matching incoming/outgoing
+backreferences in editor graphs, and missing upstream API nodes.
 
 **What is not checked:** installation or version of custom nodes, model availability
 or licensing, tensor dimensions, correctness of runtime execution, temporal
