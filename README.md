@@ -13,6 +13,12 @@ ours.
 > Commercial suitability depends on the complete dependency set selected by
 > the user.
 
+## Credit to the original developers
+
+**These are OSF's integrations and parameterised workflow graphs, not OSF-developed AI models.** We use software and research created by the [ComfyUI](https://github.com/Comfy-Org/ComfyUI) community and independent upstream teams, including the authors of SCAIL-2, Meta SAM, Wan, VideoMaMa, GIMM-VFI and other node/model projects where referenced. The underlying model architectures, trained weights and external custom nodes remain those authors' work.
+
+OSF's contribution here is assembling, testing and documenting workflow combinations, plus a separately identified optical-flow mask propagation node. A workflow's MIT licence covers only its original OSF-authored material, **not** downstream rights to the upstream models or software. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), [DEPENDENCIES.lock](DEPENDENCIES.lock) and each workflow's sidecar for project-specific credits and restrictions.
+
 ## What's in here vs. what isn't
 
 - **In this repo**: the workflow graph JSON files (node connections,
