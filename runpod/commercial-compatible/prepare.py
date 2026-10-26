@@ -181,7 +181,7 @@ def verify(destination: Path) -> dict:
         for p in destination.rglob("*") if p.is_file() or p.is_symlink()
     }
     if actual != expected:
-        raise ValueError("Staged files differ from the signed inventory list")
+        raise ValueError("Staged files differ from the recorded inventory list")
     selected = info["workflows"]
     if (info["workflow_count"] != 11 or len(selected) != 11
             or {Path(name).stem for name in selected} != ALLOWED
