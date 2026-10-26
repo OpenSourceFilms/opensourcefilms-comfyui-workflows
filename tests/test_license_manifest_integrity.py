@@ -27,6 +27,11 @@ def declarations():
     return result
 
 
+def has_research_only_dependency(block: str) -> bool:
+    """Require a dependency-level blocker, not the workflow's own status."""
+    return re.search(r"(?m)^      commercial_status:\s*research-only\s*$", block) is not None
+
+
 def frontmatter(path):
     text = path.read_text(encoding="utf-8")
     parts = text.split("---", 2)
@@ -70,14 +75,34 @@ class LicenseManifestIntegrityTests(unittest.TestCase):
                 self.assertIn("third-party", body.lower())
                 # Explicit research-only dependencies must not be filed as commercially compatible.
                 if manifest_status == "commercial-compatible":
-                    self.assertNotIn("commercial_status: research-only", block)
+                    self.assertFalse(
+                        has_research_only_dependency(block),
+                        "Commercial-compatible workflow includes a research-only dependency",
+                    )
 
     def test_restricted_workflows_name_a_restricted_dependency(self):
         for path, (status, block) in self.manifest.items():
             if status != "research-only":
                 continue
             with self.subTest(path=path):
-                self.assertIn("commercial_status: research-only", block)
+                self.assertTrue(
+                    has_research_only_dependency(block),
+                    "Research-only workflow lacks a dependency-level restriction",
+                )
+
+    def test_research_dependency_removal_is_detected(self):
+        for path, (status, block) in self.manifest.items():
+            if status != "research-only":
+                continue
+            with self.subTest(path=path):
+                edited = re.sub(
+                    r"(?m)^      commercial_status:\s*research-only\s*\n",
+                    "", block,
+                )
+                self.assertFalse(
+                    has_research_only_dependency(edited),
+                    "Removing all dependency blockers must make the check fail",
+                )
 
     def test_sam3_custom_license_is_disclosed_where_used(self):
         found = 0
