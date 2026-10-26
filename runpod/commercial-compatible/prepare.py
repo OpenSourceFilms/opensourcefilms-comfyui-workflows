@@ -94,8 +94,13 @@ def choose_files() -> tuple[dict[str, bytes], dict[str, dict]]:
             doc = json.loads(raw)
         except (UnicodeError, ValueError) as exc:
             raise ValueError("Invalid graph JSON: " + path) from exc
-        if not isinstance(doc, dict) or "nodes" not in doc:
-            raise ValueError("Not a ComfyUI graph: " + path)
+        is_ui = (isinstance(doc, dict) and isinstance(doc.get("nodes"), list)
+                 and isinstance(doc.get("links"), list))
+        is_api = (isinstance(doc, dict) and bool(doc)
+                  and all(isinstance(v, dict) and isinstance(v.get("class_type"), str)
+                          and v["class_type"] for v in doc.values()))
+        if not (is_ui or is_api):
+            raise ValueError("Not a ComfyUI UI/API graph: " + path)
         side = regular_file(side_path)
         side_text = side.decode("utf-8")
         if not re.search(r"(?m)^source:\s*" + re.escape(path) + r"\s*$", side_text):
