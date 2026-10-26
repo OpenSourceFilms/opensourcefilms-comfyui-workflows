@@ -42,10 +42,12 @@ python3 runpod/commercial-compatible/prepare.py \
 For UI-format graphs, use ComfyUI's **Workflow → Open** to select one of
 the staged JSON files. **`sam3_custompkg_probe.json` is an API-prompt-format
 file**, not a UI canvas graph, and may require submitting via ComfyUI's API
-or conversion rather than opening with the normal canvas importer. Structural
-validity is checked for both formats. Neither kind can be expected to
-**execute** until its required external custom nodes and model weights are
-separately installed and compatible.
+or conversion rather than opening with the normal canvas importer. The profile uses the repository's full offline UI/API **link validator**
+before staging, then again while verifying the staged files. It rejects
+dangling node references and malformed links rather than only checking for
+a top-level `nodes` array or `class_type` field. Neither format can be
+expected to **execute** until its required external custom nodes and model
+weights are separately installed and compatible.
 
 ### What the bundle includes
 
@@ -56,8 +58,9 @@ separately installed and compatible.
 - `DEPENDENCIES.selected.lock`: only the 11 selected blocks from the canonical
   `DEPENDENCIES.lock`, preserving original upstream revision pins, licences,
   distribution fields, and custom model terms; no five research-only blocks.
-- `BUNDLE_MANIFEST.json` with graph names, dependency names, original full
-  manifest SHA-256 and per-file SHA-256 hashes for consistency checks.
+- `BUNDLE_MANIFEST.json` with graph names, detected UI-versus-API JSON
+  formats, dependency names, the original full manifest SHA-256 and per-file
+  SHA-256 hashes for consistency checks.
 
 ### What it **does not** include
 
@@ -90,8 +93,10 @@ not external package availability or licence compliance.
 The accompanying stdlib-only
 [`tests/test_runpod_commercial_profile.py`](../../tests/test_runpod_commercial_profile.py)
 checks selection, research-only exclusion, read-only mode, staging,
-SHA-256 bundle verification, filtered dependency-pin preservation and
-fail-closed scenarios without a GPU, model download or external dependency. It is part of public CI.
+UI/API graph link validation, SHA-256 bundle verification, filtered
+dependency-pin preservation and fail-closed scenarios (including a
+rehashed but malformed graph) without a GPU, model download or external
+dependency. It is part of public CI.
 
 **Not yet accepted:** a genuinely clean RunPod/ComfyUI installation,
 node-import compatibility, model availability, inference results, image
