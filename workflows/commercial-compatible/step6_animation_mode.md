@@ -10,7 +10,14 @@ source: workflows/commercial-compatible/step6_animation_mode.json
 Drives a reference character with a SAM3-masked source video using SCAIL-2, in animation (motion-transfer) mode.
 
 **Commercial status: `commercial-compatible`**
-All dependencies are permissively licensed or GPL-3.0 (GPL imposes distribution obligations, not a commercial-use ban), safe for commercial use as far as this audit could determine.
+This workflow requires Meta SAM 3 under the **custom SAM License**, as well
+as separately licensed ComfyUI nodes. The reviewed SAM terms grant use without
+a blanket non-commercial-use prohibition, but impose redistribution,
+attribution, prohibited-use and other conditions. Here,
+`commercial-compatible` is a **conditional dependency assessment**, not a
+statement that every dependency is MIT/Apache/GPL or an unconditional legal
+clearance. Check the current [Meta SAM License](https://github.com/facebookresearch/sam3/blob/main/LICENSE)
+and all exact dependencies before commercial use.
 
 > This workflow file and its original documentation are licensed under MIT. It requires third-party software and models that remain subject to their own licences. The MIT licence on this workflow does not grant rights to those dependencies.
 
