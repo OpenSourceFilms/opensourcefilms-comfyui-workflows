@@ -136,7 +136,7 @@ reading of each license's actual text, not legal advice.
 
 | Model | Upstream | Code/weights license | Commercial use | Redistribution |
 |---|---|---|---|---|
-| SAM 3 (`sam3.1_multiplex_fp16.safetensors`) | Meta | Custom "SAM License" (source-available, dated 2025-11-19), verified from a vendored copy of the license text | **Permitted**: no revenue/MAU cap found. Requires redistributing the license text with any redistribution of the model/derivatives, acknowledging use in publications, and complying with Meta's Trade Controls / weapons-use prohibition. | Permitted per the SAM License terms; not redistributed by this repo regardless. |
+| SAM 3 (`sam3.1_multiplex_fp16.safetensors`) | Meta | Custom "SAM License" (source-available, dated 2025-11-19), [official terms](https://github.com/facebookresearch/sam3/blob/main/LICENSE); **not** MIT/Apache/GPL | **Permitted**: no revenue/MAU cap found. Requires redistributing the license text with any redistribution of the model/derivatives, acknowledging use in publications, and complying with Meta's Trade Controls / weapons-use prohibition. | Permitted per the SAM License terms; not redistributed by this repo regardless. |
 | SCAIL-2 (`wan2.1_14B_SCAIL_2_fp16.safetensors`) | github.com/zai-org/SCAIL-2 (Zhipu AI / Z.ai) | Apache-2.0 | **Permitted.** Confirmed via `gh api repos/zai-org/SCAIL-2/contents/README.md`; "This project is licensed under the Apache License 2.0"; covering code and released weights. | Permitted per Apache-2.0; not redistributed by this repo. |
 | VideoMaMa (checkpoint + `dino_projection_mlp.pth`) | github.com/cvlab-kaist/VideoMaMa; checkpoint `SammyLim/VideoMaMa` on Hugging Face | Code: **CC-BY-NC-4.0** (confirmed via `gh api repos/cvlab-kaist/VideoMaMa`). Checkpoint additionally under the **Stability AI Community License** (built on Stable Video Diffusion). | **Not permitted for commercial use.** Both workflows depending on VideoMaMa are marked `research-only`. | Not permitted commercially; not redistributed by this repo. |
 | BiM-VFI | github.com/KAIST-VICLab/BiM-VFI | "Research and education only... commercial use requires formal permission from the principal investigator (Prof. Munchurl Kim, mkimee@kaist.ac.kr)"; quoted from the repo's own README | **Not permitted for commercial use** without written permission from KAIST. Both workflows using it are marked `research-only`. | Not permitted commercially. |
@@ -146,10 +146,16 @@ reading of each license's actual text, not legal advice.
 
 ## How `commercial_status` is assigned per workflow
 
-- **commercial-compatible**: every node package and model the workflow
-  depends on is permissively licensed or GPL-3.0 (GPL is fine commercially,
-  see above); no CC-BY-NC, no "research only", no revenue-capped community
-  license anywhere in the dependency chain.
+- **commercial-compatible**: no identified blanket prohibition on
+  commercial use in the reviewed dependency chain, including the custom
+  **Meta SAM License** where SAM 3 is used. **This is not the same as saying
+  all components have OSI-approved/permissive or GPL licences.** SAM 3 is
+  source-available under a separate agreement; its conditions include
+  redistribution of the agreement with redistributed SAM Materials,
+  acknowledgment in published research, trade-control and prohibited-use
+  restrictions, and further terms. Other dependencies may impose copyleft
+  or separate model-weight restrictions. The status does **not** guarantee
+  clearance for a specific deployment, distribution or downstream use.
 - **research-only**: the workflow depends on at least one CC-BY-NC,
   "research/education only", or otherwise commercially-restricted component
   (VideoMaMa, BiM-VFI, or EffectErase in this repo's current set).
