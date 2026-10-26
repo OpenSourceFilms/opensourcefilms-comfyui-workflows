@@ -18,13 +18,16 @@ def _ui(graph):
         return ["UI graph nodes and links must be arrays"]
     indexed = {}
     for n in nodes:
-        if not isinstance(n, dict) or not isinstance(n.get("id"), int):
+        if not isinstance(n, dict) or type(n.get("id")) is not int:
             errors.append("node has no integer id")
             continue
         ident = n["id"]
         if ident in indexed:
             errors.append(f"duplicate node id {ident}")
         indexed[ident] = n
+        for ports in ("inputs", "outputs"):
+            if not isinstance(n.get(ports, []), list):
+                errors.append(f"node {ident} {ports} must be an array")
         if not isinstance(n.get("type"), str) or not n["type"]:
             errors.append(f"node {ident} missing type")
     link_ids = set()
@@ -33,7 +36,7 @@ def _ui(graph):
             errors.append("link must be a six-element array")
             continue
         lid, origin, output_slot, target, input_slot = link[:5]
-        if not isinstance(lid, int):
+        if type(lid) is not int:
             errors.append("link id must be integer")
             continue
         if lid in link_ids:
@@ -41,30 +44,37 @@ def _ui(graph):
         link_ids.add(lid)
         for nid, slot, field, side in ((origin, output_slot, "outputs", "origin"),
                                       (target, input_slot, "inputs", "target")):
+            if type(nid) is not int:
+                errors.append(f"link {lid} invalid {side} node id")
+                continue
             node = indexed.get(nid)
             if node is None:
                 errors.append(f"link {lid} refers to missing {side} node {nid}")
-            elif not isinstance(slot, int) or slot < 0 or not isinstance(node.get(field), list) or slot >= len(node[field]):
+            elif type(slot) is not int or slot < 0 or not isinstance(node.get(field), list) or slot >= len(node[field]):
                 errors.append(f"link {lid} invalid {side} slot {slot}")
     for ident, node in indexed.items():
         for inp in node.get("inputs", []) if isinstance(node.get("inputs"), list) else []:
             if not isinstance(inp, dict):
                 errors.append(f"node {ident} has non-object input")
-            elif inp.get("link") is not None and inp["link"] not in link_ids:
-                errors.append(f"node {ident} input references missing link {inp['link']}")
+            elif inp.get("link") is not None:
+                ref = inp["link"]
+                if type(ref) is not int or ref not in link_ids:
+                    errors.append(f"node {ident} input references invalid or missing link")
     by_link = {
         link[0]: link for link in links
-        if isinstance(link, list) and len(link) >= 6 and isinstance(link[0], int)
+        if isinstance(link, list) and len(link) >= 6 and type(link[0]) is int
     }
     for lid, link in by_link.items():
         _, origin, output_slot, target, input_slot = link[:5]
-        out_node = indexed.get(origin)
-        in_node = indexed.get(target)
-        if out_node and isinstance(output_slot, int) and 0 <= output_slot < len(out_node.get("outputs", [])):
+        out_node = indexed.get(origin) if type(origin) is int else None
+        in_node = indexed.get(target) if type(target) is int else None
+        out_ports = out_node.get("outputs", []) if out_node else []
+        in_ports = in_node.get("inputs", []) if in_node else []
+        if out_node and isinstance(out_ports, list) and type(output_slot) is int and 0 <= output_slot < len(out_ports):
             port = out_node["outputs"][output_slot]
             if not isinstance(port, dict) or not isinstance(port.get("links"), list) or lid not in port["links"]:
                 errors.append(f"link {lid} origin output backreference missing")
-        if in_node and isinstance(input_slot, int) and 0 <= input_slot < len(in_node.get("inputs", [])):
+        if in_node and isinstance(in_ports, list) and type(input_slot) is int and 0 <= input_slot < len(in_ports):
             port = in_node["inputs"][input_slot]
             if not isinstance(port, dict) or port.get("link") != lid:
                 errors.append(f"link {lid} target input backreference mismatch")
@@ -80,6 +90,9 @@ def _ui(graph):
                 errors.append(f"node {ident} output links must be array/null")
                 continue
             for lid in refs:
+                if type(lid) is not int:
+                    errors.append(f"node {ident} output contains invalid link id")
+                    continue
                 link = by_link.get(lid)
                 if link is None:
                     errors.append(f"node {ident} output references missing link {lid}")
@@ -87,6 +100,9 @@ def _ui(graph):
                     errors.append(f"node {ident} output references misrouted link {lid}")
         for slot, port in enumerate(node.get("inputs", []) if isinstance(node.get("inputs"), list) else []):
             if not isinstance(port, dict) or port.get("link") is None:
+                continue
+            if type(port["link"]) is not int:
+                errors.append(f"node {ident} input contains invalid link id")
                 continue
             link = by_link.get(port["link"])
             if link is not None and link[3:5] != [ident, slot]:
@@ -105,8 +121,11 @@ def _api(graph):
             errors.append(f"API node {key} inputs must be an object")
             continue
         for name, value in inputs.items():
-            if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
+            if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and type(value[1]) in (int, bool):
                 target, slot = value
+                if type(slot) is not int:
+                    errors.append(f"API node {key} input {name}: upstream slot must be an integer")
+                    continue
                 if target not in graph:
                     errors.append(f"API node {key} input {name}: missing upstream node {target}")
                 elif slot < 0:

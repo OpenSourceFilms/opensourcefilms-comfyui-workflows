@@ -16,6 +16,14 @@ passed these structural checks after removal of stale, unreferenced graph
 metadata. Previously dangling links were repaired in three research-only
 graphs without changing their active node/link connectivity.
 
+The validator also treats malformed arrays, non-integer identifiers
+(including JSON booleans) and unhashable link references as **validation
+errors**, rather than raising uncaught Python exceptions. This is particularly
+useful when inspecting externally supplied graphs. Synthetic regression tests
+exercise malformed editor links and API prompt references. As with any static
+lint, the check is not an isolation or sandbox boundary; do not execute
+untrusted custom nodes based on a clean result.
+
 **What is checked:** JSON decoding, recognized export format, node identifiers,
 duplicate or missing links, bad input/output slots, matching incoming/outgoing
 backreferences in editor graphs, and missing upstream API nodes.
