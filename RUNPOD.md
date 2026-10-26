@@ -106,7 +106,15 @@ install — see [README.md](README.md) for the commercial-use distinction betwee
 
 ## What this is and isn't
 
-This is a documented, verified "fresh pod → clone → install → open workflow" path, not a
-one-click deploy. There's no Dockerfile, RunPod template definition, or Hub listing here yet —
-those aren't necessary for the repo to be genuinely reproducible on RunPod today, and adding them
-without a real use case behind them would just be unused surface area.
+This is a documented setup path, **not a current independently verified
+clean-pod GPU acceptance test or a one-click deploy**. Repository-only
+structural validation and historical upstream pin checks do not prove node
+import compatibility, installed model rights or successful GPU inference.
+The remaining genuine clean ComfyUI install test is tracked in
+[issue #2](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/issues/2).
+
+For a safer first publication target, the [strict 11-workflow RunPod staging
+profile](runpod/commercial-compatible/README.md) packages only the
+commercial-compatible JSON/sidecars. It is deliberately **not** a registered
+RunPod template, Dockerfile, node installer or Hub listing. The older generic
+installer above includes additional dependencies not required for that subset.

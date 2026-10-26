@@ -8,12 +8,18 @@ on:
       - "scripts/**"
       - "tests/**"
       - "workflows/**"
+      - "runpod/**"
+      - "DEPENDENCIES.lock"
+      - "THIRD_PARTY_LICENSES.md"
   pull_request:
     paths:
       - ".github/workflows/verify-public-workflows.yml"
       - "scripts/**"
       - "tests/**"
       - "workflows/**"
+      - "runpod/**"
+      - "DEPENDENCIES.lock"
+      - "THIRD_PARTY_LICENSES.md"
   workflow_dispatch:
 
 # No repository secrets, custom nodes, model weights or GPU required.
