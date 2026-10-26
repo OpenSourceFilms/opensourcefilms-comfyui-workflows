@@ -177,6 +177,64 @@ class NativeSequenceAuditTests(unittest.TestCase):
         reference.write_text(json.dumps(m.audit(a, "*.png", 1)))
         self.assertTrue(m.verify_reference(m.audit(b, "*.png", 1), reference)["reference_match"])
 
+    def test_contiguous_numbered_sequence_records_verified_index_range(self):
+        for index in (97, 98, 99):
+            png(self.root / f"SaveImage_{index:05d}_.png")
+        result = m.audit(self.root, "SaveImage_*.png", 3, contiguous=True)
+        self.assertTrue(result["contiguous_indices_verified"])
+        self.assertEqual((result["first_frame_index"], result["last_frame_index"]),
+                         (97, 99))
+        self.assertEqual(result["frame_count"], 3)
+
+    def test_contiguous_rejects_gap_even_when_expected_count_matches(self):
+        for index in (97, 99):
+            png(self.root / f"SaveImage_{index:05d}_.png")
+        # Legacy count-only mode remains useful for arbitrary frame subsets,
+        # but it cannot attest a contiguous source sequence.
+        self.assertEqual(m.audit(self.root, "*.png", 2)["frame_count"], 2)
+        with self.assertRaisesRegex(m.AuditError, "expected 00098, found 00099"):
+            m.audit(self.root, "*.png", 2, contiguous=True)
+
+    def test_contiguous_rejects_inconsistent_padding_and_filename_pattern(self):
+        for name in ("shot_0001.png", "shot_002.png"):
+            png(self.root / name)
+        with self.assertRaisesRegex(m.AuditError, "inconsistent frame prefix, suffix or padding"):
+            m.audit(self.root, "*.png", 2, contiguous=True)
+        (self.root / "shot_002.png").unlink()
+        png(self.root / "shot_0002_preview.png")
+        with self.assertRaisesRegex(m.AuditError, "inconsistent frame prefix, suffix or padding"):
+            m.audit(self.root, "*.png", 2, contiguous=True)
+
+    def test_contiguous_rejects_ambiguous_multiple_numeric_runs(self):
+        png(self.root / "scene_7_frame_0001.png")
+        with self.assertRaisesRegex(m.AuditError, "exactly one ASCII frame-number"):
+            m.audit(self.root, "*.png", 1, contiguous=True)
+
+    def test_contiguous_cli_reports_missing_index_without_claiming_pass(self):
+        for index in (1, 3):
+            png(self.root / f"f{index:04d}.png")
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = m.main([str(self.root), "--pattern", "*.png",
+                           "--count", "2", "--contiguous"])
+        self.assertEqual(code, 2)
+        error = json.loads(stderr.getvalue())
+        self.assertEqual(error["status"], "FAIL")
+        self.assertIn("expected 0002, found 0003", error["error"])
+
+    def test_contiguous_cli_accepts_valid_sequence(self):
+        for index in (17, 18):
+            png(self.root / f"f{index:04d}.png")
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = m.main([str(self.root), "--pattern", "*.png",
+                           "--count", "2", "--contiguous"])
+        self.assertEqual(code, 0)
+        result = json.loads(stdout.getvalue())
+        self.assertEqual(result["first_frame_index"], 17)
+        self.assertEqual(result["last_frame_index"], 18)
+        self.assertTrue(result["contiguous_indices_verified"])
+
     def test_unsafe_glob(self):
         with self.assertRaisesRegex(m.AuditError, "unsafe filename glob"):
             m.audit(self.root, "../*.png", 1)
