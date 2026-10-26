@@ -15,6 +15,33 @@ It checks the number of matching files, SHA-256 of each file, PNG chunk
 structure/CRCs and optionally dimensions/bit depth. The JSON report includes
 a deterministic hash of the ordered file manifest.
 
+### Verify numbered frame continuity
+
+A correct count **does not** prove that no frame index is missing. For
+example, frame 0001 and frame 0003 are two files, but they are not a
+contiguous two-frame sequence. For full, consecutively numbered deliveries,
+add `--contiguous`:
+
+```bash
+python3 scripts/audit-native-png-sequence.py /path/to/output \
+  --pattern 'SaveImage_*.png' --count 98 --contiguous
+```
+
+This opt-in check requires **exactly one ASCII-decimal index** in each
+filename, a common prefix and suffix, consistent digit padding, and numeric
+indices increasing by one in sorted order. It allows arbitrary starting
+indices (for example, 97 through 194). The resulting report includes
+`"contiguous_indices_verified": true`, `first_frame_index`, and
+`last_frame_index`. Missing indices, mixed numbering styles, or ambiguous
+filenames fail before pixel-file hashing.
+
+ComfyUI names such as `SaveImage_00001_.png` work. Names containing more
+than one numeric run (for example, `scene_7_frame_0001.png`) are deliberately
+rejected in this mode; use a single-index naming scheme or run the count-only
+audit instead. The default without `--contiguous` remains compatible with
+non-consecutive diagnostic selections. Neither mode proves correspondence
+to a requested shot or an authenticated job receipt.
+
 ```bash
 python3 scripts/audit-native-png-sequence.py /path/to/output \
   --count 72 > output-audit.json
@@ -51,7 +78,9 @@ temporal order, visual quality, model provenance, or completeness relative to
 an independently authenticated job receipt. Supplying the correct expected
 frame count and geometry is the operator's responsibility. The flat filename
 glob is sorted lexicographically, so consistently zero-pad frame indices.
-PNG files exceeding 256 MiB are refused to bound memory.
+Use `--contiguous` for numbered deliveries to check for gaps; it is not a
+temporal-content or source-footage validator. PNG files exceeding 256 MiB
+are refused to bound memory.
 
 ```bash
 python3 -m unittest discover -s tests -p 'test_audit_native_png_sequence.py' -v
