@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import struct
 import sys
@@ -76,7 +77,47 @@ def inspect_png(path: Path) -> dict:
             "colour_type": header[3], "interlace": header[4]}
 
 
-def audit(directory: Path, pattern: str, count: int, width=None, height=None, depth=None):
+def _contiguous_numbered_frames(files: list[Path]) -> tuple[int, int]:
+    """Check one consistent ASCII-decimal frame index per filename.
+
+    Opt-in only: arbitrary PNG collections and diagnostic frame subsets may
+    deliberately omit indices. For a numbered shot delivery, count alone is
+    insufficient: N files can contain a gap and an extra later frame.
+    """
+    pattern = re.compile(
+        r"(?P<prefix>[^0-9]*)(?P<index>[0-9]+)(?P<suffix>[^0-9]*\\.png)",
+        re.IGNORECASE,
+    )
+    expected_parts = None
+    first = None
+    previous = None
+    for path in files:
+        match = pattern.fullmatch(path.name)
+        if not match:
+            raise AuditError(
+                f"{path.name}: --contiguous requires exactly one ASCII frame-number run "
+                "in a .png filename"
+            )
+        prefix, digits, suffix = match.group("prefix", "index", "suffix")
+        parts = (prefix, suffix, len(digits))
+        if expected_parts is None:
+            expected_parts = parts
+        elif parts != expected_parts:
+            raise AuditError(f"{path.name}: inconsistent frame prefix, suffix or padding")
+        index = int(digits)
+        if previous is not None and index != previous + 1:
+            raise AuditError(
+                f"{path.name}: non-contiguous frame indices: "
+                f"expected {previous + 1:0{len(digits)}d}, found {digits}"
+            )
+        if first is None:
+            first = index
+        previous = index
+    return first, previous
+
+
+def audit(directory: Path, pattern: str, count: int, width=None, height=None, depth=None,
+          contiguous: bool = False):
     if not pattern or "/" in pattern or "\\" in pattern or ".." in pattern:
         raise AuditError("unsafe filename glob")
     if count < 1 or count > 100000:
@@ -86,6 +127,7 @@ def audit(directory: Path, pattern: str, count: int, width=None, height=None, de
     files = sorted(directory.glob(pattern))
     if len(files) != count:
         raise AuditError(f"frame count mismatch: expected {count}, found {len(files)}")
+    frame_indices = _contiguous_numbered_frames(files) if contiguous else None
     entries = []
     for f in files:
         if f.parent != directory:
@@ -96,9 +138,14 @@ def audit(directory: Path, pattern: str, count: int, width=None, height=None, de
                 raise AuditError(f"{f.name}: {field} expected {target}, got {item[field]}")
         entries.append(item)
     digest = hashlib.sha256(json.dumps(entries, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    return {"status": "PASS", "schema": "osf.native_sequence_audit.v1",
-            "frame_count": len(entries), "manifest_sha256": digest, "frames": entries,
-            "no_image_modification": True}
+    result = {"status": "PASS", "schema": "osf.native_sequence_audit.v1",
+              "frame_count": len(entries), "manifest_sha256": digest, "frames": entries,
+              "no_image_modification": True}
+    if frame_indices is not None:
+        result.update({"contiguous_indices_verified": True,
+                       "first_frame_index": frame_indices[0],
+                       "last_frame_index": frame_indices[1]})
+    return result
 
 
 
@@ -158,13 +205,16 @@ def main(argv=None):
     p.add_argument("directory", type=Path)
     p.add_argument("--pattern", default="*.png")
     p.add_argument("--count", required=True, type=int)
+    p.add_argument("--contiguous", action="store_true",
+                   help="require fixed-width consecutive numeric .png frame names")
     p.add_argument("--width", type=int)
     p.add_argument("--height", type=int)
     p.add_argument("--bit-depth", type=int)
     p.add_argument("--reference", type=Path, help="previously saved audit JSON to verify against")
     a = p.parse_args(argv)
     try:
-        report = audit(a.directory, a.pattern, a.count, a.width, a.height, a.bit_depth)
+        report = audit(a.directory, a.pattern, a.count, a.width, a.height, a.bit_depth,
+                       contiguous=a.contiguous)
         if a.reference is not None:
             report = verify_reference(report, a.reference)
         print(json.dumps(report, sort_keys=True))
