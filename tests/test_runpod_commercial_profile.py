@@ -24,6 +24,14 @@ class CommercialRunpodProfileTests(unittest.TestCase):
         # The generated manifest itself is not in this dict.
         self.assertEqual(len(graphs), 11)
         self.assertEqual(metadata["workflow_count"], 11)
+        self.assertEqual(
+            metadata["formats_by_workflow"]["workflows/commercial-compatible/sam3_custompkg_probe.json"],
+            "api",
+        )
+        self.assertEqual(
+            metadata["formats_by_workflow"]["workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json"],
+            "ui",
+        )
         self.assertEqual({Path(p).stem for p in graphs}, profile.ALLOWED)
         self.assertTrue(all("/commercial-compatible/" in p for p in graphs))
         self.assertFalse(any("/research-only/" in p for p in files))
@@ -88,6 +96,56 @@ class CommercialRunpodProfileTests(unittest.TestCase):
             meta["files_sha256"].pop("DEPENDENCIES.selected.lock")
             manifest.write_text(json.dumps(meta))
             with self.assertRaisesRegex(ValueError, "Staged files differ|missing required"):
+                profile.verify(target)
+
+    def test_cannot_stage_ui_graph_with_broken_link(self):
+        original = profile.regular_file
+        name = "gimm_sgm_vfi_video_interpolate.json"
+
+        def corrupt(path):
+            raw = original(path)
+            if path.name == name:
+                document = json.loads(raw)
+                self.assertTrue(document["links"])
+                document["links"][0][3] = 999999999
+                return json.dumps(document).encode("utf-8")
+            return raw
+
+        with mock.patch.object(profile, "regular_file", side_effect=corrupt):
+            with self.assertRaisesRegex(ValueError, "missing target|missing .*node"):
+                profile.plan()
+
+    def test_cannot_stage_api_prompt_with_missing_upstream_node(self):
+        original = profile.regular_file
+
+        def corrupt(path):
+            raw = original(path)
+            if path.name == "sam3_custompkg_probe.json":
+                document = json.loads(raw)
+                document["5"]["inputs"]["positive_points"] = ["missing-upstream", 0]
+                return json.dumps(document).encode("utf-8")
+            return raw
+
+        with mock.patch.object(profile, "regular_file", side_effect=corrupt):
+            with self.assertRaisesRegex(ValueError, "missing upstream"):
+                profile.plan()
+
+    def test_rehashing_invalid_staged_graph_does_not_pass_verification(self):
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td) / "profile"
+            files, info = profile.plan()
+            profile.stage(target, files, info)
+            name = "workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json"
+            graph_path = target / name
+            document = json.loads(graph_path.read_text(encoding="utf-8"))
+            document["links"][0][3] = 999999999
+            changed = json.dumps(document).encode("utf-8")
+            graph_path.write_bytes(changed)
+            manifest_path = target / "BUNDLE_MANIFEST.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["files_sha256"][name] = profile.digest(changed)
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Invalid ComfyUI graph"):
                 profile.verify(target)
 
     def test_default_cli_mode_is_read_only(self):
