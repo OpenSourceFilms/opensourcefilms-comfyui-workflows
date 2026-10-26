@@ -23,13 +23,16 @@ OSF's contribution here is assembling, testing and documenting workflow combinat
 
 - **In this repo**: the workflow graph JSON files (node connections,
   parameters, prompts), one OSF-authored custom node package
-  (`custom_nodes/mask_propagate_optical_flow/`), a pinned installer script,
-  and full dependency documentation.
+  (`custom_nodes/mask_propagate_optical_flow/`), a legacy dependency installer
+  with a mixture of pinned and mutable upstream references, and dependency
+  documentation.
 - **Not in this repo**: ComfyUI itself, third-party custom node source code,
-  or any model weights. `scripts/install-dependencies.sh` fetches the
-  third-party custom nodes you need from their own upstream repos, pinned to
-  commits we've verified. Model weights are your own responsibility to
-  download: see the license/source notes in each workflow's `.md` sidecar,
+  or any model weights. The **legacy** `scripts/install-dependencies.sh`
+  clones a broad set of third-party custom nodes from their upstream repositories.
+  Some references are commit-pinned, but others use mutable `main` and the
+  default group includes nodes used only by research workflows. It is not a
+  reproducible or rights-cleared minimal install. Obtain model weights from
+  upstream sources yourself: see the license/source notes in each workflow's `.md` sidecar,
   [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), and
   [DEPENDENCIES.lock](DEPENDENCIES.lock) (machine-readable, canonical if it
   ever disagrees with the prose docs).
@@ -139,9 +142,12 @@ prompt and is not a normal UI-canvas graph.
 
 ## Run on RunPod
 
-We develop and run these workflows on [RunPod](https://www.runpod.io/) GPU pods. For the full
-walkthrough — base image, GPU/VRAM tiers by workflow family, storage, and a verified
-"fresh pod → clone → install → open workflow" path — see [RUNPOD.md](RUNPOD.md). Short version:
+We develop and run these workflows on [RunPod](https://www.runpod.io/) GPU pods.
+[RUNPOD.md](RUNPOD.md) contains historical setup guidance, indicative GPU/VRAM
+classes and storage recommendations. **It has not been independently accepted
+as a fresh-pod, end-to-end ComfyUI installation.** The convenience wrapper
+below invokes the *broad legacy installer*, not the strict 11-workflow
+staging profile:
 
 ```bash
 git clone https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows.git
