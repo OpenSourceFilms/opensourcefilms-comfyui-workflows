@@ -134,6 +134,23 @@ cd opensourcefilms-comfyui-workflows
 ./scripts/setup-runpod.sh /path/to/ComfyUI
 ```
 
+## Restricted-scope RunPod workflow bundle
+
+For a **strictly staged, no-download subset** of the 11 graphs labelled
+`commercial-compatible`, use the
+[RunPod staging profile](runpod/commercial-compatible/README.md). It
+validates the canonical dependency manifest and explicitly selected graphs,
+copies only those graphs/rights sidecars and generates SHA-256 inventory
+metadata. Run `python3 runpod/commercial-compatible/prepare.py` for the
+read-only preflight; supply `--stage /path/to/new/output` to produce a bundle.
+
+**Do not confuse this with the broader installer above:** the historical
+`install-dependencies.sh` default also includes some nodes only required
+by research workflows, plus unpinned dependencies. The strict profile
+**does not call that installer**, fetch models, launch ComfyUI, or claim
+that a clean GPU deployment has been tested. Upstream rights, SAM 3's
+custom model agreement and compatibility still require individual review.
+
 ## Requirements
 
 A ComfyUI installation and an NVIDIA GPU. Requirements vary a lot by
