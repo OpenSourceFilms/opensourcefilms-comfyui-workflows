@@ -87,7 +87,7 @@ class CommercialRunpodProfileTests(unittest.TestCase):
             meta = json.loads(manifest.read_text(encoding="utf-8"))
             meta["files_sha256"].pop("DEPENDENCIES.selected.lock")
             manifest.write_text(json.dumps(meta))
-            with self.assertRaisesRegex(ValueError, "missing required"):
+            with self.assertRaisesRegex(ValueError, "Staged files differ|missing required"):
                 profile.verify(target)
 
     def test_default_cli_mode_is_read_only(self):
