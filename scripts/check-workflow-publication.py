@@ -15,17 +15,24 @@ import sys
 
 
 MAX_BYTES = 16 * 1024 * 1024
+MAX_JSON_DEPTH = 256
+MAX_JSON_VALUES = 250000
 CACHE_KEYS = {"videopreview", "preview_data", "execution_cache", "cached_output"}
 CHECKS = {
     "local_posix_path": re.compile(r"(?<![A-Za-z0-9])/(?:home|workspace|mnt|Users|tmp|var)/[^\s\"'<>]+"),
     "local_windows_user_path": re.compile(r"[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/]"),
     "private_endpoint": re.compile(
-        r"(?:https?://)?(?:localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
-        r"192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})"
+        r"(?:https?://)?(?:localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
+        r"0\.0\.0\.0|169\.254\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
+        r"192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|"
+        r"\[(?:::1|f[cd][0-9a-f]{2}:[0-9a-f:]+|fe80:[0-9a-f:]+)\])"
         r"(?::\d+)?(?:/|\b)|https?://[^\s\"']*\.proxy\.runpod\.net", re.I
     ),
+    "url_embedded_credentials": re.compile(
+        r"\b(?:https?|ftp|sftp)://[^\s/@:?#]+:[^\s/@?#]+@[^\s/?#]+", re.I
+    ),
     "credential_pattern": re.compile(
-        r"\b(?:ghp_[A-Za-z0-9]{25,}|github_pat_[A-Za-z0-9_]{35,}|"
+        r"\b(?:gh[pousr]_[A-Za-z0-9]{25,}|github_pat_[A-Za-z0-9_]{35,}|"
         r"sk-[A-Za-z0-9_-]{28,}|hf_[A-Za-z0-9]{24,}|AKIA[A-Z0-9]{16})\b"
     ),
     "nonpublic_storage_or_ping_url": re.compile(
@@ -58,22 +65,38 @@ def scan_data(data) -> list[dict]:
             if match.group(1).lower() not in PUBLIC_EXAMPLE_DOMAINS:
                 issues.append({"rule": "personal_email", "location": location})
 
-    def visit(value, location):
+    # Explicit stack and budget: arbitrary nested JSON must fail closed rather
+    # than causing RecursionError or unbounded resource consumption.
+    stack = [(data, "$", 0)]
+    visited = 0
+    while stack:
+        value, location, depth = stack.pop()
+        visited += 1
+        if visited > MAX_JSON_VALUES:
+            issues.append({"rule": "json_scan_budget_exceeded", "location": location})
+            break
+        if depth > MAX_JSON_DEPTH:
+            issues.append({"rule": "excessive_json_depth", "location": location})
+            continue
         if isinstance(value, dict):
-            for index, (key, part) in enumerate(value.items()):
+            if visited + len(stack) + len(value) > MAX_JSON_VALUES:
+                issues.append({"rule": "json_scan_budget_exceeded", "location": location})
+                break
+            for index, (key, part) in reversed(list(enumerate(value.items()))):
                 nested = f"{location}[{index}]"
                 if isinstance(key, str):
                     if key.lower() in CACHE_KEYS:
                         issues.append({"rule": "embedded_preview_or_cache", "location": nested})
                     inspect_text(key, nested)
-                visit(part, nested)
+                stack.append((part, nested, depth + 1))
         elif isinstance(value, list):
-            for index, part in enumerate(value):
-                visit(part, f"{location}[{index}]")
+            if visited + len(stack) + len(value) > MAX_JSON_VALUES:
+                issues.append({"rule": "json_scan_budget_exceeded", "location": location})
+                break
+            for index in range(len(value) - 1, -1, -1):
+                stack.append((value[index], f"{location}[{index}]", depth + 1))
         elif isinstance(value, str):
             inspect_text(value, location)
-
-    visit(data, "$")
     return issues
 
 
@@ -84,7 +107,7 @@ def scan_file(path: Path) -> dict:
         return {"file": str(path), "issues": [{"rule": "oversized_json", "location": "$"}]}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, ValueError):
+    except (OSError, UnicodeError, ValueError, RecursionError):
         return {"file": str(path), "issues": [{"rule": "invalid_json", "location": "$"}]}
     return {"file": str(path), "issues": scan_data(data)}
 

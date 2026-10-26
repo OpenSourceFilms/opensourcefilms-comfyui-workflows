@@ -8,13 +8,20 @@ python3 scripts/check-workflow-publication.py workflows
 python3 scripts/validate-workflow-json.py workflows
 ```
 
-The first command detects selected local file paths, RFC1918 or loopback URLs,
-RunPod proxy endpoints, secret-shaped credentials, personal email addresses,
+The first command detects selected local file paths, RFC1918, loopback and
+link-local URLs (including common bracketed IPv6 forms), RunPod proxy endpoints,
+secret-shaped credentials including common GitHub token formats, passwords
+embedded as URL user-info, and personal email addresses,
 nonpublic storage/heartbeat URLs, file URIs, embedded preview/cache keys,
 and common raster image data-URIs or substantial PNG/JPEG base64 payloads.
 It reports only the rule and indexed JSON location, **not the sensitive value**.
-It returns nonzero when a finding is present. The separate graph validator
-checks node/link connectivity. Both checks run in the public repository's
+It returns nonzero when a finding is present. Extremely deep or oversized
+JSON structures fail closed with `excessive_json_depth` or
+`json_scan_budget_exceeded`, rather than silently passing or causing an
+unhandled recursion error. This rule is intended for prepublication lint, not
+for hostile-file processing or a full security sandbox.
+
+The separate graph validator checks node/link connectivity. Both checks run in the public repository's
 GitHub Actions pull-request gate.
 
 Only generic placeholders such as `input_video.mp4`, `models/sample.safetensors`,
