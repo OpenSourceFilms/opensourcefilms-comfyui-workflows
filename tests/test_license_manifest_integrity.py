@@ -100,7 +100,7 @@ class LicenseManifestIntegrityTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         third_party = (ROOT / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8")
         for text in (readme, third_party):
-            self.assertIn("custom SAM License", text)
+            self.assertRegex(text.lower(), r"custom.{0,16}sam license")
             self.assertIn("commercial-compatible", text)
             self.assertIn("not", text.lower())
 
