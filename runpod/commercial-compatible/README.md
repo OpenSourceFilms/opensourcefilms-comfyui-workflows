@@ -53,8 +53,11 @@ separately installed and compatible.
   and checked against the canonical `DEPENDENCIES.lock` statuses.
 - Exactly 11 matching `.md` sidecars, with rights notes and model requirements.
 - OSF's `LICENSE`, `THIRD_PARTY_LICENSES.md` and this preparation guide.
-- `BUNDLE_MANIFEST.json` with graph names, dependency names and SHA-256 file
-  hashes for inspection and accidental modification detection.
+- `DEPENDENCIES.selected.lock`: only the 11 selected blocks from the canonical
+  `DEPENDENCIES.lock`, preserving original upstream revision pins, licences,
+  distribution fields, and custom model terms; no five research-only blocks.
+- `BUNDLE_MANIFEST.json` with graph names, dependency names, original full
+  manifest SHA-256 and per-file SHA-256 hashes for consistency checks.
 
 ### What it **does not** include
 
@@ -87,8 +90,8 @@ not external package availability or licence compliance.
 The accompanying stdlib-only
 [`tests/test_runpod_commercial_profile.py`](../../tests/test_runpod_commercial_profile.py)
 checks selection, research-only exclusion, read-only mode, staging,
-SHA-256 bundle verification and fail-closed scenarios without a GPU, model
-download or external dependency. It is part of public CI.
+SHA-256 bundle verification, filtered dependency-pin preservation and
+fail-closed scenarios without a GPU, model download or external dependency. It is part of public CI.
 
 **Not yet accepted:** a genuinely clean RunPod/ComfyUI installation,
 node-import compatibility, model availability, inference results, image

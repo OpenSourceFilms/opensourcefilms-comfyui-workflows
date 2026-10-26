@@ -30,6 +30,13 @@ class CommercialRunpodProfileTests(unittest.TestCase):
         self.assertTrue(all(p[:-5] + ".md" in files for p in graphs))
         self.assertNotIn("custom_nodes", " ".join(files))
         self.assertNotIn("safetensors", " ".join(files))
+        selected_lock = files["DEPENDENCIES.selected.lock"].decode("utf-8")
+        self.assertIn("commit: de0ff5d2c2ea435d29f800abfa568cffdfb94773", selected_lock)
+        self.assertIn("license: SAM License (Meta, custom, source-available)", selected_lock)
+        self.assertIn("distribution: external", selected_lock)
+        self.assertEqual(len(profile.manifest_entries(selected_lock)), 11)
+        self.assertNotIn("workflows/research-only/", selected_lock)
+        self.assertNotIn("BiM-VFI", selected_lock)
 
     def test_stage_and_verify_and_refuse_repeat(self):
         with tempfile.TemporaryDirectory() as td:
@@ -38,7 +45,9 @@ class CommercialRunpodProfileTests(unittest.TestCase):
             profile.stage(target, files, info)
             result = profile.verify(target)
             self.assertEqual(result["workflow_count"], 11)
-            self.assertEqual(len(result["files_sha256"]), 25)  # 22 graphs/sidecars, 3 docs
+            self.assertEqual(len(result["files_sha256"]), 26)  # 22 graphs/sidecars, 3 docs, filtered lock
+            self.assertIn("source_dependency_manifest_sha256", result)
+            self.assertTrue((target / "DEPENDENCIES.selected.lock").is_file())
             self.assertFalse(any(p.parts and p.parts[0] == "research-only"
                                  for p in target.rglob("*.json")))
             with self.assertRaises(ValueError):
@@ -68,6 +77,18 @@ class CommercialRunpodProfileTests(unittest.TestCase):
             with mock.patch.object(profile, "MANIFEST", altered):
                 with self.assertRaisesRegex(ValueError, "explicitly approved"):
                     profile.plan()
+
+    def test_reject_missing_or_unlisted_dependency_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td) / "profile"
+            files, info = profile.plan()
+            profile.stage(target, files, info)
+            manifest = target / "BUNDLE_MANIFEST.json"
+            meta = json.loads(manifest.read_text(encoding="utf-8"))
+            meta["files_sha256"].pop("DEPENDENCIES.selected.lock")
+            manifest.write_text(json.dumps(meta))
+            with self.assertRaisesRegex(ValueError, "Staged files differ|missing required"):
+                profile.verify(target)
 
     def test_default_cli_mode_is_read_only(self):
         run = subprocess.run(
