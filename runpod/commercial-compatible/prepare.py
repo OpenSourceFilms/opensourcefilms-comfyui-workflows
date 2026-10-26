@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -44,6 +45,26 @@ DEP_NAME = re.compile(r"(?m)^    - name:\s*(.+?)\s*$")
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def validate_graph_bytes(raw: bytes, name: str) -> str:
+    """Apply the repository's real UI/API link validator before publishing."""
+    script = ROOT / "scripts" / "validate-workflow-json.py"
+    if script.is_symlink() or not script.is_file():
+        raise ValueError("Missing or symlinked structural validator")
+    spec = importlib.util.spec_from_file_location("osf_comfy_graph_validator", script)
+    if spec is None or spec.loader is None:
+        raise ValueError("Cannot load ComfyUI structural validator")
+    validator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validator)
+    try:
+        doc = json.loads(raw)
+    except (UnicodeError, ValueError) as exc:
+        raise ValueError("Invalid graph JSON: " + name) from exc
+    errors, graph_format = validator.validate(doc)
+    if errors or graph_format not in ("ui", "api"):
+        raise ValueError("Invalid ComfyUI graph: " + name + ": " + "; ".join(errors[:4]))
+    return graph_format
 
 
 def regular_file(path: Path) -> bytes:
@@ -92,17 +113,8 @@ def choose_files() -> tuple[dict[str, bytes], dict[str, dict]]:
         json_path = ROOT / path
         side_path = json_path.with_suffix(".md")
         raw = regular_file(json_path)
-        try:
-            doc = json.loads(raw)
-        except (UnicodeError, ValueError) as exc:
-            raise ValueError("Invalid graph JSON: " + path) from exc
-        is_ui = (isinstance(doc, dict) and isinstance(doc.get("nodes"), list)
-                 and isinstance(doc.get("links"), list))
-        is_api = (isinstance(doc, dict) and bool(doc)
-                  and all(isinstance(v, dict) and isinstance(v.get("class_type"), str)
-                          and v["class_type"] for v in doc.values()))
-        if not (is_ui or is_api):
-            raise ValueError("Not a ComfyUI UI/API graph: " + path)
+        graph_format = validate_graph_bytes(raw, path)
+        selected[path]["format"] = graph_format
         side = regular_file(side_path)
         side_text = side.decode("utf-8")
         if not re.search(r"(?m)^source:\s*" + re.escape(path) + r"\s*$", side_text):
@@ -137,6 +149,9 @@ def plan() -> tuple[dict[str, bytes], dict]:
         "workflow_count": len(selected),
         "source_dependency_manifest_sha256": digest(regular_file(MANIFEST)),
         "workflows": sorted(selected),
+        "formats_by_workflow": {
+            name: selected[name]["format"] for name in sorted(selected)
+        },
         "dependencies_by_workflow": {
             name: selected[name]["dependencies"] for name in sorted(selected)
         },
@@ -193,6 +208,12 @@ def verify(destination: Path) -> dict:
                      "START_HERE.md", "DEPENDENCIES.selected.lock"))
     if set(info["files_sha256"]) != required:
         raise ValueError("Staged manifest missing required sidecars or dependency evidence")
+    if set(info.get("formats_by_workflow", {})) != set(selected):
+        raise ValueError("Missing or extra UI/API format declarations")
+    for name in selected:
+        detected = validate_graph_bytes(regular_file(destination / name), name)
+        if info["formats_by_workflow"][name] != detected:
+            raise ValueError("Workflow UI/API format declaration mismatch: " + name)
     subset = manifest_entries(
         regular_file(destination / "DEPENDENCIES.selected.lock").decode("utf-8")
     )
