@@ -4,6 +4,11 @@
 # This is the canonical source for each workflow's commercial_status — the
 # .md sidecar next to each workflow is the human-readable rendering of the
 # same data. If they ever disagree, this file wins.
+# commercial-compatible = OSF's conditional assessment of no identified
+# blanket commercial-use prohibition in the reviewed dependency chain.
+# It does NOT assert that every dependency is OSI-approved, MIT/Apache/GPL,
+# or free of further conditions. SAM 3 uses Meta's separate SAM License.
+# Always consult upstream terms and THIRD_PARTY_LICENSES.md.
 #
 # Fields:
 #   name          - dependency name
