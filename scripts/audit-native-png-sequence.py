@@ -85,7 +85,7 @@ def _contiguous_numbered_frames(files: list[Path]) -> tuple[int, int]:
     insufficient: N files can contain a gap and an extra later frame.
     """
     pattern = re.compile(
-        r"(?P<prefix>[^0-9]*)(?P<index>[0-9]+)(?P<suffix>[^0-9]*\\.png)",
+        r"(?P<prefix>[^0-9]*)(?P<index>[0-9]+)(?P<suffix>[^0-9]*[.]png)",
         re.IGNORECASE,
     )
     expected_parts = None
