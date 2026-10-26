@@ -39,10 +39,14 @@ OSF's contribution here is assembling, testing and documenting workflow combinat
 Every workflow is labeled with a `commercial_status` in its `.md` sidecar
 file, one of:
 
-- **`commercial-compatible`**; every dependency (ComfyUI core, custom
-  nodes, models) is either permissively licensed or GPL-3.0. GPL-3.0 is
-  commercially usable (it imposes distribution/copyleft obligations, it is
-  not a non-commercial license); we don't treat GPL as a blocker.
+- **`commercial-compatible`**; the reviewed dependencies do not have an
+  identified blanket non-commercial-use prohibition. This **does not** mean
+  every dependency is MIT, Apache or GPL: several workflows use Meta SAM 3
+  under the **custom SAM License**, with additional attribution,
+  redistribution, prohibited-use and other contractual conditions. GPL-3.0
+  also imposes obligations when covered software is distributed. This label
+  is a conditional OSF assessment, **not** legal clearance for every use or
+  deployment. Check current terms and the exact dependency versions first.
 - **`research-only`**; at least one dependency is CC-BY-NC-4.0 or otherwise
   restricted to research/education use. Don't use these commercially without
   separately clearing that dependency with its owner.
