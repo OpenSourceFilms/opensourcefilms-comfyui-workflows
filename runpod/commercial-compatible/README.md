@@ -39,11 +39,13 @@ python3 runpod/commercial-compatible/prepare.py \
   --verify /tmp/osf-runpod-review/commercial-11
 ```
 
-From ComfyUI's interface use **Workflow → Open** on one of the staged
-`workflows/commercial-compatible/*.json` graphs. The JSON can be read before
-its external custom nodes and model weights are installed; it cannot be
-expected to **execute** until each required dependency is separately installed
-and compatible.
+For UI-format graphs, use ComfyUI's **Workflow → Open** to select one of
+the staged JSON files. **`sam3_custompkg_probe.json` is an API-prompt-format
+file**, not a UI canvas graph, and may require submitting via ComfyUI's API
+or conversion rather than opening with the normal canvas importer. Structural
+validity is checked for both formats. Neither kind can be expected to
+**execute** until its required external custom nodes and model weights are
+separately installed and compatible.
 
 ### What the bundle includes
 
