@@ -52,8 +52,9 @@ def regular_file(path: Path) -> bytes:
     return path.read_bytes()
 
 
-def manifest_entries() -> dict[str, dict]:
-    text = regular_file(MANIFEST).decode("utf-8")
+def manifest_entries(text: str | None = None) -> dict[str, dict]:
+    if text is None:
+        text = regular_file(MANIFEST).decode("utf-8")
     matches = list(HEADING.finditer(text))
     result = {}
     for index, match in enumerate(matches):
@@ -68,6 +69,7 @@ def manifest_entries() -> dict[str, dict]:
         result[name] = {
             "commercial_status": statuses[0],
             "dependencies": DEP_NAME.findall(block),
+            "source_block": block.rstrip(),
         }
     if not result:
         raise ValueError("No manifest entries")
@@ -112,6 +114,16 @@ def choose_files() -> tuple[dict[str, bytes], dict[str, dict]]:
     all_graphs = {p.relative_to(ROOT).as_posix() for p in (ROOT / "workflows").rglob("*.json")}
     if all_graphs != set(entries):
         raise ValueError("Workflow files and canonical manifest inventory disagree")
+    # Preserve original commit/license/distribution fields for this subset.
+    # The five research-only workflow declarations are never staged.
+    lock_lines = [
+        "# Filtered from DEPENDENCIES.lock: eleven commercial-compatible graphs.",
+        "# Source-level rights evidence only; no custom nodes or weights included.",
+        "",
+    ]
+    for name in sorted(selected):
+        lock_lines.extend((name + ":", selected[name]["source_block"], ""))
+    files["DEPENDENCIES.selected.lock"] = ("\n".join(lock_lines) + "\n").encode("utf-8")
     for name, path in BUNDLED_DOCS:
         files[name] = regular_file(path)
     return files, selected
@@ -123,6 +135,7 @@ def plan() -> tuple[dict[str, bytes], dict]:
         "profile": "osf-runpod-commercial-workflows-staging-v1",
         "scope": "OSF graph/sidecar staging only; not a RunPod official template or rights clearance",
         "workflow_count": len(selected),
+        "source_dependency_manifest_sha256": digest(regular_file(MANIFEST)),
         "workflows": sorted(selected),
         "dependencies_by_workflow": {
             name: selected[name]["dependencies"] for name in sorted(selected)
@@ -169,8 +182,29 @@ def verify(destination: Path) -> dict:
     }
     if actual != expected:
         raise ValueError("Staged files differ from the signed inventory list")
-    if info["workflow_count"] != 11 or set(map(lambda s: Path(s).stem, info["workflows"])) != ALLOWED:
+    selected = info["workflows"]
+    if (info["workflow_count"] != 11 or len(selected) != 11
+            or {Path(name).stem for name in selected} != ALLOWED
+            or any(not name.startswith("workflows/commercial-compatible/") for name in selected)):
         raise ValueError("Staged manifest has unexpected workflow selection")
+    required = set(selected)
+    required.update(str(Path(name).with_suffix(".md")) for name in selected)
+    required.update(("LICENSE", "THIRD_PARTY_LICENSES.md",
+                     "START_HERE.md", "DEPENDENCIES.selected.lock"))
+    if set(info["files_sha256"]) != required:
+        raise ValueError("Staged manifest missing required sidecars or dependency evidence")
+    subset = manifest_entries(
+        regular_file(destination / "DEPENDENCIES.selected.lock").decode("utf-8")
+    )
+    if (set(subset) != set(selected)
+            or any(row["commercial_status"] != "commercial-compatible"
+                   for row in subset.values())
+            or {name: subset[name]["dependencies"] for name in sorted(selected)}
+               != info["dependencies_by_workflow"]):
+        raise ValueError("Filtered dependency manifest differs from selected workflows")
+    if not isinstance(info.get("source_dependency_manifest_sha256"), str) or not re.fullmatch(
+            r"[0-9a-f]{64}", info["source_dependency_manifest_sha256"]):
+        raise ValueError("Missing source dependency manifest digest")
     for name, sha in info["files_sha256"].items():
         if name.startswith("/") or ".." in Path(name).parts:
             raise ValueError("Unsafe recorded path")
