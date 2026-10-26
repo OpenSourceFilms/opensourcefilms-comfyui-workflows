@@ -106,21 +106,36 @@ PyTorch (which ComfyUI already requires). Used by the matting/object-removal
 workflows in `workflows/research-only/`. Published here for the first time,
 MIT-licensed; see its own [README](custom_nodes/mask_propagate_optical_flow/README.md).
 
-## Install
+## Install: broad legacy script versus strictly scoped bundle
+
+The historical installer below clones a **broad custom-node set**. By default
+it omits two explicitly research-restricted packages (BiM-VFI and VideoMaMa),
+but its default list **still contains some nodes used only in research workflows**
+and mutable `main` references. It is **not** a minimal, fully pinned,
+commercially cleared installation, nor a clean-install compatibility guarantee.
 
 ```bash
 ./scripts/install-dependencies.sh /path/to/ComfyUI
 ```
 
-This installs the commercial-compatible custom node dependencies, plus
-`mask_propagate_optical_flow`, by default. To also install the research-only
-dependencies (needed for `workflows/research-only/*`):
+The installer also copies OSF's `mask_propagate_optical_flow` node. It
+does not download model weights. Review the individual upstream rights
+and exact installed commits before use. To also clone the two explicitly
+excluded restricted packages for research workflows:
 
 ```bash
 INSTALL_RESTRICTED=1 ./scripts/install-dependencies.sh /path/to/ComfyUI
 ```
 
-Then in ComfyUI: **Workflow → Open** and pick a `.json` from `workflows/`.
+For a strictly enumerated **11-workflow, no-download staging profile**,
+start instead with the [commercial-compatible preparation guide](runpod/commercial-compatible/README.md).
+That profile only copies graph files and documentation; it **does not install
+ComfyUI, custom nodes or model weights**. There is no verified clean
+ComfyUI deployment or one-click RunPod template yet.
+
+Once separately installed and validated, open UI-format workflows via
+**Workflow → Open**. The `sam3_custompkg_probe.json` file is an API-format
+prompt and is not a normal UI-canvas graph.
 
 ## Run on RunPod
 

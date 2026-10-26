@@ -1,15 +1,18 @@
 # Running on RunPod
 
 Open Source Films develops and runs these workflows on [RunPod](https://www.runpod.io/) GPU
-pods. This document is the concrete path from a fresh pod to one of the workflows in this
-repo open and running in ComfyUI.
+pods. This is a **historical setup recipe**, not a currently accepted
+fresh-pod installation or a guarantee that every graph will open and run.
+The exact installed custom-node versions and model dependencies require
+separate compatibility testing.
 
 ## Choosing a pod
 
-**Base image/template:** any RunPod pod template that gives you a CUDA-enabled PyTorch
-environment works — RunPod's own official PyTorch template, or a community ComfyUI template
-if you'd rather start from one with ComfyUI pre-installed. Nothing here depends on a specific
-template; this repo brings the workflow graphs and custom-node pins, not a container image.
+**Base image/template:** choose a RunPod PyTorch or ComfyUI image suitable for
+your GPU's CUDA architecture and the exact model/node versions you intend to
+use. A CUDA-enabled image by itself does **not** establish compatibility.
+This repository ships graphs and some custom-node pins, not a validated
+container image or deployable RunPod template.
 
 **GPU/VRAM, by workflow family** (from the README's own guidance):
 
@@ -40,8 +43,8 @@ From a terminal on the pod:
 git clone https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows.git
 cd opensourcefilms-comfyui-workflows
 
-# 2. Point the installer at your ComfyUI installation and install pinned
-#    custom-node dependencies (commercial-compatible workflows only by default)
+# 2. Legacy broad installer: includes nodes beyond the strict 11-workflow
+#    profile, plus mutable main refs; review licences and exact revisions first.
 ./scripts/install-dependencies.sh /path/to/ComfyUI
 
 # ...or use the wrapper, which finds a conventional ComfyUI path for you:
@@ -54,7 +57,7 @@ To also install the dependencies needed for `workflows/research-only/*`:
 INSTALL_RESTRICTED=1 ./scripts/install-dependencies.sh /path/to/ComfyUI
 ```
 
-This step was re-verified against the live upstream repos twice: once while writing this document
+The historical upstream pins were compared against their sources twice: once while writing this document
 (one pin, `ComfyUI-WanVideoWrapper`, had gone stale and was repinned to the last commit on its
 default branch), and again on 2026-08-20, which caught five more stale tags
 (`rgthree-comfy`, `ComfyUI-KJNodes`, `ComfyUI-SAM3`, `ComfyUI-Florence2`, `ComfyUI-GGUF`,
@@ -67,9 +70,9 @@ directory cloned-but-unpinned and the script still exited `0`, so a later re-run
 exits non-zero with a clear summary if any pin fails to resolve — re-run the script after such a
 failure is fixed rather than assuming a `0` exit meant everything installed correctly.
 
-**Idempotent re-runs (e.g. after a pod restart):** running `install-dependencies.sh` again against
-a `ComfyUI` directory that already has these custom nodes present is safe — it skips any
-`custom_nodes/<name>` directory that already exists rather than re-cloning or erroring. It does
+**Repeated installer runs:** running `install-dependencies.sh` again against
+a `ComfyUI` directory skips existing `custom_nodes/<name>` directories.
+This is not version verification or a safe upgrade mechanism. It does
 *not* check whether an existing directory is actually at the pinned commit, though (that's only
 enforced on first install); if you suspect drift, delete the specific `custom_nodes/<name>`
 directory and re-run.
@@ -77,9 +80,10 @@ directory and re-run.
 **Where custom nodes land, and the Network Volume:** `install-dependencies.sh` clones custom nodes
 into `<ComfyUI dir>/custom_nodes/`, i.e. wherever your ComfyUI installation itself lives. If your
 `ComfyUI` directory is on the pod's container disk rather than the Network Volume, the custom nodes
-cloned into it are just as ephemeral as ComfyUI itself and you'll re-run the installer after every
-pod restart (harmless, just re-clones everything from scratch, ~30-60s for the commercial-compatible
-set). Put the whole `ComfyUI` directory — not just a `models/` folder — on the Network Volume if you
+cloned into it are just as ephemeral as ComfyUI itself and would need to be
+reinstalled after pod termination. Installer duration and compatibility are
+not verified for a fresh 2026 environment. Put the whole `ComfyUI`
+directory, not just a `models/` folder, on the Network Volume if you
 want custom nodes to survive restarts too.
 
 ## Model weights
@@ -98,11 +102,18 @@ cd /path/to/ComfyUI
 python main.py --listen 0.0.0.0 --port 8188
 ```
 
+**Security:** this binds ComfyUI to all interfaces. Only use it behind
+intentional access controls, such as authenticated ingress or a protected
+private network; **do not expose an unauthenticated ComfyUI API to the
+public internet**. If those controls are unavailable, use localhost binding
+with a secure operator-controlled tunnel rather than the public proxy.
+
 Use RunPod's exposed HTTP port (map/forward 8188, or whatever port your template exposes) to
 reach the ComfyUI web UI. Once it's open: **Workflow → Open**, and pick a `.json` from
 [`workflows/commercial-compatible/`](workflows/commercial-compatible/) or
 [`workflows/research-only/`](workflows/research-only/) (only after an `INSTALL_RESTRICTED=1`
-install — see [README.md](README.md) for the commercial-use distinction between the two).
+install and other separately required nodes/models — see [README.md](README.md)
+for the commercial-use distinction between the two).
 
 ## What this is and isn't
 
