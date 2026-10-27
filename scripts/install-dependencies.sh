@@ -85,13 +85,28 @@ done <<< "$PACKAGES"
 echo ""
 echo "== Open Source Films' own node (vendored in this repo) =="
 dest_dir="$CUSTOM_NODES_DIR/mask_propagate_optical_flow"
-if [ -d "$dest_dir" ]; then
+if [ -e "$dest_dir" ] || [ -L "$dest_dir" ]; then
     echo "skip mask_propagate_optical_flow (already present at $dest_dir)"
 else
     echo "copying mask_propagate_optical_flow (OSF, vendored in this repo)..."
-    cp -r "$REPO_ROOT/custom_nodes/mask_propagate_optical_flow" "$dest_dir" || {
-        echo "ERROR: failed to copy mask_propagate_optical_flow" >&2
+    # Copy into a newly created sibling first. A failing cp must never leave
+    # a partial directory that a later invocation silently treats as installed.
+    staging_dir="$(mktemp -d "$CUSTOM_NODES_DIR/.mask_propagate_optical_flow.XXXXXXXX")" || {
+        echo "ERROR: failed to stage mask_propagate_optical_flow" >&2
+        FAILED_PACKAGES="$FAILED_PACKAGES mask_propagate_optical_flow"
+        staging_dir=""
     }
+    if [ -n "$staging_dir" ]; then
+        if cp -r "$REPO_ROOT/custom_nodes/mask_propagate_optical_flow/." "$staging_dir/" &&
+           mv -T -- "$staging_dir" "$dest_dir"; then
+            echo "installed mask_propagate_optical_flow"
+        else
+            echo "ERROR: failed to install mask_propagate_optical_flow" >&2
+            # Only remove our own mktemp-created staging directory.
+            rm -rf -- "$staging_dir"
+            FAILED_PACKAGES="$FAILED_PACKAGES mask_propagate_optical_flow"
+        fi
+    fi
 fi
 
 echo ""
