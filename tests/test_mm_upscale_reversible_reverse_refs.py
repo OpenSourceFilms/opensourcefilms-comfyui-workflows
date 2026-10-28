@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -15,6 +16,15 @@ SPEC = importlib.util.spec_from_file_location(
 )
 planner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(planner)
+
+
+def selected_group(group_id: str):
+    path = ROOT / planner.APPROVED
+    graph = json.loads(path.read_text(encoding="utf-8"))
+    return copy.deepcopy(next(
+        group for group in graph["definitions"]["subgraphs"]
+        if group["id"] == group_id
+    ))
 
 
 def minimal_group():
@@ -89,6 +99,69 @@ class ReversibleMMGroupTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "repeated or shared"):
             planner.propose_group_cleanup(sample, 0)
 
+    def test_reviewed_exact_orphan_snapshot_matches_all_four_real_groups(self):
+        self.assertEqual(len(planner.EXPECTED_STALE_BY_GROUP), 4)
+        self.assertEqual(
+            sum(len(refs) for refs in planner.EXPECTED_STALE_BY_GROUP.values()), 16
+        )
+        for group_id in planner.EXPECTED_STALE_BY_GROUP:
+            with self.subTest(group=group_id):
+                group = selected_group(group_id)
+                planner.links.inspect_group(group)
+                self.assertIsNone(planner.require_exact_reviewed_orphans(group))
+
+    def test_replaced_stale_id_with_same_count_is_rejected(self):
+        group_id = "6f5ab705-8e1b-4b53-a3f4-a35676bec4e9"
+        group = selected_group(group_id)
+        node = next(n for n in group["nodes"] if n["id"] == 362)
+        output = node["outputs"][0]
+        output["links"] = [999999 if value == 620 else value
+                           for value in output["links"]]
+        # The older count-only planner would have accepted this.
+        self.assertEqual(
+            planner.links.inspect_group(group)["unresolved_reverse_reference_count"],
+            4,
+        )
+        with self.assertRaisesRegex(ValueError, "Exact reviewed orphan"):
+            planner.require_exact_reviewed_orphans(group)
+
+    def test_moved_stale_id_to_another_node_port_is_rejected(self):
+        group_id = "6f5ab705-8e1b-4b53-a3f4-a35676bec4e9"
+        group = selected_group(group_id)
+        source = next(n for n in group["nodes"] if n["id"] == 362)
+        other = next(n for n in group["nodes"]
+                     if n["id"] != 362 and n.get("outputs"))
+        source["outputs"][0]["links"].remove(620)
+        if other["outputs"][0].get("links") is None:
+            other["outputs"][0]["links"] = []
+        other["outputs"][0]["links"].append(620)
+        self.assertEqual(
+            planner.links.inspect_group(group)["unresolved_reverse_reference_count"],
+            4,
+        )
+        with self.assertRaisesRegex(ValueError, "Exact reviewed orphan"):
+            planner.require_exact_reviewed_orphans(group)
+
+    def test_moved_stale_id_between_exposed_port_slots_is_rejected(self):
+        group_id = "6f5ab705-8e1b-4b53-a3f4-a35676bec4e9"
+        group = selected_group(group_id)
+        group["inputs"][4]["linkIds"].remove(609)
+        slot = group["inputs"][5]
+        slot["linkIds"].append(609)
+        self.assertEqual(
+            planner.links.inspect_group(group)["unresolved_reverse_reference_count"],
+            4,
+        )
+        with self.assertRaisesRegex(ValueError, "Exact reviewed orphan"):
+            planner.require_exact_reviewed_orphans(group)
+
+    def test_unreviewed_group_uuid_blocks_exact_pin(self):
+        group_id = "1434deb7-2315-427a-8ad1-73b4f683e72d"
+        group = selected_group(group_id)
+        group["id"] = "unreviewed-group"
+        with self.assertRaisesRegex(ValueError, "Unknown embedded group"):
+            planner.require_exact_reviewed_orphans(group)
+
     def test_real_canonical_source_generates_metadata_only_hold(self):
         original_path = ROOT / planner.APPROVED
         before = original_path.read_bytes()
@@ -96,6 +169,7 @@ class ReversibleMMGroupTests(unittest.TestCase):
         self.assertEqual(original_path.read_bytes(), before)
         self.assertEqual(actual["status"], "CANDIDATE_ONLY_HOLD")
         self.assertEqual(actual["removed_orphan_reverse_references"], 16)
+        self.assertTrue(actual["reviewed_orphan_ids_and_port_locations_exact"])
         self.assertEqual(actual["active_links_untouched"], 171)
         self.assertEqual(actual["internal_nodes_untouched"], 89)
         self.assertEqual(actual["group_count"], 4)
