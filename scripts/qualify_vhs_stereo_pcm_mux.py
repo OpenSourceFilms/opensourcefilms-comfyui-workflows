@@ -104,6 +104,85 @@ def check_decoded_stereo_pcm(samples: array) -> dict:
     }
 
 
+def verify_stereo_mux_timestamps(stderr: str) -> dict:
+    """Verify presentation timeline of the *muxed* one-second stereo MOV.
+
+    This is separate from full waveform/channel checks. FFmpeg showinfo and
+    ashowinfo expose actual decoded frame and per-channel sample PTS.
+    Reject reordered video, shifted/discontinuous stereo audio, padding,
+    missing endpoints and mismatched presentation clocks.
+    """
+    if not isinstance(stderr, str) or len(stderr) > 200_000:
+        raise ValueError("Stereo PCM timestamp trace invalid or oversized")
+    video_pattern = re.compile(
+        r"\[Parsed_showinfo_\d+\s+@[^\]]+\]\s+"
+        r"n:\s*(\d+)\s+pts:\s*(-?\d+)\s+"
+        r"pts_time:\s*(-?[\d.]+)\s+duration:\s*(\d+)\s+"
+        r"duration_time:\s*([\d.]+)"
+    )
+    audio_pattern = re.compile(
+        r"\[Parsed_ashowinfo_\d+\s+@[^\]]+\]\s+"
+        r"n:(\d+)\s+pts:(-?\d+)\s+pts_time:([\d.]+)\s+"
+        r"fmt:(\w+)\s+channels:(\d+)\s+chlayout:(\S+)\s+"
+        r"rate:(\d+)\s+nb_samples:(\d+)"
+    )
+    videos = [m.groups() for m in video_pattern.finditer(stderr)]
+    audio = [m.groups() for m in audio_pattern.finditer(stderr)]
+    if len(videos) != 2 or not audio:
+        raise ValueError("Stereo mux timestamp trace requires two video frames and PCM")
+    for idx, groups in enumerate(videos):
+        number, pts, seconds, ticks, duration = groups
+        if (int(number) != idx or int(pts) < 0 or int(ticks) <= 0
+                or abs(float(seconds) - idx / 2) > 0.001
+                or abs(float(duration) - 0.5) > 0.001):
+            raise ValueError("Stereo mux video presentation timestamps incorrect")
+    total = 0
+    maximum_clock_error = 0.0
+    for idx, groups in enumerate(audio):
+        number, pts, seconds, fmt, channels, layout, rate, count = groups
+        samples = int(count)
+        if (int(number) != idx or int(pts) != total or samples <= 0
+                or fmt != "s16" or int(channels) != 2
+                or layout != "stereo" or int(rate) != RATE):
+            raise ValueError("Stereo mux audio packet timestamps or layout incorrect")
+        clock_error = abs(float(seconds) - total / RATE)
+        if clock_error > 0.001:
+            raise ValueError("Stereo mux audio sample clock differs")
+        maximum_clock_error = max(maximum_clock_error, clock_error)
+        total += samples
+    if total != RATE:
+        raise ValueError("Stereo mux audio PTS coverage has padding or missing samples")
+    if abs(float(videos[-1][2]) + float(videos[-1][4]) - total / RATE) > 0.001:
+        raise ValueError("Stereo mux video and audio presentation endpoints differ")
+    return {
+        "status": "stereo_pcm_presentation_timeline_verified",
+        "video_frame_pts_seconds": [float(v[2]) for v in videos],
+        "video_frame_duration_seconds": [float(v[4]) for v in videos],
+        "video_stream_end_seconds": 1.0,
+        "audio_packet_count": len(audio),
+        "audio_sample_frames_covered": total,
+        "audio_stream_end_seconds": total / RATE,
+        "audio_channels": 2,
+        "audio_sample_rate_hz": RATE,
+        "maximum_audio_clock_error_seconds": round(maximum_clock_error, 7),
+        "maximum_permitted_clock_error_seconds": 0.001,
+        "binary_media_uploaded": False,
+    }
+
+
+def extract_stereo_mux_timestamps(video: Path, ffmpeg: str) -> dict:
+    """Trace timestamp-bearing frames/packets from the actual temporary MOV."""
+    result = subprocess.run(
+        [ffmpeg, "-hide_banner", "-nostdin", "-i", str(video),
+         "-map", "0:v:0", "-map", "0:a:0",
+         "-vf", "showinfo", "-af", "ashowinfo", "-f", "null", "-"],
+        capture_output=True, check=True, timeout=25,
+    )
+    return verify_stereo_mux_timestamps(
+        result.stderr.decode("utf-8", "replace")
+    )
+
+
 def verify_stereo_prores_pcm_mov(raw: bytes) -> dict:
     from imageio_ffmpeg import get_ffmpeg_exe
 
@@ -149,6 +228,7 @@ def verify_stereo_prores_pcm_mov(raw: bytes) -> dict:
             "video_dimensions": [64, 64],
             "video_black_source_verified": True,
             "audio": check_decoded_stereo_pcm(pcm),
+            "presentation_timestamps": extract_stereo_mux_timestamps(path, ffmpeg),
             "mov_sha256": hashlib.sha256(raw).hexdigest(),
             "mov_size_bytes": len(raw),
             "binary_media_uploaded": False,
