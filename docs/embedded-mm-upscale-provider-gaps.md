@@ -41,6 +41,12 @@ groups. In particular, Easy-Use is noted as **unpinned** there. Read and
 validate the exact upstream sources, licences, source commits, registered
 node schemas, and possible nested dependencies before selecting an install.
 
+The [dated candidate upstream source and licence review](mm-upscale-upstream-candidate-snapshot.md)
+also identifies exact **candidate** Git commits and the source locations
+of all 15 exported class names. Its CI preflight is read-only: those
+revisions are not automatically added to the canonical manifest, installed
+or qualified as runtime compatible.
+
 ## Acceptance boundary and resolution
 
 The CI preflight detects missing provider declarations and unpinned declared
