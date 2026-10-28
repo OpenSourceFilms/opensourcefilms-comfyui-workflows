@@ -187,13 +187,13 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
     package = comfy / "custom_nodes" / "mask_propagate_optical_flow"
     if not (comfy / "main.py").is_file() or not package.is_dir():
         raise ValueError("No isolated ComfyUI root with OSF optical flow package")
-    external_versions = verify_external_node_sources(comfy / "custom_nodes")
     version = subprocess.run(
         ["git", "-C", str(comfy), "rev-parse", "HEAD"],
         capture_output=True, text=True, check=True, timeout=15,
     ).stdout.strip()
     if version != COMFY_SHA:
         raise ValueError("Unreviewed ComfyUI source SHA")
+    external_versions = verify_external_node_sources(comfy / "custom_nodes")
     report = Path(report)
     if report.exists() or report.is_symlink():
         raise FileExistsError("Will not overwrite prior acceptance evidence")
