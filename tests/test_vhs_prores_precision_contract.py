@@ -98,6 +98,23 @@ class VhsProResPrecisionContractTests(unittest.TestCase):
         self.assertIn('"pinned_vhs_prores_input_precision"', runner)
         self.assertIn('"independent_real_12bit_ffmpeg_roundtrip"', runner)
 
+    def test_documented_vhs_precision_boundary_includes_accepted_opt_in_ab(self):
+        audit_doc = (
+            ROOT / "docs" / "vhs-prores-input-precision.md"
+        ).read_text(encoding="utf-8")
+        ab_doc = (
+            ROOT / "docs" / "vhs-prores-16bit-qualification.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("input_color_depth", audit_doc)
+        self.assertIn("PR #37", audit_doc)
+        self.assertIn("All **four** tested pairs remained distinct", audit_doc)
+        self.assertIn("default upstream ProRes preset remains 8-bit", audit_doc)
+        self.assertIn("does not establish", audit_doc)
+        self.assertIn("input_color_depth=16bit", ab_doc)
+        self.assertIn("not** a calibrated 12-bit RGB", ab_doc)
+
+
+
 
 if __name__ == "__main__":
     unittest.main()
