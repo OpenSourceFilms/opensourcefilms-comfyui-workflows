@@ -112,11 +112,12 @@ and checks the reported profile *and* 4:4:4 storage. This does not
 establish that the upstream HQ profile behaves correctly for every
 codec or pixel format.
 
-**Precision boundary:** Although the ProRes 4444 stream uses 12-bit
-4:4:4 storage, these source frames originate as 8-bit colour
-constants and are checked only after RGB24 decoding. Successful
-codec identification is **not** a 12-bit source-fidelity test.
-No 12-bit sensor/input source is created or evaluated.
+**ComfyUI/VHS precision boundary:** Although the ProRes 4444 stream
+reports 12-bit 4:4:4 storage, this *ComfyUI graph* originates from
+8-bit `EmptyImage` colour constants and is checked after RGB24 decode.
+Its successful codec identification is **not** a 12-bit source-fidelity test.
+The separate direct-FFmpeg 12-bit qualification below does not change
+that VHS/ComfyUI input limitation.
 
 These tests qualify narrow CPU VideoHelperSuite selection and GIF,
 H.264, H.265 and ProRes 4444 encoding paths plus rgthree routing.
@@ -130,6 +131,43 @@ The only uploaded artifact is a small JSON report with source SHA, tool
 versions, registration, synthetic output hashes and explicit exclusions.
 No generated images, model weights, third-party source or logs containing
 personal paths are uploaded.
+
+## Independent real 12-bit ProRes source and fidelity gate
+
+The same isolated CI job also runs
+[`qualify_prores_12bit.py`](../scripts/qualify_prores_12bit.py) as a
+**separate, model-free FFmpeg integration test**, not as an additional
+ComfyUI/VHS node. It constructs two 64×64 frames of genuine planar
+`yuv444p12le` source samples, with nonuniform patterns in **all three
+12-bit planes**. The patterns contain four controlled luma comparisons,
+each between values differing by only five 12-bit code levels and
+mapping to the **same 8-bit code**. They make silent 8-bit truncation or
+rounding observable.
+
+The job feeds these raw 12-bit source bytes directly to the installed
+`imageio-ffmpeg==0.6.0` executable with `prores_ks`,
+`profile:v 4`, `pix_fmt yuv444p12le`, `qscale:v 1` and 2 fps.
+It then identifies actual ProRes **4444** storage in the temporary MOV,
+decodes back to planar `yuv444p12le` and verifies **every 12-bit
+component** of both frames, with a maximum absolute permitted error
+of **8/4095**. All four sub-8-bit luma distinctions must remain
+strictly ordered after decoding. The public offline tests reject
+8-bit quantization, reversed frames, truncation, out-of-range values
+and even a single excessive sample error.
+
+This proves a **bounded-error 12-bit source-to-ProRes-to-12-bit output
+roundtrip for that particular synthetic pattern**. ProRes is lossy;
+bit-for-bit equality is neither expected nor claimed. This is *not*
+12-bit input acceptance through VideoHelperSuite or ComfyUI,
+colour-managed camera input, HDR transfer-function preservation,
+professional DI fidelity, or a full workflow test.
+
+All raw source and decoded samples plus temporary MOV remain only on
+the disposable runner. The 12-bit result is recorded separately in
+`independent_real_12bit_ffmpeg_roundtrip` inside the JSON-only evidence,
+including source/output hashes, 12-bit maximum/mean error, and the
+four preserved fine-grained comparisons. No image/video binaries are
+published.
 
 ## Pinned UltimateSDUpscale submodule, no mutable fallback
 
