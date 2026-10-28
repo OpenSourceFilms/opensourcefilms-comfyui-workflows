@@ -417,8 +417,11 @@ def verify_h265_video(port: int, item: dict) -> dict:
         stderr = result.stderr.decode("utf-8", "replace")
         if not re.search(r"Video:\s+hevc\b", stderr, flags=re.IGNORECASE):
             raise ValueError("FFmpeg did not identify the encoded stream as HEVC")
+        from qualify_synthetic_video_timing import verify_video_timing
+        timing = verify_video_timing(get_ffmpeg_exe(), video)
         return {
             **validate_h265_decoded_rgb(result.stdout),
+            "video_timing": timing,
             "container": "mp4",
             "output_mp4_sha256": _sha(data),
             "mp4_size_bytes": len(data),
@@ -488,8 +491,11 @@ def verify_prores_video(port: int, item: dict) -> dict:
                                     flags=re.IGNORECASE)
             descriptor = stream_line.group(0) if stream_line else "not reported"
             raise ValueError("ProRes 4444 storage pixel format differs: " + descriptor)
+        from qualify_synthetic_video_timing import verify_video_timing
+        timing = verify_video_timing(get_ffmpeg_exe(), video)
         return {
             **validate_prores_decoded_rgb(result.stdout),
+            "video_timing": timing,
             "container": "mov",
             "storage_pixel_format": "yuv444p12le",
             "profile_detected": "4444",
@@ -604,8 +610,11 @@ def verify_h264_video(port: int, item: dict) -> dict:
         if not re.search(r"Video:\s+h264\b", stderr, flags=re.IGNORECASE):
             raise ValueError("FFmpeg did not identify the encoded stream as H264")
         output = validate_h264_decoded_rgb(result.stdout)
+        from qualify_synthetic_video_timing import verify_video_timing
+        timing = verify_video_timing(get_ffmpeg_exe(), video)
         return {
             **output,
+            "video_timing": timing,
             "container": "mp4",
             "output_mp4_sha256": _sha(data),
             "mp4_size_bytes": len(data),
