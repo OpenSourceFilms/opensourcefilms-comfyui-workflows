@@ -42,6 +42,10 @@ EXTERNAL_NODE_PINS = {
         "sha": "6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
         "classes": ("UnetLoaderGGUF",),
     },
+    "ComfyUI_UltimateSDUpscale": {
+        "sha": "a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df",
+        "classes": ("UltimateSDUpscale",),
+    },
 }
 
 
@@ -76,6 +80,48 @@ def verify_external_node_sources(custom_nodes: Path) -> dict:
             raise ValueError("Unapproved external custom-node SHA: " + name)
         versions[name] = found
     return dict(sorted(versions.items()))
+
+
+USDU_SUBMODULE_COMMIT = "2322caa480535b1011a1f9c18126d85ea444f146"
+USDU_SUBMODULE_RELATIVE = "repositories/ultimate_sd_upscale"
+
+
+def validate_usdu_gitlink(line: str) -> str:
+    """Require the exact original source gitlink, not just a directory name."""
+    expected = ("160000 commit " + USDU_SUBMODULE_COMMIT + "\t"
+                + USDU_SUBMODULE_RELATIVE)
+    if line.strip() != expected:
+        raise ValueError("UltimateSDUpscale gitlink differs from reviewed submodule pin")
+    return USDU_SUBMODULE_COMMIT
+
+
+def verify_usdu_submodule(custom_nodes: Path) -> dict:
+    parent = custom_nodes / "ComfyUI_UltimateSDUpscale"
+    child = parent / USDU_SUBMODULE_RELATIVE
+    if parent.is_symlink() or child.is_symlink() or not child.is_dir():
+        raise ValueError("Missing/symlinked UltimateSDUpscale submodule")
+    gitlink = subprocess.run(
+        ["git", "-C", str(parent), "ls-tree", "HEAD", USDU_SUBMODULE_RELATIVE],
+        check=True, capture_output=True, text=True, timeout=15,
+    ).stdout
+    validate_usdu_gitlink(gitlink)
+    child_sha = subprocess.run(
+        ["git", "-C", str(child), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True, timeout=15,
+    ).stdout.strip()
+    if child_sha != USDU_SUBMODULE_COMMIT:
+        raise ValueError("Unapproved UltimateSDUpscale nested revision")
+    for part in ("LICENSE", "scripts/ultimate-upscale.py"):
+        component = child / part
+        if component.is_symlink() or not component.is_file() or component.stat().st_size == 0:
+            raise ValueError("Missing UltimateSDUpscale pinned submodule component: " + part)
+    return {
+        "parent_commit": EXTERNAL_NODE_PINS["ComfyUI_UltimateSDUpscale"]["sha"],
+        "submodule_commit": child_sha,
+        "submodule_path": USDU_SUBMODULE_RELATIVE,
+        "fallback_urlretrieve_blocked": True,
+        "license": "GPL-3.0",
+    }
 
 
 def ensure_external_object_info(document: dict, expected: dict) -> dict:
@@ -232,6 +278,11 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
     if version != COMFY_SHA:
         raise ValueError("Unreviewed ComfyUI source SHA")
     external_versions = verify_external_node_sources(comfy / "custom_nodes")
+    usdu_submodule = verify_usdu_submodule(comfy / "custom_nodes")
+    guard = Path(__file__).resolve().parent / "usdu_offline_guard"
+    if (guard.is_symlink() or not (guard / "sitecustomize.py").is_file()
+            or (guard / "sitecustomize.py").is_symlink()):
+        raise ValueError("Fail-closed URL download guard missing")
     report = Path(report)
     if report.exists() or report.is_symlink():
         raise FileExistsError("Will not overwrite prior acceptance evidence")
@@ -244,6 +295,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1",
             "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1",
             "CUDA_VISIBLE_DEVICES": "", "PYTHONUNBUFFERED": "1",
+            "PYTHONPATH": str(guard) + os.pathsep + env.get("PYTHONPATH", ""),
         })
         cmd = [
             sys.executable, "main.py", "--cpu", "--offline",
@@ -288,6 +340,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "model_weights_installed": False,
         "third_party_custom_nodes_installed": True,
         "third_party_source_commits": external_versions,
+        "pinned_usdu_submodule": usdu_submodule,
         "third_party_nodes_imported": registration["external_classes"],
         "third_party_graphs_executed": False,
         "gpu_or_model_inference_qualified": False,
