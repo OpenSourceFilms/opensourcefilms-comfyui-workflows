@@ -231,7 +231,7 @@ def assert_auto_download_hazard(source: str) -> bool:
     raise ValueError("Pinned SAM3 auto-download behaviour changed; re-review required")
 
 
-def audit(upstream: Path, repo: Path = ROOT) -> dict:
+def audit(upstream: Path, core_root: Path, repo: Path = ROOT) -> dict:
     if upstream.is_symlink() or not upstream.is_dir():
         raise ValueError("Invalid pinned SAM3 source directory")
     revision = subprocess.run(
@@ -257,6 +257,18 @@ def audit(upstream: Path, repo: Path = ROOT) -> dict:
         raise ValueError("Missing explicit SAM3 model downloader risk")
     graph = json.loads((repo / WORKFLOW).read_text(encoding="utf-8"))
     links = check_graph_bindings(graph, schemas)
+    # The original third-party-only parser counted two core-sourced edges
+    # as unverified. The separate exact-core AST gate must settle them.
+    from audit_sam3_custompkg_core_links import verify_pinned_core
+    core = verify_pinned_core(core_root, graph, schemas)
+    core_edges = core["native_binding"]
+    if (links["unverified_core_source_edges"] != 2
+            or core_edges["previously_unverified_core_source_edges_resolved"] != 2
+            or core_edges["typed_edges_touching_core_nodes"] != 4):
+        raise ValueError("Core edge audit count disagrees with source-only baseline")
+    links["verified_core_source_edges"] = 2
+    links["unverified_core_source_edges"] = 0
+    links["typed_edges_touching_core_nodes"] = 4
     return {
         "schema": "osf-sam3-custompkg-pinned-source-api-contract-v1",
         "workflow": WORKFLOW,
@@ -269,6 +281,7 @@ def audit(upstream: Path, repo: Path = ROOT) -> dict:
             for path in sorted(content)
         },
         "bindings": links,
+        "pinned_native_comfyui_core": core,
         "loader_downloads_absent_model_weights": True,
         "package_import_attempted": False,
         "checkpoint_download_attempted": False,
@@ -281,9 +294,10 @@ def audit(upstream: Path, repo: Path = ROOT) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--upstream-dir", type=Path, required=True)
+    parser.add_argument("--core-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    result = audit(args.upstream_dir)
+    result = audit(args.upstream_dir, args.core_dir)
     rendered = json.dumps(result, sort_keys=True, indent=2) + "\n"
     if args.output:
         if args.output.is_symlink() or args.output.exists():
