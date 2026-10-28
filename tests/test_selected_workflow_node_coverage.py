@@ -24,11 +24,11 @@ class LiveSelectedClassCoverageTests(unittest.TestCase):
         self.assertEqual(audit["workflow_graph_format_counts"],
                          {"api": 4, "ui": 7})
 
-    def test_fork_annotations_and_uuids_separate_from_other_gaps(self):
+    def test_upstream_native_annotations_and_uuids_separate_from_other_gaps(self):
         for name in ("SAM3_Detect", "SAM3_TrackPreview",
                      "SCAIL2ColoredMask", "WanSCAILToVideo"):
             self.assertEqual(live_audit.classify_missing(name),
-                             "documented_scail_sam3_fork_native")
+                             "upstream_sam_scail_not_registered_here")
         self.assertEqual(live_audit.classify_missing("MarkdownNote"),
                          "editor_or_extension_type_unqualified")
         self.assertEqual(
@@ -45,13 +45,17 @@ class LiveSelectedClassCoverageTests(unittest.TestCase):
             "SaveImage": {"input": {}}, "VHS_VideoCombine": {"input": {}},
             "UnetLoaderGGUF": {"input": {}},
         }
+        source_mod = live_audit._source_module(ROOT)
+        for name in source_mod.PINNED_UPSTREAM_SAM_SCAIL:
+            simulated[name] = {"input": {}, "output": []}
         output = live_audit.coverage_from_registry(source, simulated)
         self.assertEqual(output["status"],
                          "real_live_cpu_class_registration_coverage_only")
         self.assertEqual(output["selected_workflows"], 11)
         self.assertEqual(output["unique_graph_class_ids"], 81)
         self.assertGreater(output["total_node_instances"], 300)
-        self.assertIn("SAM3_TrackPreview", output["missing_documented_fork_native"])
+        self.assertIn("SAM3_TrackPreview", output["registered_upstream_sam_scail_classes"])
+        self.assertEqual(output["missing_upstream_sam_scail_classes"], [])
         self.assertIn("GIMMVFI_loader", output["missing_other_unregistered"])
         self.assertFalse(output["all_11_workflows_executable"])
         self.assertFalse(output["gpu_inference_tested"])
