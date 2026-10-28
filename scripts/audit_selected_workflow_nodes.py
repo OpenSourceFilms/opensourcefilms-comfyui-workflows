@@ -1,177 +1,152 @@
-"""Read-only coverage audit: eleven selected graph node IDs vs live /object_info.
+"""Live class registration coverage for the *existing* selected-11 source audit.
 
-A missing class is a *registration gap in this disposable CPU environment*,
-not a model/GPU incompatibility finding. Visual/UI metadata and UUID-typed
-group/subgraph nodes are separated from ordinary class registration gaps.
+The canonical source parser/validator is audit-selected-11-node-coverage.py,
+merged in PR #25. This supplementary module compares that approved inventory
+to the real pinned clean ComfyUI /object_info class registry. No graph is
+converted, submitted or executed by this coverage analysis.
 """
 from __future__ import annotations
 
-from collections import Counter
 import hashlib
 import importlib.util
-import json
 from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE = ROOT / "runpod" / "commercial-compatible" / "prepare.py"
-GRAPH_DIR = ROOT / "workflows" / "commercial-compatible"
-FORK_NATIVE = frozenset({
-    "SAM3_Detect", "SAM3_VideoTrack",
-    "SCAIL2ColoredMask", "WanSCAILToVideo",
-})
-# UI annotations and link reroutes, not assertions of executable node support.
-UI_DECORATION = frozenset({"MarkdownNote", "Note", "Reroute", "Label (rgthree)"})
-UUID_TYPE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+SOURCE_AUDIT = ROOT / "scripts" / "audit-selected-11-node-coverage.py"
 
 
-def _profile_module():
-    if PROFILE.is_symlink() or not PROFILE.is_file():
-        raise ValueError("Selected workflow profile script missing or symlinked")
-    spec = importlib.util.spec_from_file_location("osf_profile_for_coverage", PROFILE)
+def _source_module(root: Path):
+    path = root / "scripts" / SOURCE_AUDIT.name
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("Missing/symlinked canonical selected-workflow auditor")
+    spec = importlib.util.spec_from_file_location("osf_selected_11_canonical", path)
     if spec is None or spec.loader is None:
-        raise ValueError("Cannot load selected workflow profile")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+        raise ValueError("Cannot import canonical selected-workflow auditor")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def extract_class_ids(document: object) -> tuple[str, Counter]:
-    """Validate the shallow UI/API node shape and count exact class IDs."""
-    if not isinstance(document, dict):
-        raise ValueError("Workflow graph root must be an object")
-    if "nodes" in document:
-        mode = "ui"
-        nodes = document["nodes"]
-        if not isinstance(nodes, list):
-            raise ValueError("UI graph 'nodes' must be an array")
-    else:
-        mode = "api"
-        if not document:
-            raise ValueError("Empty API graph")
-        if any(not isinstance(k, str) or not k.isdigit() for k in document):
-            raise ValueError("Unexpected API graph node identifier")
-        nodes = list(document.values())
-    found = Counter()
-    for node in nodes:
-        if not isinstance(node, dict):
-            raise ValueError("Malformed UI/API graph node")
-        key = "type" if mode == "ui" else "class_type"
-        value = node.get(key)
-        if not isinstance(value, str) or not value or len(value) > 180:
-            raise ValueError("Graph node missing a valid class/type")
-        found[value] += 1
-    if not found:
-        raise ValueError("No workflow node classes")
-    return mode, found
-
-
-def load_selected_graphs(root: Path = ROOT) -> dict[str, dict]:
-    """Match the canonical manifest and explicit 11-workflow profile exactly."""
+def load_selected_graphs(root: Path = ROOT) -> dict:
+    """Reuse the canonical graph preflight, no second inventory/parser."""
     if root.is_symlink() or not root.is_dir():
         raise ValueError("Missing/symlinked root")
-    module = _profile_module()
-    selected = {
-        path: entry for path, entry in module.manifest_entries().items()
-        if entry["commercial_status"] == "commercial-compatible"
-    }
-    if (len(selected) != 11
-            or {Path(path).stem for path in selected} != module.ALLOWED
-            or any(not path.startswith("workflows/commercial-compatible/")
-                   for path in selected)):
-        raise ValueError("11 selected workflow manifest and explicit profile mismatch")
-    records = {}
-    for relative in sorted(selected):
-        file = root / relative
-        if file.is_symlink() or not file.is_file():
-            raise ValueError("Selected workflow graph missing or symlinked: " + relative)
-        raw = file.read_bytes()
-        if len(raw) > 4_000_000:
-            raise ValueError("Selected workflow graph unexpectedly large")
-        try:
-            document = json.loads(raw)
-        except (UnicodeError, ValueError) as exc:
-            raise ValueError("Invalid selected workflow JSON: " + relative) from exc
-        graph_format, classes = extract_class_ids(document)
-        records[relative] = {
-            "graph_format": graph_format,
-            "classes": classes,
-            "source_sha256": hashlib.sha256(raw).hexdigest(),
-        }
-    return records
+    source = _source_module(root)
+    result = source.audit(root=root)
+    if (result.get("schema") != "osf-selected-11-node-coverage-v1"
+            or result.get("selected_workflow_count") != 11
+            or result.get("unique_node_class_count", 0) < 1
+            or len(result.get("workflows", [])) != 11):
+        raise ValueError("Canonical selected-workflow preflight failed inventory check")
+    return result
 
 
-def classify_missing(class_id: str) -> str:
-    if class_id in FORK_NATIVE:
+def classify_missing(class_id: str, source: object = None) -> str:
+    """Classify missing IDs conservatively; registered status comes from HTTP."""
+    if source is None:
+        source = _source_module(ROOT)
+    if class_id in source.FORK_NATIVE:
         return "documented_scail_sam3_fork_native"
-    if class_id in UI_DECORATION:
-        return "ui_annotation_or_reroute"
-    if UUID_TYPE.fullmatch(class_id):
-        return "uuid_typed_group_or_subgraph_unresolved"
-    return "other_unregistered"
+    if class_id in source.EDITOR_OR_LAYOUT_TYPES:
+        return "editor_or_extension_type_unqualified"
+    if source.UUID.fullmatch(class_id):
+        return "unresolved_group_uuid"
+    return "other_unregistered_in_current_cpu_installation"
 
 
-def coverage_from_registry(graphs: dict[str, dict], live: object) -> dict:
-    """Represent accurate per-graph coverage without claiming inference."""
+def coverage_from_registry(source_audit: dict, live: object) -> dict:
+    """Compare all 11 real graph IDs with actual loopback /object_info.
+
+    Missing classes are expected and do NOT fail the CPU smoke. They are
+    installation diagnostics, not evidence of GPU failure or rights status.
+    """
     if not isinstance(live, dict) or not live:
         raise ValueError("Live ComfyUI /object_info inventory required")
-    if any(not isinstance(k, str) for k in live):
-        raise ValueError("Non-string live class registration")
-    results = {}
+    if any(not isinstance(name, str) or not name for name in live):
+        raise ValueError("Non-string/empty live registration")
+    if (not isinstance(source_audit, dict)
+            or source_audit.get("schema") != "osf-selected-11-node-coverage-v1"
+            or source_audit.get("selected_workflow_count") != 11
+            or len(source_audit.get("workflows", [])) != 11):
+        raise ValueError("Coverage must use the canonical 11-workflow source report")
+    source = _source_module(ROOT)
     seen = set()
-    all_present = set()
-    all_missing = set()
-    class_instance_count = 0
-    for path, details in sorted(graphs.items()):
-        if not isinstance(details, dict):
-            raise ValueError("Malformed selected graph coverage input")
-        classes = details["classes"]
-        if not isinstance(classes, Counter) or not classes:
-            raise ValueError("Missing graph class counter")
-        seen.update(classes)
-        present = sorted(set(classes) & set(live))
-        missing = sorted(set(classes) - set(live))
-        all_present.update(present)
-        all_missing.update(missing)
-        class_instance_count += sum(classes.values())
-        categories = {c: classify_missing(c) for c in missing}
-        results[path] = {
-            "format": details["graph_format"],
-            "source_sha256": details["source_sha256"],
-            "node_instances": sum(classes.values()),
-            "unique_class_ids": len(classes),
+    registered = set()
+    missing_all = set()
+    node_instances = 0
+    entries = {}
+    for entry in source_audit["workflows"]:
+        path = entry.get("workflow")
+        if (not isinstance(path, str)
+                or not re.fullmatch(r"workflows/commercial-compatible/[A-Za-z0-9_.-]+\.json", path)
+                or path in entries):
+            raise ValueError("Malformed/duplicate canonical selected workflow path")
+        categories = entry.get("node_classes_by_status")
+        if not isinstance(categories, dict):
+            raise ValueError("Canonical source report missing classes")
+        all_classes = set()
+        for group in categories.values():
+            if (not isinstance(group, list) or any(
+                    not isinstance(cls, str) or not cls for cls in group)):
+                raise ValueError("Malformed canonical class-name list")
+            all_classes.update(group)
+        if not all_classes or len(all_classes) != entry.get("unique_node_classes"):
+            raise ValueError("Canonical graph classes mismatch declared count")
+        present = sorted(all_classes.intersection(live))
+        absent = sorted(all_classes.difference(live))
+        registered.update(present)
+        missing_all.update(absent)
+        seen.update(all_classes)
+        count = entry.get("node_instances")
+        if not isinstance(count, int) or count < len(all_classes):
+            raise ValueError("Canonical graph node count invalid")
+        node_instances += count
+        file = ROOT / path
+        if file.is_symlink() or not file.is_file():
+            raise ValueError("Missing/symlinked selected graph in live coverage")
+        sha = hashlib.sha256(file.read_bytes()).hexdigest()
+        classification = {c: classify_missing(c, source) for c in absent}
+        entries[path] = {
+            "graph_format": entry.get("graph_format"),
+            "source_sha256": sha,
+            "node_instances": count,
+            "distinct_node_classes": len(all_classes),
             "registered_class_ids": present,
-            "missing_class_ids_by_category": {
-                category: [c for c in missing if categories[c] == category]
-                for category in (
+            "unregistered_class_ids_by_category": {
+                cat: [c for c in absent if classification[c] == cat]
+                for cat in (
                     "documented_scail_sam3_fork_native",
-                    "ui_annotation_or_reroute",
-                    "uuid_typed_group_or_subgraph_unresolved",
-                    "other_unregistered",
-                ) if any(v == category for v in categories.values())
+                    "editor_or_extension_type_unqualified",
+                    "unresolved_group_uuid",
+                    "other_unregistered_in_current_cpu_installation",
+                ) if cat in classification.values()
             },
-            "registered_unique_classes": len(present),
-            "unregistered_unique_classes": len(missing),
-            "fully_registered_for_import_only": not missing,
+            "registered_distinct_classes": len(present),
+            "unregistered_distinct_classes": len(absent),
+            "full_class_registration_in_this_cpu_install": not absent,
         }
-    if len(results) != 11:
-        raise ValueError("Coverage must include exactly 11 selected workflows")
+    if len(entries) != 11 or len(seen) != source_audit["unique_node_class_count"]:
+        raise ValueError("Canonical source coverage total differs")
     return {
-        "status": "live_class_registration_coverage_only",
-        "source": "exact_commercial_profile_and_live_loopback_object_info",
-        "selected_workflows": len(results),
-        "total_node_instances": class_instance_count,
-        "unique_class_ids": len(seen),
-        "registered_unique_class_ids": len(all_present),
-        "unregistered_unique_class_ids": len(all_missing),
-        "known_fork_only_missing": sorted(c for c in all_missing if c in FORK_NATIVE),
-        "unregistered_other_across_workflows": sorted(
-            c for c in all_missing
-            if classify_missing(c) == "other_unregistered"
+        "status": "real_live_cpu_class_registration_coverage_only",
+        "source_schema": source_audit["schema"],
+        "selected_workflows": 11,
+        "total_node_instances": node_instances,
+        "unique_graph_class_ids": len(seen),
+        "registered_unique_class_ids": len(registered),
+        "unregistered_unique_class_ids": len(missing_all),
+        "missing_documented_fork_native": sorted(
+            c for c in missing_all if c in source.FORK_NATIVE
         ),
-        "per_workflow": results,
-        "all_11_runtime_compatible": False,
-        "model_inference_tested": False,
-        "license_rights_cleared": False,
-        "interpretation": "Missing classes may require other pins, fork or UI-only handling; no weights/inference checked",
+        "missing_other_unregistered": sorted(
+            c for c in missing_all
+            if classify_missing(c, source) ==
+            "other_unregistered_in_current_cpu_installation"
+        ),
+        "per_workflow": dict(sorted(entries.items())),
+        "all_11_workflows_executable": False,
+        "gpu_inference_tested": False,
+        "commercial_rights_cleared": False,
+        "interpretation": "This is class registration only, not prompt execution, node input schema or weight compatibility",
     }
