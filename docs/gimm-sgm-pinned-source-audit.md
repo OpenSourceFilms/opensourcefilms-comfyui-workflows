@@ -48,10 +48,25 @@ kijai `DownloadAndLoadGIMMVFIModel` class.
 **A matching node name alone is not equivalent to compatible socket
 schema or model-type semantics.**
 
-The two SGM node class names are present in the pinned Tween mapping;
-the audit does not imply that their exact sockets, weights or CUDA
-execution are qualified. Tween's loader may download a missing model
-and uses CuPy. No such functions are executed by this source audit.
+The two SGM node class names are present in the pinned Tween mapping.
+A further [dedicated pinned SGM source parity audit](../scripts/audit_sgm_segment_source_parity.py)
+now checks the original selected node IDs **21** (`LoadSGMVFIModel`) and
+**22** (`SGMVFISegmentInterpolate`) against the actual pinned
+`Ethanfel/ComfyUI-Tween@91947c0b8c795cf504d3848274d4217f0432a324`
+`nodes.py` AST. It validates the exact class mappings, full declared
+input names/types, required/optional classification, segmented subclass
+inheritance and its two appended `INT` sockets, output types/names,
+historical graph provenance, number of UI widgets, and live *graph link
+metadata* connecting loader model output to segmented input.
+
+If these source and graph contracts match, the audit reports
+`SCHEMA_PARITY_SOURCE_ONLY_HOLD`. This is a **source-typed compatibility
+finding**, not actual node import, GPU inference, model download,
+checkpoint identity or execution. This audit never imports upstream Python,
+installs CuPy, downloads the loader's model or writes a transformed graph.
+The pinned loader can auto-download a missing checkpoint and the underlying
+SGM implementation depends on CuPy; **runtime approval remains HOLD**.
+The CI JSON evidence is metadata only, not a deployable graph or certificate.
 
 ## Non-destructive class-name migration candidate
 
