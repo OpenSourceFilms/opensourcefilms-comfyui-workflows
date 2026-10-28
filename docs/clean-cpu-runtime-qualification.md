@@ -16,7 +16,7 @@ checkout's requirements into the isolated runner Python environment plus
 and `pip check` must pass.
 
 The job copies OSF's own optical-flow node into that scratch
-ComfyUI installation. It additionally fetches **exactly three public,
+ComfyUI installation. It additionally fetches **exactly four public,
 commit-pinned third-party packages** to the same disposable checkout,
 without invoking the broad legacy installer:
 
@@ -25,18 +25,22 @@ without invoking the broad legacy installer:
 | ComfyUI-VideoHelperSuite | `2984ec4c4b93292421888f38db74a5e8802a8ff8` | `VHS_VideoCombine` |
 | rgthree-comfy | `d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4` | `Any Switch (rgthree)` |
 | ComfyUI-DownsampleFPS | `4d741ef8e33b0c5111ad21033f9408acffc63651` | `DownsampleFPSNode` |
+| ComfyUI-GGUF | `6ea2651e7df66d7585f6ffee804b20e92fb38b8a` | `UnetLoaderGGUF` |
 
-The job requires actual Git HEAD to match each pinned SHA, installs the
-VideoHelperSuite `imageio-ffmpeg==0.6.0` prerequisite with CPU/headless
+The job requires actual Git HEAD to match each pinned SHA, installs
+`imageio-ffmpeg==0.6.0` and `gguf==0.13.0` with CPU/headless
 OpenCV provided by the core test, and disables persistence of the checkout
 credential. These packages are independent upstream software with their
 own GPL/MIT/Apache terms; they are neither vendored nor relicensed by OSF.
 The runner then starts ComfyUI with
 `--cpu --offline --listen 127.0.0.1`, checks the real
-`/object_info` API for both registered OSF nodes **and the three selected
-external package classes**, and executes only the OSF functions on
+`/object_info` API for both registered OSF nodes **and the four selected
+external package classes**, executes both OSF functions on
 generated 48×48 tensors: zero-flow propagation and static
-Farneback optical flow. It checks shape, finite values, initial-mask
+Farneback optical flow. It also executes the actual DownsampleFPS frame-drop
+method on eight synthetic CPU frames (8 fps to 4 fps), checking expected
+frame selection and recording the resulting tensor hash. GGUF is **import
+and registration only**, not a quantized model-load test. It checks shape, finite values, initial-mask
 preservation and zero-motion consistency, and records output hashes.
 The loopback process is terminated in all normal and exceptional paths.
 
@@ -45,12 +49,29 @@ versions, registration, synthetic output hashes and explicit exclusions.
 No generated images, model weights, third-party source or logs containing
 personal paths are uploaded.
 
+## Next dependency gate: unpinned initialization fetch
+
+The pinned `ComfyUI_UltimateSDUpscale@a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df`
+source contains a Git submodule at `repositories/ultimate_sd_upscale`.
+Its `__init__.py` attempts to download
+`Coyote-A/ultimate-upscale-for-automatic1111/archive/master.zip` when that
+submodule directory is empty. A Git checkout without its submodule may
+therefore execute **unreviewed mutable upstream bytes at import time**.
+Do not import this package in clean acceptance until the exact submodule
+commit and license are verified, checked out explicitly, and the fallback
+network download is disabled or otherwise made fail-closed. This is an
+installation provenance boundary, not a claim of malicious behaviour.
+
+The pinned GIMM-VFI source also declares `cupy-cuda12x`; this CPU test
+cannot certify its CUDA/kernel compatibility.
+
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
-It verifies three *representative* external node imports in addition to
-OSF's own two node functions, but not the rest of the dependent node
-classes or any external node execution. It does not verify SCAIL-2, SAM3,
+It verifies four *representative* external node imports in addition to
+OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
+method. It does **not** execute VideoHelperSuite, rgthree or GGUF nodes,
+or the rest of the dependency set. It does not verify SCAIL-2, SAM3,
 Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
 workflow loading or inference. Optical-flow nodes
 are referenced by research-only graphs, so their import acceptance does not
