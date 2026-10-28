@@ -259,6 +259,25 @@ and inverse white/black background rules. This does not execute any
 SAM3 or Wan model or infer a driving video. Full evidence and exclusions:
 [native SCAIL mask CPU qualification](scail-native-mask-cpu-qualification.md).
 
+## Native SAM3/SCAIL live API socket parity
+
+Five pinned-public native node classes are now compared against the **real
+loopback ComfyUI `/object_info` registry**, independently of the offline
+source-only binding review. The new
+[`audit_sam3_scail_live_registry.py`](../scripts/audit_sam3_scail_live_registry.py)
+requires class presence, each documented input name and supported type,
+required input placement, ordered output slot types, all three
+`SAM3_Detect` `forceInput` socket flags and the precise
+`SCAIL2ColoredMask.sort_by` options. It supports both the legacy
+list-valued combo representation and newer `COMBO` with option metadata,
+without weakening the enum requirements. Unreviewed extra input fields
+are counted, not silently called verified.
+
+**Not established:** serialization of the `SAM3_TRACK_DATA | MASK`
+multi-type input, input/output values during inference, running the
+three selected API workflows or model/GPU compatibility. The results
+are counts and flags only, never prompts or private media.
+
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
