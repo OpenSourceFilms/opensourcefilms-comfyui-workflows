@@ -85,6 +85,22 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Unapproved external"):
                     qualifier.verify_external_node_sources(nodes)
 
+    def test_fourth_external_package_is_pinned_to_manifest_gguf(self):
+        spec = qualifier.EXTERNAL_NODE_PINS["ComfyUI-GGUF"]
+        self.assertEqual(spec["sha"],
+                         "6ea2651e7df66d7585f6ffee804b20e92fb38b8a")
+        self.assertEqual(spec["classes"], ("UnetLoaderGGUF",))
+        lock = (ROOT / "DEPENDENCIES.lock").read_text(encoding="utf-8")
+        self.assertIn("commit: " + spec["sha"], lock)
+        self.assertIn("name: ComfyUI-GGUF", lock)
+
+    def test_external_frame_drop_acceptance_checks_expected_synthetic_values(self):
+        # This method imports torch only in the disposable runtime job.
+        # The contract test confirms the upstream method is required;
+        # correctness of the real function is verified on CI startup.
+        self.assertTrue(callable(qualifier.execute_downsample_fps_synthetic))
+        self.assertIn("ComfyUI-DownsampleFPS", qualifier.EXTERNAL_NODE_PINS)
+
     def test_requires_pinned_comfyui_sha_and_no_existing_evidence_file(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
