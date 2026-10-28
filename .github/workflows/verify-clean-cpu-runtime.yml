@@ -17,6 +17,8 @@ on:
       - "scripts/audit_sam3_scail_live_registry.py"
       - "tests/test_sam3_scail_live_registry.py"
       - "scripts/qualify_scail_native_mask_cpu.py"
+      - "scripts/qualify_sam3_native_preview_cpu.py"
+      - "tests/test_sam3_native_preview_cpu.py"
       - "tests/test_scail_native_mask_cpu.py"
       - "tests/fixtures/comfy_scail_cpu_source/**"
       - "scripts/qualify_synthetic_video_timing.py"
@@ -54,6 +56,8 @@ on:
       - "scripts/audit_sam3_scail_live_registry.py"
       - "tests/test_sam3_scail_live_registry.py"
       - "scripts/qualify_scail_native_mask_cpu.py"
+      - "scripts/qualify_sam3_native_preview_cpu.py"
+      - "tests/test_sam3_native_preview_cpu.py"
       - "tests/test_scail_native_mask_cpu.py"
       - "tests/fixtures/comfy_scail_cpu_source/**"
       - "scripts/qualify_synthetic_video_timing.py"
@@ -185,7 +189,7 @@ jobs:
           # No Florence model/weights are downloaded or executed here.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0" "matplotlib==3.10.6"
           python -m pip check
-      - name: Audit workflows, codecs, VHS precision, HQ422 candidate and SCAIL mask
+      - name: Audit workflows, codecs, VHS precision, SCAIL and native SAM3 preview
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
