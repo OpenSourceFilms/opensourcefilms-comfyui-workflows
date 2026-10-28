@@ -101,8 +101,12 @@ class VHSInputPrecisionTests(unittest.TestCase):
         high = array("H", [2048] * n)
         for frame in range(2):
             for row in range(2):
-                for dy in qualifier.INTERIOR_OFFSETS:
-                    for dx in qualifier.INTERIOR_OFFSETS:
+                # Populate both the old 3x3 grid (incl. offset 24)
+                # and every point of the new 16x16 central interior.
+                offsets = sorted(set(qualifier.INTERIOR_OFFSETS)
+                                 | set(qualifier.FULL_INTERIOR_OFFSETS))
+                for dy in offsets:
+                    for dx in offsets:
                         offset = (frame * qualifier.FRAME_COMPONENTS
                                   + (row * 32 + dy) * 64)
                         default[offset + dx] = 2080
@@ -122,6 +126,11 @@ class VHSInputPrecisionTests(unittest.TestCase):
         self.assertEqual(result["interior_optin16_preserved_pairs"], 36)
         self.assertEqual(result["interior_optin16_min_luma_delta_12bit"], 4)
         self.assertEqual(result["interior_optin16_max_luma_delta_12bit"], 4)
+        self.assertEqual(result["full_central_interior_bounds"], [8, 23])
+        self.assertEqual(result["full_central_control_collapsed_pairs"], 1024)
+        self.assertEqual(result["full_central_optin16_preserved_pairs"], 1024)
+        self.assertEqual(result["full_central_optin16_min_luma_delta_12bit"], 4)
+        self.assertEqual(result["full_central_optin16_max_luma_delta_12bit"], 4)
         self.assertFalse(result["bit_exact_source_fidelity_qualified"])
 
     def test_rejects_quantized_precise_input(self):
@@ -148,6 +157,28 @@ class VHSInputPrecisionTests(unittest.TestCase):
         precise[8 * 64 + 40] = 2079
         with self.assertRaisesRegex(ValueError, "spatial grid lost"):
             qualifier.verify_precision_contrast(default, precise)
+
+    def test_full_interior_rejects_one_point_between_sparse_grid_samples(self):
+        default, precise = self._grid_fixture_arrays()
+        # x=11,y=10 is not an old 8/16/24 grid coordinate.
+        # Keep all old 36 grid checks valid but collapse one new test point.
+        offset = 10 * 64
+        precise[offset + 32 + 11] = precise[offset + 11]
+        with self.assertRaisesRegex(ValueError, "full central interior lost"):
+            qualifier.verify_precision_contrast(default, precise)
+
+    def test_full_interior_rejects_one_off_grid_default_control_mismatch(self):
+        default, precise = self._grid_fixture_arrays()
+        default[10 * 64 + 32 + 11] += 1
+        with self.assertRaisesRegex(ValueError, "full central interior did not collapse"):
+            qualifier.verify_precision_contrast(default, precise)
+
+    def test_full_interior_count_and_bounds_are_exact(self):
+        self.assertEqual(qualifier.FULL_INTERIOR_OFFSETS, tuple(range(8, 24)))
+        self.assertEqual(qualifier.EXPECTED_FULL_INTERIOR_PAIR_COUNT, 1024)
+        default, precise = self._grid_fixture_arrays()
+        self.assertEqual(len(qualifier._full_interior_pairs(default)), 1024)
+        self.assertEqual(len(qualifier._full_interior_pairs(precise)), 1024)
 
     def test_spatial_grid_rejects_off_center_default_8bit_failure(self):
         default, precise = self._grid_fixture_arrays()

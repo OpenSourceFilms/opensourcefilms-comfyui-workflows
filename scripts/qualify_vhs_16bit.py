@@ -30,6 +30,10 @@ MAX_BYTES = 2_000_000
 EXPECTED_PAIR_COUNT = 4
 INTERIOR_OFFSETS = (8, 16, 24)
 EXPECTED_INTERIOR_PAIR_COUNT = 2 * 2 * len(INTERIOR_OFFSETS) ** 2
+# Exhaustive central tile interiors, 16x16 points per left/right pair:
+# 2 frames x 2 row-pairs x 256 pixels = 1024 pixel comparisons.
+FULL_INTERIOR_OFFSETS = tuple(range(8, 24))
+EXPECTED_FULL_INTERIOR_PAIR_COUNT = 2 * 2 * len(FULL_INTERIOR_OFFSETS) ** 2
 
 
 def prepare_disposable_16bit_preset(comfy: Path) -> dict:
@@ -190,6 +194,23 @@ def _interior_pairs(samples: array) -> list[tuple[int, int]]:
     return pairs
 
 
+def _full_interior_pairs(samples: array) -> list[tuple[int, int]]:
+    """Compare each central 16x16 left/right tile pixel, both rows/frames.
+
+    Avoid edges and preserve every off-grid point between the historic
+    3x3 comparisons. Only luma is compared, not chroma or overall PSNR.
+    """
+    pairs = []
+    for frame in range(2):
+        for row in range(2):
+            for dy in FULL_INTERIOR_OFFSETS:
+                base = frame * FRAME_COMPONENTS + (row * 32 + dy) * 64
+                for dx in FULL_INTERIOR_OFFSETS:
+                    pairs.append((samples[base + dx],
+                                  samples[base + 32 + dx]))
+    return pairs
+
+
 def verify_precision_contrast(default8: array, optin16: array) -> dict:
     if (len(default8) != 2 * FRAME_COMPONENTS
             or len(optin16) != 2 * FRAME_COMPONENTS):
@@ -214,6 +235,17 @@ def verify_precision_contrast(default8: array, optin16: array) -> dict:
     precise_grid_deltas = [right - left for left, right in precise_grid]
     if any(not 1 <= change <= 20 for change in precise_grid_deltas):
         raise ValueError("VHS opt-in 16-bit spatial grid lost fine source differences")
+
+    default_full = _full_interior_pairs(default8)
+    precise_full = _full_interior_pairs(optin16)
+    if (len(default_full) != EXPECTED_FULL_INTERIOR_PAIR_COUNT
+            or len(precise_full) != EXPECTED_FULL_INTERIOR_PAIR_COUNT):
+        raise ValueError("VHS full central interior comparisons incomplete")
+    if any(left != right for left, right in default_full):
+        raise ValueError("VHS default 8-bit full central interior did not collapse")
+    full_deltas = [right - left for left, right in precise_full]
+    if any(not 1 <= change <= 20 for change in full_deltas):
+        raise ValueError("VHS opt-in 16-bit full central interior lost fine source differences")
     return {
         "status": "vhs_16bit_input_sub8bit_levels_preserved",
         "source": "synthetic 12-bit-indexed RGB float IMAGE",
@@ -228,6 +260,11 @@ def verify_precision_contrast(default8: array, optin16: array) -> dict:
         "interior_optin16_preserved_pairs": len(precise_grid),
         "interior_optin16_min_luma_delta_12bit": min(precise_grid_deltas),
         "interior_optin16_max_luma_delta_12bit": max(precise_grid_deltas),
+        "full_central_interior_bounds": [8, 23],
+        "full_central_control_collapsed_pairs": len(default_full),
+        "full_central_optin16_preserved_pairs": len(precise_full),
+        "full_central_optin16_min_luma_delta_12bit": min(full_deltas),
+        "full_central_optin16_max_luma_delta_12bit": max(full_deltas),
         "frames": 2,
         "dimensions": [64, 64],
         "sample_count_per_output": 2 * FRAME_COMPONENTS,
