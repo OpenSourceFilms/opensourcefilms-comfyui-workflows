@@ -1,0 +1,73 @@
+name: Audit selected Wan native source bindings
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-wan-native-source.yml"
+      - "scripts/audit_wan_native_source_bindings.py"
+      - "tests/test_wan_native_source_bindings.py"
+      - "docs/wan-native-source-bindings.md"
+      - "DEPENDENCIES.lock"
+      - "workflows/commercial-compatible/wan22_fmlf_first_middle_last_frame.json"
+      - "workflows/commercial-compatible/video_wan2_2_14B_*.json"
+      - "workflows/commercial-compatible/video_wan_vace_14B_v2v.json"
+  pull_request:
+    paths:
+      - ".github/workflows/audit-wan-native-source.yml"
+      - "scripts/audit_wan_native_source_bindings.py"
+      - "tests/test_wan_native_source_bindings.py"
+      - "docs/wan-native-source-bindings.md"
+      - "DEPENDENCIES.lock"
+      - "workflows/commercial-compatible/wan22_fmlf_first_middle_last_frame.json"
+      - "workflows/commercial-compatible/video_wan2_2_14B_*.json"
+      - "workflows/commercial-compatible/video_wan_vace_14B_v2v.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wan-source-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-wan-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout public OSF source without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Select Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Test source auditor without external installs
+        run: python -B -m unittest discover -s tests -p "test_wan_native_source_bindings.py" -v
+      - name: Fetch exactly pinned public ComfyUI for source-only audit
+        env:
+          COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
+        run: |
+          set -euo pipefail
+          dest="${{ runner.temp }}/osf-pinned-wan-source"
+          git init "$dest"
+          git -C "$dest" remote add origin https://github.com/Comfy-Org/ComfyUI.git
+          git -C "$dest" fetch --no-tags --depth=1 origin "$COMFY_SHA"
+          git -C "$dest" checkout --detach "$COMFY_SHA"
+          test "$(git -C "$dest" rev-parse HEAD)" = "$COMFY_SHA"
+          test ! -L "$dest/comfy_extras/nodes_wan.py"
+          test -s "$dest/comfy_extras/nodes_wan.py"
+      - name: Audit native Wan schemas against five actual selected UI graphs
+        run: |
+          python -B scripts/audit_wan_native_source_bindings.py \
+            --native-source "${{ runner.temp }}/osf-pinned-wan-source/comfy_extras/nodes_wan.py" \
+            --output "${{ runner.temp }}/osf-wan-native-source-audit.json"
+      - name: Retain only metadata and explicit unresolved class IDs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: osf-wan-native-source-audit
+          path: ${{ runner.temp }}/osf-wan-native-source-audit.json
+          if-no-files-found: error
+          retention-days: 14
