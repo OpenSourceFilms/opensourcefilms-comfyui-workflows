@@ -195,7 +195,7 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertEqual(graph["13"]["inputs"]["images"], ["9", 0])
         self.assertFalse(graph["13"]["inputs"]["save_output"])
         self.assertEqual(graph["14"]["inputs"]["format"], "video/ProRes")
-        self.assertEqual(graph["14"]["inputs"]["profile"], "hq")
+        self.assertEqual(graph["14"]["inputs"]["profile"], "4444")
         self.assertEqual(graph["14"]["inputs"]["images"], ["9", 0])
         self.assertEqual(graph["14"]["inputs"]["frame_rate"], 2)
         self.assertFalse(graph["14"]["inputs"]["save_output"])
@@ -308,6 +308,7 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         blue = bytes((0, 0, 255)) * pixels
         exact = qualifier.validate_prores_decoded_rgb(red + blue)
         self.assertEqual(exact["codec"], "prores")
+        self.assertEqual(exact["profile_requested"], "4444")
         self.assertEqual(exact["frames_decoded"], 2)
         self.assertEqual(exact["maximum_absolute_channel_error"], [0, 0])
         self.assertFalse(exact["high_bit_depth_fidelity_qualified"])
