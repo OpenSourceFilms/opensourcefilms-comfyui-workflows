@@ -816,6 +816,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
     usdu_submodule = verify_usdu_submodule(comfy / "custom_nodes")
     from qualify_vhs_16bit import prepare_disposable_16bit_preset
     vhs_precision_preset = prepare_disposable_16bit_preset(comfy)
+    from qualify_vhs_prores_hq422 import prepare_disposable_hq422_preset
+    vhs_hq422_preset = prepare_disposable_hq422_preset(comfy)
     precision_fixture = comfy / "custom_nodes" / "comfy_12bit_source"
     if (precision_fixture.is_symlink() or not precision_fixture.is_dir()
             or (precision_fixture / "__init__.py").is_symlink()
@@ -891,6 +893,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                 # Independent FFmpeg path, not a ComfyUI/VHS input precision claim.
                 from qualify_prores_12bit import qualify_genuine_12bit_ffmpeg
                 real_12bit_roundtrip = qualify_genuine_12bit_ffmpeg()
+                from qualify_vhs_prores_hq422 import execute_disposable_vhs_hq422
+                vhs_hq422_probe = execute_disposable_vhs_hq422(port, child)
             except Exception as exc:
                 log.flush()
                 log.seek(0)
@@ -926,6 +930,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         },
         "vhs_rgb_channel_16bit_source_vs_default_8bit": vhs_rgb_precision_result,
         "independent_real_12bit_ffmpeg_roundtrip": real_12bit_roundtrip,
+        "vhs_prores_hq422_explicit_disposable_preset": {
+            "preset": vhs_hq422_preset,
+            "test": vhs_hq422_probe,
+        },
         "pinned_vhs_prores_input_precision": vhs_source_precision,
         "model_weights_installed": False,
         "third_party_custom_nodes_installed": True,
