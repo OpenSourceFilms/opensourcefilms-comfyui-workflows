@@ -57,5 +57,7 @@ jobs:
         run: python scripts/audit_embedded_group_source_candidates.py --output "${{ runner.temp }}/mm-upscale-reviewed-source-candidates.json"
       - name: Check embedded Essentials socket parity against reviewed candidate source
         run: python scripts/audit_mm_upscale_essentials_sockets.py --output "${{ runner.temp }}/mm-upscale-essentials-sockets.json"
+      - name: Check embedded KJNodes sockets against historical pinned source
+        run: python scripts/audit_mm_upscale_kjnodes_sockets.py --output "${{ runner.temp }}/mm-upscale-kjnodes-sockets.json"
       - name: Reject common private values and cache metadata
         run: python scripts/check-workflow-publication.py workflows > "${{ runner.temp }}/publication-audit.json"
