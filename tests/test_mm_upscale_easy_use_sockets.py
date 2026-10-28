@@ -131,7 +131,7 @@ class EasyUseEmbeddedSocketContractTests(unittest.TestCase):
     def test_missing_provider_instance_and_new_class_rejected(self):
         graph = deepcopy(self.graph)
         self.node(graph)["properties"]["cnr_id"] = "wrong-provider"
-        with self.assertRaisesRegex(ValueError, "class counts drifted"):
+        with self.assertRaisesRegex(ValueError, "group counts drifted"):
             audit.audit_export(graph)
         graph = deepcopy(self.graph)
         self.node(graph)["type"] = "easy unknown"
