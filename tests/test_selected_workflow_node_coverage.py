@@ -28,7 +28,7 @@ class LiveSelectedClassCoverageTests(unittest.TestCase):
         for name in ("SAM3_Detect", "SAM3_TrackPreview",
                      "SCAIL2ColoredMask", "WanSCAILToVideo"):
             self.assertEqual(live_audit.classify_missing(name),
-                             "documented_scail_sam3_fork_native")
+                             "historic_sam3_scail_class_unregistered")
         self.assertEqual(live_audit.classify_missing("MarkdownNote"),
                          "editor_or_extension_type_unqualified")
         self.assertEqual(
@@ -51,7 +51,7 @@ class LiveSelectedClassCoverageTests(unittest.TestCase):
         self.assertEqual(output["selected_workflows"], 11)
         self.assertEqual(output["unique_graph_class_ids"], 81)
         self.assertGreater(output["total_node_instances"], 300)
-        self.assertIn("SAM3_TrackPreview", output["missing_documented_fork_native"])
+        self.assertIn("SAM3_TrackPreview", output["missing_historic_sam3_scail_native"])
         self.assertIn("GIMMVFI_loader", output["missing_other_unregistered"])
         self.assertFalse(output["all_11_workflows_executable"])
         self.assertFalse(output["gpu_inference_tested"])
