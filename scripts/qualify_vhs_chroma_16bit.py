@@ -23,7 +23,7 @@ from urllib.request import Request, urlopen
 
 from qualify_vhs_16bit import (
     FORMAT_NAME,
-    INTERIOR_OFFSETS,
+    FULL_INTERIOR_OFFSETS,
     _read_mov,
     validate_precision_history,
 )
@@ -36,7 +36,8 @@ COMPONENTS_PER_FRAME = 3 * PIXELS
 EXPECTED_BYTES = FRAMES * COMPONENTS_PER_FRAME * 2
 # Frame R -> V, frame G -> luma Y, frame B -> U.
 PROBED_YUV_PLANES = (2, 0, 1)
-GRID_PAIR_COUNT = FRAMES * len(INTERIOR_OFFSETS) ** 2
+# All 16x16 central tile pixels in each of the 3 RGB-channel source frames.
+GRID_PAIR_COUNT = FRAMES * len(FULL_INTERIOR_OFFSETS) ** 2
 MAX_FINE_DETAIL_DELTA = 32
 
 
@@ -100,8 +101,8 @@ def _grid_pairs_in_target_planes(samples: array) -> list[tuple[int, int]]:
     result = []
     for frame, plane in enumerate(PROBED_YUV_PLANES):
         base = frame * COMPONENTS_PER_FRAME + plane * PIXELS
-        for dy in INTERIOR_OFFSETS:
-            for dx in INTERIOR_OFFSETS:
+        for dy in FULL_INTERIOR_OFFSETS:
+            for dx in FULL_INTERIOR_OFFSETS:
                 row = base + dy * WIDTH
                 result.append((samples[row + dx], samples[row + 32 + dx]))
     return result
@@ -118,7 +119,7 @@ def verify_rgb_chroma_detail(default8: array, optin16: array) -> dict:
     if any(not 1 <= diff <= MAX_FINE_DETAIL_DELTA for diff in deltas):
         raise ValueError("VHS opt-in RGB48 lost or reversed chroma/luma fine detail")
     channel_ranges = []
-    points_per_frame = len(INTERIOR_OFFSETS) ** 2
+    points_per_frame = len(FULL_INTERIOR_OFFSETS) ** 2
     for frame, channel in enumerate(("R", "G", "B")):
         frame_deltas = deltas[frame * points_per_frame:(frame + 1) * points_per_frame]
         channel_ranges.append({
@@ -141,7 +142,8 @@ def verify_rgb_chroma_detail(default8: array, optin16: array) -> dict:
         "source_rgb_channels_checked": 3,
         "control_collapsed_pairs": len(control),
         "optin_preserved_pairs": len(precise),
-        "grid_offsets": list(INTERIOR_OFFSETS),
+        "grid_offsets": list(FULL_INTERIOR_OFFSETS),
+        "test_region": "central_16x16_interior_pixels_per_source_RGB_channel",
         "per_channel_grid_results": channel_ranges,
         "max_permitted_positive_difference_12bit": MAX_FINE_DETAIL_DELTA,
         "rgb_source_component_accuracy_qualified": False,
