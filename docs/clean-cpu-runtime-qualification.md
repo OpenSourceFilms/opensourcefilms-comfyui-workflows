@@ -169,6 +169,23 @@ including source/output hashes, 12-bit maximum/mean error, and the
 four preserved fine-grained comparisons. No image/video binaries are
 published.
 
+## Embedded group internal registration, separate from executable workflows
+
+The real CPU `/object_info` registration evidence includes
+`selected_workflow_node_coverage` for the exact eleven selected graphs.
+In addition to the existing **81 distinct top-level class strings**, the
+report now checks the **89 internal node instances** of the four embedded
+subgraph definitions in `mm_upscale_video_workflow.json`. It lists
+registered and missing distinct internal node classes per group, including
+their conservative missing-class categories. No class is considered to
+qualify a whole group solely because its registration exists.
+
+Embedded group wrappers, frontend/subgraph expansion, the full graph's
+input/output schemas, all dependency licences and actual `/prompt`
+execution remain **unverified**. The original top-level class counts
+are not inflated with embedded internal classes. No footage, media
+paths, prompts or model filenames are written to the evidence.
+
 ## Pinned UltimateSDUpscale submodule, no mutable fallback
 
 The pinned `ssitu/ComfyUI_UltimateSDUpscale` source at
