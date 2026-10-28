@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/verify-sam3-custompkg-source.yml"
       - "scripts/audit_sam3_custompkg_source.py"
+      - "scripts/audit_sam3_custompkg_core_links.py"
+      - "tests/test_sam3_core_source_links.py"
       - "tests/test_sam3_custompkg_source.py"
       - "workflows/commercial-compatible/sam3_custompkg_probe.json"
       - "DEPENDENCIES.lock"
@@ -14,6 +16,8 @@ on:
     paths:
       - ".github/workflows/verify-sam3-custompkg-source.yml"
       - "scripts/audit_sam3_custompkg_source.py"
+      - "scripts/audit_sam3_custompkg_core_links.py"
+      - "tests/test_sam3_core_source_links.py"
       - "tests/test_sam3_custompkg_source.py"
       - "workflows/commercial-compatible/sam3_custompkg_probe.json"
       - "DEPENDENCIES.lock"
@@ -42,6 +46,21 @@ jobs:
           python-version: "3.12"
       - name: Run stdlib-only malformed-source and graph regressions
         run: python -B -m unittest discover -s tests -p "test_sam3_custompkg_source.py" -v
+      - name: Test pinned native ComfyUI core schema/link contracts offline
+        run: python -B -m unittest discover -s tests -p "test_sam3_core_source_links.py" -v
+      - name: Fetch exact ComfyUI core source as data, never execute it
+        env:
+          COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
+        run: |
+          set -euo pipefail
+          root="${{ runner.temp }}/osf-sam3-pinned-comfyui-core"
+          git init "$root"
+          git -C "$root" remote add origin https://github.com/Comfy-Org/ComfyUI.git
+          git -C "$root" fetch --no-tags --depth=1 origin "$COMFY_SHA"
+          git -C "$root" checkout --detach "$COMFY_SHA"
+          test "$(git -C "$root" rev-parse HEAD)" = "$COMFY_SHA"
+          test -s "$root/nodes.py"
+          test -s "$root/comfy_extras/nodes_mask.py"
       - name: Fetch reviewed SAM3 source as data, never import it
         env:
           SAM3_SHA: de0ff5d2c2ea435d29f800abfa568cffdfb94773
@@ -60,6 +79,7 @@ jobs:
         run: |
           python -B scripts/audit_sam3_custompkg_source.py \
             --upstream-dir "${{ runner.temp }}/osf-public-pinned-sam3" \
+            --core-dir "${{ runner.temp }}/osf-sam3-pinned-comfyui-core" \
             --output "${{ runner.temp }}/osf-sam3-custompkg-source-evidence.json"
       - name: Retain metadata only, no upstream source or model weights
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
