@@ -1,0 +1,70 @@
+name: Audit pinned SAM3 custom-package API source and download boundary
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-sam3-custompkg-source.yml"
+      - "scripts/audit_sam3_custompkg_source.py"
+      - "tests/test_sam3_custompkg_source.py"
+      - "workflows/commercial-compatible/sam3_custompkg_probe.json"
+      - "DEPENDENCIES.lock"
+      - "docs/sam3-custompkg-source-audit.md"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-sam3-custompkg-source.yml"
+      - "scripts/audit_sam3_custompkg_source.py"
+      - "tests/test_sam3_custompkg_source.py"
+      - "workflows/commercial-compatible/sam3_custompkg_probe.json"
+      - "DEPENDENCIES.lock"
+      - "docs/sam3-custompkg-source-audit.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sam3-custompkg-source-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout OSF source without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Choose Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Run stdlib-only malformed-source and graph regressions
+        run: python -B -m unittest discover -s tests -p "test_sam3_custompkg_source.py" -v
+      - name: Fetch reviewed SAM3 source as data, never import it
+        env:
+          SAM3_SHA: de0ff5d2c2ea435d29f800abfa568cffdfb94773
+        run: |
+          set -euo pipefail
+          root="${{ runner.temp }}/osf-public-pinned-sam3"
+          git init "$root"
+          git -C "$root" remote add origin https://github.com/PozzettiAndrea/ComfyUI-SAM3.git
+          git -C "$root" fetch --depth=1 --no-tags origin "$SAM3_SHA"
+          git -C "$root" checkout --detach "$SAM3_SHA"
+          test "$(git -C "$root" rev-parse HEAD)" = "$SAM3_SHA"
+          test -s "$root/LICENSE"
+          test -s "$root/nodes/load_model.py"
+          test -s "$root/nodes/segmentation.py"
+      - name: Audit exact upstream AST and real selected SAM3 probe bindings
+        run: |
+          python -B scripts/audit_sam3_custompkg_source.py \
+            --upstream-dir "${{ runner.temp }}/osf-public-pinned-sam3" \
+            --output "${{ runner.temp }}/osf-sam3-custompkg-source-evidence.json"
+      - name: Retain metadata only, no upstream source or model weights
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: osf-sam3-custompkg-source-evidence
+          path: ${{ runner.temp }}/osf-sam3-custompkg-source-evidence.json
+          if-no-files-found: error
+          retention-days: 14
