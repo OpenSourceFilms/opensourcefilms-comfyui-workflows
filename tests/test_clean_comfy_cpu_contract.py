@@ -150,6 +150,53 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertNotEqual(child.returncode, 0)
         self.assertIn("Unpinned urllib.request.urlretrieve", child.stderr)
 
+    def test_model_free_external_prompt_uses_only_core_vhs_and_rgthree(self):
+        graph = qualifier.build_model_free_external_prompt()
+        self.assertEqual(set(graph), {"1", "2", "3", "4"})
+        self.assertEqual(
+            [graph[str(i)]["class_type"] for i in range(1, 5)],
+            ["EmptyImage", "VHS_SelectEveryNthImage",
+             "Any Switch (rgthree)", "PreviewImage"],
+        )
+        self.assertEqual(graph["1"]["inputs"]["batch_size"], 4)
+        self.assertEqual(graph["2"]["inputs"], {
+            "images": ["1", 0],
+            "select_every_nth": 2,
+            "skip_first_images": 0,
+        })
+        self.assertEqual(graph["3"]["inputs"], {"any_01": ["2", 0]})
+        self.assertEqual(graph["4"]["inputs"], {"images": ["3", 0]})
+        self.assertFalse(any(
+            "Load" in spec["class_type"] or "Sampler" in spec["class_type"]
+            for spec in graph.values()
+        ))
+
+    def test_external_history_requires_two_real_temp_previews(self):
+        ident = "synthetic-prompt-id"
+        def event(name):
+            return {"filename": name, "type": "temp", "subfolder": ""}
+        record = {ident: {
+            "status": {"completed": True, "status_str": "success"},
+            "outputs": {"4": {"images": [event("one.png"), event("two.png")]}},
+        }}
+        valid = qualifier.validate_model_free_external_history(record, ident)
+        self.assertEqual(valid["selected_image_count"], 2)
+        self.assertFalse(valid["model_weights_used"])
+        self.assertFalse(valid["binary_outputs_uploaded"])
+        record[ident]["outputs"]["4"]["images"].pop()
+        with self.assertRaisesRegex(ValueError, "wrong image count"):
+            qualifier.validate_model_free_external_history(record, ident)
+        record[ident]["outputs"]["4"]["images"].append(event("two.png"))
+        record[ident]["status"]["completed"] = False
+        with self.assertRaisesRegex(ValueError, "did not complete"):
+            qualifier.validate_model_free_external_history(record, ident)
+        record[ident]["status"]["completed"] = True
+        record[ident]["outputs"]["4"]["images"][0]["type"] = "output"
+        with self.assertRaisesRegex(ValueError, "invalid preview metadata"):
+            qualifier.validate_model_free_external_history(record, ident)
+        with self.assertRaisesRegex(ValueError, "Missing external"):
+            qualifier.validate_model_free_external_history({}, ident)
+
     def test_requires_pinned_comfyui_sha_and_no_existing_evidence_file(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
