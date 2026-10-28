@@ -43,6 +43,18 @@ method on eight synthetic CPU frames (8 fps to 4 fps), checking expected
 frame selection and recording the resulting tensor hash. GGUF is **import
 and registration only**, not a quantized model-load test. It checks shape, finite values, initial-mask
 preservation and zero-motion consistency, and records output hashes.
+A further **real ComfyUI HTTP `/prompt` execution** covers two previously
+import-only packages with a generated, no-weight graph:
+`EmptyImage` produces four 64×64 black frames, pinned
+`VHS_SelectEveryNthImage` selects two frames, pinned
+`Any Switch (rgthree)` forwards those images, and native
+`PreviewImage` produces two temporary preview records. The runner polls the
+corresponding `/history/{prompt_id}` and requires successful completion plus
+exactly two temporary preview entries. These binary previews remain in
+the disposable runner's temporary ComfyUI directory and are **never
+uploaded as evidence**. This verifies a minimal live VHS+rgthree graph,
+not an existing 11-workflow graph, video encoding, model quality or inference.
+
 The loopback process is terminated in all normal and exceptional paths.
 
 The only uploaded artifact is a small JSON report with source SHA, tool
@@ -86,7 +98,9 @@ cannot certify its CUDA/kernel compatibility.
 This is **not a clean installation of all 11 selected workflows**.
 It verifies five *representative* external node imports in addition to
 OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
-method. It does **not** execute VideoHelperSuite, rgthree, GGUF or UltimateSDUpscale nodes,
+method. It executes only the two simple VHS/rgthree graph operations described above.
+It does **not** execute GGUF or UltimateSDUpscale nodes, nor VideoHelperSuite
+video encoders, external model loading or any full 11-workflow graph.
 or the rest of the dependency set. It does not verify SCAIL-2, SAM3,
 Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
 workflow loading or inference. Optical-flow nodes
