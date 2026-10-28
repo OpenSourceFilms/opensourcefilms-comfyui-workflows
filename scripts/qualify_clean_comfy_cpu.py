@@ -165,10 +165,17 @@ def _probe_server(port: int, child: subprocess.Popen, *, seconds: int = 120) -> 
                 for name in CLASSES:
                     ensure_loopback_object_info(info, name)
                 external = ensure_external_object_info(info, EXTERNAL_NODE_PINS)
+                from audit_selected_workflow_nodes import (
+                    coverage_from_registry, load_selected_graphs,
+                )
+                live_selected_coverage = coverage_from_registry(
+                    load_selected_graphs(), info
+                )
                 return {
                     "status": "registered",
                     "classes": list(CLASSES),
                     "external_classes": external,
+                    "selected_workflow_node_coverage": live_selected_coverage,
                 }
         except (URLError, HTTPError, OSError, ValueError, TimeoutError) as exc:
             last_reason = type(exc).__name__
@@ -812,6 +819,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "upstream_comfyui_commit": version,
         "runtime": "isolated_github_actions_ubuntu_cpu_only",
         "registration": registration,
+        "selected_workflow_node_coverage": registration["selected_workflow_node_coverage"],
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
