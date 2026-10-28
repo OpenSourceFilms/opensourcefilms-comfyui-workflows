@@ -20,6 +20,8 @@ The report is generated in a disposable CI temp directory. It is not uploaded as
 
 The report omits prompt texts, model filenames, paths to footage and images. It includes public workflow paths, node-class names, canonical dependency names and explicit negative acceptance flags.
 
+For an explicit per-provider reconciliation of the four embedded groups' 89 internal nodes against the canonical mm_upscale dependency block, see [embedded provider gaps](embedded-mm-upscale-provider-gaps.md). The exported metadata identifies three unlisted provider hints (Easy-Use, KJNodes and Essentials) and an unpinned listed Custom-Scripts provider. This is **not** installation, licence or runtime acceptance.
+
 ## Required downstream acceptance
 
 1. Verify all **embedded subgraph internal dependencies**, including each required package, node input/output schema, extension version and licence. Confirm the four matching definitions load and execute correctly in the target ComfyUI frontend and API conversion. Other workflow group definitions, if introduced, must be validated before acceptance.
