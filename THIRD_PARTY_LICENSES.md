@@ -76,6 +76,17 @@ stale upstream and were repinned to commits).
   SCAIL-2-enabled ComfyUI fork these workflows were built on. If your
   ComfyUI install doesn't have these natively, you'll need a build that
   does; we haven't isolated the patch as a standalone diff.
+  **Updated evidence, 2026-10-28:** Public
+  `Comfy-Org/ComfyUI@08cf0284ff45723aa67841c80cabb0e3cb50c9d7`
+  contains `comfy_extras/nodes_sam3.py` and `nodes_scail.py`,
+  exposing all five relevant native IDs (`SAM3_Detect`,
+  `SAM3_VideoTrack`, `SAM3_TrackPreview`, `SCAIL2ColoredMask`,
+  `WanSCAILToVideo`). All five registered through a real live
+  `/object_info` test in a disposable clean CPU runner ([PR #26](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/pull/26)).
+  A specialized fork is therefore not established as mandatory
+  **merely for those class names**. This does **not** demonstrate
+  input/output schema equivalence with the original fork, successful
+  model-weight loading, SCAIL-2/SAM3 inference or broader rights clearance.
 - **Required notices**: preserve GPL notices if you redistribute a modified
   ComfyUI build.
 - **Date verified**: 2026-07-22.
