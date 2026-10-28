@@ -113,6 +113,11 @@ and checks the reported profile *and* 4:4:4 storage. This does not
 establish that the upstream HQ profile behaves correctly for every
 codec or pixel format.
 
+A [separate disposable HQ 4:2:2 candidate probe](vhs-prores-hq422-candidate.md)
+compares the stock HQ source against a test-only preset adding the single
+explicit FFmpeg argument `-pix_fmt yuv422p10le`. Its expected
+result is candidate-only, not a production fix or rights clearance.
+
 **ComfyUI/VHS precision boundary:** Although the ProRes 4444 stream
 reports 12-bit 4:4:4 storage, this *ComfyUI graph* originates from
 8-bit `EmptyImage` colour constants and is checked after RGB24 decode.
