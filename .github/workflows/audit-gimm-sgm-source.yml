@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/audit-gimm-sgm-source.yml"
       - "scripts/audit_gimm_sgm_source_bindings.py"
+      - "scripts/plan_gimm_vfi_class_migration.py"
+      - "tests/test_gimm_migration_candidate.py"
       - "tests/test_gimm_source_bindings.py"
       - "DEPENDENCIES.lock"
       - "workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json"
@@ -13,6 +15,8 @@ on:
     paths:
       - ".github/workflows/audit-gimm-sgm-source.yml"
       - "scripts/audit_gimm_sgm_source_bindings.py"
+      - "scripts/plan_gimm_vfi_class_migration.py"
+      - "tests/test_gimm_migration_candidate.py"
       - "tests/test_gimm_source_bindings.py"
       - "DEPENDENCIES.lock"
       - "workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json"
@@ -40,6 +44,8 @@ jobs:
           python-version: "3.12"
       - name: Run offline no-import regression contracts
         run: python -B -m unittest discover -s tests -p "test_gimm_source_bindings.py" -v
+      - name: Test non-deployable GIMM two-class migration contract offline
+        run: python -B -m unittest discover -s tests -p "test_gimm_migration_candidate.py" -v
       - name: Fetch both historical exact-pinned third-party source revisions
         run: |
           set -euo pipefail
@@ -68,10 +74,21 @@ jobs:
             --output "$RUNNER_TEMP/osf-gimm-source-only.json"
           python -B -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["status"]=="HOLD" and j["gimm_loader_missing_from_both_pins"] and not j["source_binding_qualified"]' \
             "$RUNNER_TEMP/osf-gimm-source-only.json"
+      - name: Prove two-class GIMM source migration candidate but retain HOLD
+        run: |
+          set -euo pipefail
+          python -B scripts/plan_gimm_vfi_class_migration.py \
+            --gimm-root "$RUNNER_TEMP/gimm-source-only/gimm" \
+            --tween-root "$RUNNER_TEMP/gimm-source-only/tween" \
+            --output "$RUNNER_TEMP/osf-gimm-migration-candidate.json"
+          python -B -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["status"]=="CANDIDATE_ONLY_HOLD" and j["changes_count"]==2 and j["original_graph_untouched"] and not j["end_to_end_workflow_qualified"]' \
+            "$RUNNER_TEMP/osf-gimm-migration-candidate.json"
       - name: Retain metadata-only source inspection, not third-party source
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: osf-gimm-source-only-hold
-          path: ${{ runner.temp }}/osf-gimm-source-only.json
+          path: |
+            ${{ runner.temp }}/osf-gimm-source-only.json
+            ${{ runner.temp }}/osf-gimm-migration-candidate.json
           if-no-files-found: error
           retention-days: 14
