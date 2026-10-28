@@ -75,6 +75,15 @@ validation. The tests cover contradictory types, dynamic links,
 uninstalled custom providers, wrong output slots, and bad graph
 references.
 
+The pinned public `SCAIL2ColoredMask.ref_track_data` uses a reviewed
+two-type socket. In the live registry it serializes as
+`SAM3_TRACK_DATA,MASK`, whereas the pinned source-schema audit writes
+`SAM3_TRACK_DATA|MASK`. This validator explicitly accepts `MASK`
+or `SAM3_TRACK_DATA` for **that one named destination field only**.
+Unknown comma-separated strings and other wildcard/dynamic sockets
+remain unverified; they do not acquire blanket compatibility through
+the exception.
+
 The custom SAM3 probe intentionally depends on a separately sourced
 `LoadSAM3Model`/`SAM3Segmentation` package that is **not** among the
 five clean-runtime external packages. Its uninstalled provider links
