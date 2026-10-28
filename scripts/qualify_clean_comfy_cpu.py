@@ -788,6 +788,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             )
             try:
                 registration = _probe_server(port, child)
+                selected_coverage = registration.pop("selected_workflow_node_coverage")
                 synthetic = execute_synthetic(package)
                 downsample = execute_downsample_fps_synthetic(
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
@@ -819,7 +820,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "upstream_comfyui_commit": version,
         "runtime": "isolated_github_actions_ubuntu_cpu_only",
         "registration": registration,
-        "selected_workflow_node_coverage": registration["selected_workflow_node_coverage"],
+        "selected_workflow_node_coverage": selected_coverage,
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
