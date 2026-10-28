@@ -64,9 +64,25 @@ not binary image files or filenames, are written to the JSON evidence
 report. Binary previews and GIF remain on the disposable runner and
 are **never uploaded**.
 
-This qualifies a narrow live VideoHelperSuite selection and GIF encoding
-operation plus rgthree routing. It does not qualify video codecs such as
-H.264/H.265, full media workflows or any pretrained model.
+A second `VHS_VideoCombine` endpoint consumes the same selected images
+with the pinned upstream `video/h264-mp4` format, `pix_fmt=yuv420p`,
+`crf=0`, 2 fps and `save_output=false`. The harness retrieves this
+temporary MP4 from the loopback server, verifies its container signature,
+and uses the installed `imageio-ffmpeg` binary to decode it to raw RGB.
+FFmpeg must identify the elementary video stream as **H.264** and return
+exactly two 64×64 frames. Every pixel must match the expected **red,
+then blue** sequence within an absolute tolerance of 24 per 8-bit RGB
+channel. That tolerance permits the round trip through the format's
+YUV420 colour conversion, unlike the exact PNG/GIF RGB checks. The
+report includes maximum per-frame deviation, decoded frame hashes and
+the MP4 SHA-256, but no uploaded media. Each fetched temporary file
+is capped at 2 MB, and the MP4 is decoded only in a disposable
+temporary directory.
+
+This qualifies a narrow live VideoHelperSuite selection, GIF and H.264
+encoding path plus rgthree routing. It does **not** qualify H.265,
+production media duration, bit-depth fidelity, arbitrary metadata,
+audio muxing, full media workflows or pretrained models.
 
 The loopback process is terminated in all normal and exceptional paths.
 
