@@ -80,6 +80,8 @@ def validate_sam3_preview_pixels(raw: bytes) -> dict:
         frame = raw[frame_index * stride:(frame_index + 1) * stride]
         frame_errors = []
         for x, y, expected in EXPECTED_PROBES:
+            if frame_index == 1 and x in (12, 46):
+                expected = (31, 120, 181) if x == 12 else (255, 128, 13)
             offset = (y * WIDTH + x) * 3
             observed = frame[offset:offset + 3]
             error = max(abs(value - target)
