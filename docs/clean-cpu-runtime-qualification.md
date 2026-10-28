@@ -47,9 +47,12 @@ personal paths are uploaded.
 
 ## Crucial non-acceptance
 
-This is **not a clean installation of all 11 selected workflows**. It
-does not verify SCAIL-2, SAM3, Wan2.2, GIMM-VFI, model licences, model
-weights, GPU/CUDA/VRAM, workflow loading or inference. Optical-flow nodes
+This is **not a clean installation of all 11 selected workflows**.
+It verifies three *representative* external node imports in addition to
+OSF's own two node functions, but not the rest of the dependent node
+classes or any external node execution. It does not verify SCAIL-2, SAM3,
+Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
+workflow loading or inference. Optical-flow nodes
 are referenced by research-only graphs, so their import acceptance does not
 confer rights to research-restricted VideoMaMa or EffectErase components.
 The 11-workflow staged bundle is still not an installed runtime.
