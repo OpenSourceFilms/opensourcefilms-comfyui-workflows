@@ -54,10 +54,18 @@ install_pkg() {
     local name="$1" url="$2" ref="$3"
     local dest="$CUSTOM_NODES_DIR/$name"
 
-    if [ -d "$dest" ]; then
-        echo "skip $name (already present at $dest)"
-        echo "WARNING: existing $name was not checked for Git origin, revision or node imports; verify it independently." >&2
-        return 0
+    # A matching path may be a file or dangling symlink, not an installed
+    # checkout. Never let a failed git clone trigger rm -rf on user-owned
+    # content that existed before this invocation.
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        if [ -d "$dest" ]; then
+            echo "skip $name (already present at $dest)"
+            echo "WARNING: existing $name was not checked for Git origin, revision or node imports; verify it independently." >&2
+            return 0
+        fi
+        echo "ERROR: cannot clone $name: destination already exists and is not a directory; preserving $dest" >&2
+        FAILED_PACKAGES="$FAILED_PACKAGES $name"
+        return 1
     fi
 
     echo "cloning $name from $url (ref $ref)..."
