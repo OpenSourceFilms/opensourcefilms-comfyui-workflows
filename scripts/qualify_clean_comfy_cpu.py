@@ -474,7 +474,12 @@ def verify_prores_video(port: int, item: dict) -> dict:
         # The selected HQ profile is 10-bit 4:2:2 video storage, but our
         # synthetic EmptyImage frames originate as 8-bit RGB colours.
         if not re.search(r"\byuv422p10le\b", stderr):
-            raise ValueError("ProRes HQ storage pixel format differs from expected")
+            # Emit only the restricted codec descriptor for diagnosing a
+            # genuinely different storage format; never log source paths.
+            stream_line = re.search(r"Video:\s+prores[^\n]{0,220}", stderr,
+                                    flags=re.IGNORECASE)
+            descriptor = stream_line.group(0) if stream_line else "not reported"
+            raise ValueError("ProRes HQ storage pixel format differs: " + descriptor)
         return {
             **validate_prores_decoded_rgb(result.stdout),
             "container": "mov",
