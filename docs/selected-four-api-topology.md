@@ -80,9 +80,13 @@ two-type socket. In the live registry it serializes as
 `SAM3_TRACK_DATA,MASK`, whereas the pinned source-schema audit writes
 `SAM3_TRACK_DATA|MASK`. This validator explicitly accepts `MASK`
 or `SAM3_TRACK_DATA` for **that one named destination field only**.
-Unknown comma-separated strings and other wildcard/dynamic sockets
-remain unverified; they do not acquire blanket compatibility through
-the exception.
+Unknown comma- or pipe-separated input strings, including an
+otherwise matching member of an unreviewed union, remain **unverified**.
+Composite source-output type strings likewise never count as a concrete
+typed socket. Only the exact reviewed `SAM3_TRACK_DATA,MASK` union (or
+its documented pipe alias) at `SCAIL2ColoredMask.ref_track_data` is
+admitted. New union declarations require a fresh source review before
+being promoted to exact compatibility.
 
 The custom SAM3 probe intentionally depends on a separately sourced
 `LoadSAM3Model`/`SAM3Segmentation` package that is **not** among the
