@@ -181,7 +181,7 @@ RASTER_LIMIT = 2_000_000
 
 
 def build_model_free_external_prompt() -> dict:
-    """Four distinct colours, VHS selection, rgthree, previews, GIF and H.264.
+    """Four distinct colours, VHS selection, rgthree, GIF, H.264 and H.265.
 
     All image content is authored by native EmptyImage; no file inputs,
     model loaders, private media or user-supplied prompt fields.
@@ -233,6 +233,17 @@ def build_model_free_external_prompt() -> dict:
             "pingpong": False,
             "save_output": False,
         }},
+        "13": {"class_type": "VHS_VideoCombine", "inputs": {
+            "images": ["9", 0],
+            "frame_rate": 2,
+            "loop_count": 0,
+            "filename_prefix": "osf_synthetic_vhs_hevc",
+            "format": "video/h265-mp4",
+            "pix_fmt": "yuv420p",
+            "crf": 0,
+            "pingpong": False,
+            "save_output": False,
+        }},
     })
     return graph
 
@@ -275,6 +286,10 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
         outputs.get("12"), dict) else None
     if not isinstance(h264s, list) or len(h264s) != 1:
         raise ValueError("External synthetic H264 encoder returned wrong output count")
+    h265s = outputs.get("13", {}).get("gifs") if isinstance(
+        outputs.get("13"), dict) else None
+    if not isinstance(h265s, list) or len(h265s) != 1:
+        raise ValueError("External synthetic H265 encoder returned wrong output count")
     for preview in previews:
         _validated_temp_asset(preview, "png")
     gif = _validated_temp_asset(gifs[0], "gif")
@@ -283,6 +298,9 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
     _validated_temp_asset(h264s[0], "mp4")
     if h264s[0].get("format") != "video/h264-mp4":
         raise ValueError("Unexpected external MP4 codec")
+    _validated_temp_asset(h265s[0], "mp4")
+    if h265s[0].get("format") != "video/h265-mp4":
+        raise ValueError("Unexpected external HEVC codec")
     return {
         "status": "synthetic_api_graph_executed",
         "classes": ["EmptyImage", "ImageBatch", "VHS_SelectEveryNthImage",
@@ -291,7 +309,8 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
         "selected_image_count": len(previews),
         "gif_count": len(gifs),
         "h264_mp4_count": len(h264s),
-        "route": "four colored core images -> VHS every-second -> rgthree -> previews + GIF/H264",
+        "h265_mp4_count": len(h265s),
+        "route": "four colored core images -> VHS every-second -> rgthree -> previews + GIF/H264/H265",
         "model_weights_used": False,
         "binary_outputs_uploaded": False,
     }
@@ -322,6 +341,65 @@ def _fetch_temporary_asset(port: int, item: dict, extension: str) -> bytes:
         return data
 
 
+def validate_h265_decoded_rgb(raw: bytes) -> dict:
+    """Check every HEVC frame pixel with the same YUV tolerance as H.264."""
+    pixels_per_frame = 64 * 64 * 3
+    if len(raw) != 2 * pixels_per_frame:
+        raise ValueError("H265 decoded frame count or dimensions differ")
+    errors = []
+    hashes = []
+    for index, rgb in enumerate(EXPECTED_RGB):
+        frame = raw[index * pixels_per_frame:(index + 1) * pixels_per_frame]
+        error = max(
+            max(abs(value - target) for value in frame[channel::3])
+            for channel, target in enumerate(rgb)
+        )
+        if error > 24:
+            raise ValueError("H265 decoded RGB differs from expected red/blue order")
+        hashes.append(_sha(frame))
+        errors.append(error)
+    return {
+        "codec": "hevc",
+        "pixel_format_requested": "yuv420p",
+        "frames_decoded": 2,
+        "width": 64,
+        "height": 64,
+        "expected_rgb": [list(color) for color in EXPECTED_RGB],
+        "maximum_absolute_channel_error": errors,
+        "maximum_permitted_channel_error": 24,
+        "decoded_frame_sha256": hashes,
+        "content": "bounded_full_frame_rgb_verified",
+        "binary_outputs_uploaded": False,
+    }
+
+
+def verify_h265_video(port: int, item: dict) -> dict:
+    """Inspect and decode the temporary VHS libx265/hvc1 MP4 via local FFmpeg."""
+    from imageio_ffmpeg import get_ffmpeg_exe
+
+    data = _fetch_temporary_asset(port, item, "mp4")
+    if len(data) < 12 or data[4:8] != b"ftyp":
+        raise ValueError("H265 asset lacks an MP4 ftyp signature")
+    with tempfile.TemporaryDirectory(prefix="osf_hevc_cpu_") as scratch:
+        video = Path(scratch) / "synthetic.mp4"
+        video.write_bytes(data)
+        result = subprocess.run(
+            [get_ffmpeg_exe(), "-hide_banner", "-nostdin",
+             "-i", str(video), "-map", "0:v:0", "-vsync", "0",
+             "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+            capture_output=True, check=True, timeout=30,
+        )
+        stderr = result.stderr.decode("utf-8", "replace")
+        if not re.search(r"Video:\s+hevc\b", stderr, flags=re.IGNORECASE):
+            raise ValueError("FFmpeg did not identify the encoded stream as HEVC")
+        return {
+            **validate_h265_decoded_rgb(result.stdout),
+            "container": "mp4",
+            "output_mp4_sha256": _sha(data),
+            "mp4_size_bytes": len(data),
+        }
+
+
 def verify_model_free_raster_content(port: int, record: dict) -> dict:
     """Verify real preview and GIF pixels against red/blue source-frame order."""
     from PIL import Image
@@ -349,6 +427,7 @@ def verify_model_free_raster_content(port: int, record: dict) -> dict:
     if hashes != gif_hashes:
         raise ValueError("VHS GIF pixels differ from rgthree-routed previews")
     h264 = verify_h264_video(port, outputs["12"]["gifs"][0])
+    h265 = verify_h265_video(port, outputs["13"]["gifs"][0])
     return {
         "content": "exact_full_frame_RGB_verified",
         "expected_selected_rgb": [list(color) for color in EXPECTED_RGB],
@@ -356,8 +435,9 @@ def verify_model_free_raster_content(port: int, record: dict) -> dict:
         "gif_frame_sha256": gif_hashes,
         "gif_frames": 2,
         "h264_mp4": h264,
+        "h265_mp4": h265,
         "gif_frame_duration_ms": 500,
-        "temporary_assets_inspected": 4,
+        "temporary_assets_inspected": 5,
         "binary_outputs_uploaded": False,
     }
 

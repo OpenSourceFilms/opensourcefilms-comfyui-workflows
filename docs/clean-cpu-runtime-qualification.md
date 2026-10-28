@@ -79,10 +79,23 @@ the MP4 SHA-256, but no uploaded media. Each fetched temporary file
 is capped at 2 MB, and the MP4 is decoded only in a disposable
 temporary directory.
 
-This qualifies a narrow live VideoHelperSuite selection, GIF and H.264
-encoding path plus rgthree routing. It does **not** qualify H.265,
-production media duration, bit-depth fidelity, arbitrary metadata,
-audio muxing, full media workflows or pretrained models.
+A third `VHS_VideoCombine` encodes the same red/blue sequence with
+the pinned upstream `video/h265-mp4` format, `pix_fmt=yuv420p`,
+`crf=0`, 2 fps, and `save_output=false`. On the disposable CPU runner,
+the harness fetches this temporary MP4 by the loopback `/view` API,
+requires an MP4 `ftyp` signature and FFmpeg detection of an actual
+**HEVC** video stream, and decodes to raw RGB24. Exactly two 64×64
+frames must match the ordered red/blue source colours within 24/255
+maximum absolute error at every pixel. Decoded-frame hashes, observed
+errors and an MP4 hash are retained in JSON. No binary video is uploaded.
+The 2 MB per-file limit, temporary decoding directory, pinned FFmpeg,
+and file-metadata validation are unchanged.
+
+These tests qualify narrow CPU VideoHelperSuite selection and GIF,
+H.264 and H.265 encoding paths plus rgthree routing. They do **not**
+qualify commercial-grade video compression settings, sustained processing,
+10-bit/16-bit fidelity, colour-management accuracy, arbitrary metadata,
+audio muxing, ProRes, the eleven real workflows or pretrained models.
 
 The loopback process is terminated in all normal and exceptional paths.
 
