@@ -147,8 +147,9 @@ synthetic CPU propagation on a disposable CI runner, together with real
 registration checks for five commit-pinned external node packages (VideoHelperSuite, rgthree-comfy,
 DownsampleFPS, GGUF and UltimateSDUpscale), plus CPU-only synthetic frame
 dropping by the real DownsampleFPS node, and one minimal synthetic
-ComfyUI API graph combining VideoHelperSuite frame selection and rgthree
-routing. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
+ComfyUI API graph combining VideoHelperSuite frame selection, rgthree
+routing and GIF encoding. Distinct red/green/blue/yellow input frames are
+checked for exact red/blue output pixels across temporary previews and GIF. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
 and a fail-closed guard against a mutable download. It is not GPU/model
 or 11-workflow acceptance.
 

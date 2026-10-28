@@ -20,6 +20,9 @@ import tempfile
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlencode
+from io import BytesIO
+import re
 
 COMFY_SHA = "08cf0284ff45723aa67841c80cabb0e3cb50c9d7"
 CLASSES = ("MaskPropagateOpticalFlow", "MaskPropagateFromFlow")
@@ -28,7 +31,7 @@ CLASSES = ("MaskPropagateOpticalFlow", "MaskPropagateFromFlow")
 EXTERNAL_NODE_PINS = {
     "ComfyUI-VideoHelperSuite": {
         "sha": "2984ec4c4b93292421888f38db74a5e8802a8ff8",
-        "classes": ("VHS_VideoCombine",),
+        "classes": ("VHS_VideoCombine", "VHS_SelectEveryNthImage"),
     },
     "rgthree-comfy": {
         "sha": "d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4",
@@ -173,55 +176,167 @@ def _probe_server(port: int, child: subprocess.Popen, *, seconds: int = 120) -> 
     raise TimeoutError("ComfyUI did not register expected nodes: " + last_reason)
 
 
-def build_model_free_external_prompt() -> dict:
-    """One fixed, minimal VHS + rgthree + core preview graph.
+EXPECTED_RGB = ((255, 0, 0), (0, 0, 255))
+RASTER_LIMIT = 2_000_000
 
-    Uses only a black synthetic image batch. No file inputs, text prompts,
-    model loaders, user-supplied parameters or pretrained weights.
+
+def build_model_free_external_prompt() -> dict:
+    """Four distinct colours, every-second VHS selection, rgthree, previews and GIF.
+
+    All image content is authored by native EmptyImage; no file inputs,
+    model loaders, private media or user-supplied prompt fields.
     """
-    return {
-        "1": {"class_type": "EmptyImage", "inputs": {
-            "width": 64, "height": 64, "batch_size": 4,
+    colors = (0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00)
+    graph = {
+        str(i): {"class_type": "EmptyImage", "inputs": {
+            "width": 64, "height": 64, "batch_size": 1, "color": color,
+        }}
+        for i, color in enumerate(colors, start=1)
+    }
+    graph.update({
+        "5": {"class_type": "ImageBatch", "inputs": {
+            "image1": ["1", 0], "image2": ["2", 0],
         }},
-        "2": {"class_type": "VHS_SelectEveryNthImage", "inputs": {
-            "images": ["1", 0], "select_every_nth": 2,
+        "6": {"class_type": "ImageBatch", "inputs": {
+            "image1": ["5", 0], "image2": ["3", 0],
+        }},
+        "7": {"class_type": "ImageBatch", "inputs": {
+            "image1": ["6", 0], "image2": ["4", 0],
+        }},
+        "8": {"class_type": "VHS_SelectEveryNthImage", "inputs": {
+            "images": ["7", 0], "select_every_nth": 2,
             "skip_first_images": 0,
         }},
-        "3": {"class_type": "Any Switch (rgthree)", "inputs": {
-            "any_01": ["2", 0],
+        "9": {"class_type": "Any Switch (rgthree)", "inputs": {
+            "any_01": ["8", 0],
         }},
-        "4": {"class_type": "PreviewImage", "inputs": {
-            "images": ["3", 0],
+        "10": {"class_type": "PreviewImage", "inputs": {
+            "images": ["9", 0],
         }},
-    }
+        "11": {"class_type": "VHS_VideoCombine", "inputs": {
+            "images": ["9", 0],
+            "frame_rate": 2,
+            "loop_count": 0,
+            "filename_prefix": "osf_synthetic_vhs_gif",
+            "format": "image/gif",
+            "pingpong": False,
+            "save_output": False,
+        }},
+    })
+    return graph
+
+
+def _validated_temp_asset(entry: object, extension: str) -> dict:
+    if not isinstance(entry, dict):
+        raise ValueError("Malformed ComfyUI temporary asset metadata")
+    name = entry.get("filename")
+    if (not isinstance(name, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,179}\." + extension, name)
+            is None or entry.get("type") != "temp"
+            or entry.get("subfolder") not in ("", None)):
+        raise ValueError("Unsafe or unexpected temporary ComfyUI asset")
+    return {"filename": name, "type": "temp", "subfolder": ""}
 
 
 def validate_model_free_external_history(history: object, prompt_id: str) -> dict:
-    """Require real preview outputs proving VHS selection and rgthree routing."""
+    """Reject incomplete graphs, missing previews and missing GIF output."""
     if not isinstance(history, dict):
         raise ValueError("Malformed ComfyUI history")
     record = history.get(prompt_id)
     if not isinstance(record, dict):
         raise ValueError("Missing external synthetic prompt history")
     state = record.get("status", {})
-    if not isinstance(state, dict) or state.get("completed") is not True:
+    if (not isinstance(state, dict) or state.get("completed") is not True
+            or state.get("status_str") != "success"):
         raise ValueError("External synthetic prompt did not complete successfully")
     outputs = record.get("outputs", {})
-    images = outputs.get("4", {}).get("images") if isinstance(outputs, dict) else None
-    if not isinstance(images, list) or len(images) != 2:
+    if not isinstance(outputs, dict):
+        raise ValueError("Malformed external synthetic graph outputs")
+    previews = outputs.get("10", {}).get("images") if isinstance(
+        outputs.get("10"), dict) else None
+    gifs = outputs.get("11", {}).get("gifs") if isinstance(
+        outputs.get("11"), dict) else None
+    if not isinstance(previews, list) or len(previews) != 2:
         raise ValueError("External model-free VHS/rgthree graph returned wrong image count")
-    if any(not isinstance(image, dict)
-           or not isinstance(image.get("filename"), str)
-           or image.get("type") != "temp" for image in images):
-        raise ValueError("External graph returned invalid preview metadata")
+    if not isinstance(gifs, list) or len(gifs) != 1:
+        raise ValueError("External synthetic GIF encoder returned wrong output count")
+    for preview in previews:
+        _validated_temp_asset(preview, "png")
+    gif = _validated_temp_asset(gifs[0], "gif")
+    if gifs[0].get("format") != "image/gif":
+        raise ValueError("Unexpected external GIF codec")
     return {
         "status": "synthetic_api_graph_executed",
-        "classes": ["EmptyImage", "VHS_SelectEveryNthImage",
-                    "Any Switch (rgthree)", "PreviewImage"],
+        "classes": ["EmptyImage", "ImageBatch", "VHS_SelectEveryNthImage",
+                    "Any Switch (rgthree)", "PreviewImage", "VHS_VideoCombine"],
         "source_image_count": 4,
-        "selected_image_count": len(images),
-        "route": "core EmptyImage -> VHS every-second image -> rgthree Any Switch -> core PreviewImage",
+        "selected_image_count": len(previews),
+        "gif_count": len(gifs),
+        "route": "four colored core images -> VHS every-second -> rgthree -> previews + VHS GIF",
         "model_weights_used": False,
+        "binary_outputs_uploaded": False,
+    }
+
+
+def _assert_uniform_frame(image: object, expected_rgb: tuple[int, int, int]) -> str:
+    """Validate every pixel, not just image dimensions or a representative pixel."""
+    from PIL import Image
+
+    if not isinstance(image, Image.Image) or image.size != (64, 64):
+        raise ValueError("Synthetic output raster dimensions differ")
+    frame = image.convert("RGB")
+    extrema = frame.getextrema()
+    if tuple(extrema) != tuple((value, value) for value in expected_rgb):
+        raise ValueError("VHS/rgthree synthetic selected-frame RGB differs")
+    return _sha(frame.tobytes())
+
+
+def _fetch_temporary_asset(port: int, item: dict, extension: str) -> bytes:
+    asset = _validated_temp_asset(item, extension)
+    query = urlencode(asset)
+    with urlopen(f"http://127.0.0.1:{port}/view?{query}", timeout=10) as resp:
+        if resp.status != 200:
+            raise RuntimeError("Temporary synthetic output retrieval failed")
+        data = resp.read(RASTER_LIMIT + 1)
+        if not data or len(data) > RASTER_LIMIT:
+            raise ValueError("Synthetic output exceeds permitted byte size")
+        return data
+
+
+def verify_model_free_raster_content(port: int, record: dict) -> dict:
+    """Verify real preview and GIF pixels against red/blue source-frame order."""
+    from PIL import Image
+
+    outputs = record["outputs"]
+    previews = outputs["10"]["images"]
+    gif = outputs["11"]["gifs"][0]
+    hashes = []
+    for entry, rgb in zip(previews, EXPECTED_RGB):
+        raw = _fetch_temporary_asset(port, entry, "png")
+        with Image.open(BytesIO(raw)) as preview:
+            if preview.format != "PNG":
+                raise ValueError("Synthetic preview is not PNG")
+            hashes.append(_assert_uniform_frame(preview, rgb))
+    raw_gif = _fetch_temporary_asset(port, gif, "gif")
+    gif_hashes = []
+    with Image.open(BytesIO(raw_gif)) as image:
+        if image.format != "GIF" or getattr(image, "n_frames", 0) != 2:
+            raise ValueError("VHS synthetic GIF does not contain exactly two frames")
+        for index, rgb in enumerate(EXPECTED_RGB):
+            image.seek(index)
+            gif_hashes.append(_assert_uniform_frame(image, rgb))
+            if image.info.get("duration") != 500:
+                raise ValueError("VHS GIF frame duration differs from two FPS")
+    if hashes != gif_hashes:
+        raise ValueError("VHS GIF pixels differ from rgthree-routed previews")
+    return {
+        "content": "exact_full_frame_RGB_verified",
+        "expected_selected_rgb": [list(color) for color in EXPECTED_RGB],
+        "preview_frame_sha256": hashes,
+        "gif_frame_sha256": gif_hashes,
+        "gif_frames": 2,
+        "gif_frame_duration_ms": 500,
+        "temporary_assets_inspected": 3,
         "binary_outputs_uploaded": False,
     }
 
@@ -252,7 +367,9 @@ def execute_model_free_external_prompt(port: int, child: subprocess.Popen,
                 raise RuntimeError("ComfyUI history response status not 200")
             history = json.loads(resp.read(150_000))
         if isinstance(history, dict) and prompt_id in history:
-            return validate_model_free_external_history(history, prompt_id)
+            outcome = validate_model_free_external_history(history, prompt_id)
+            pixels = verify_model_free_raster_content(port, history[prompt_id])
+            return {**outcome, "raster_verification": pixels}
         time.sleep(1)
     raise TimeoutError("External synthetic VHS/rgthree graph did not complete")
 

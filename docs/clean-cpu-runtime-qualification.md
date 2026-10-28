@@ -43,17 +43,30 @@ method on eight synthetic CPU frames (8 fps to 4 fps), checking expected
 frame selection and recording the resulting tensor hash. GGUF is **import
 and registration only**, not a quantized model-load test. It checks shape, finite values, initial-mask
 preservation and zero-motion consistency, and records output hashes.
-A further **real ComfyUI HTTP `/prompt` execution** covers two previously
-import-only packages with a generated, no-weight graph:
-`EmptyImage` produces four 64×64 black frames, pinned
-`VHS_SelectEveryNthImage` selects two frames, pinned
-`Any Switch (rgthree)` forwards those images, and native
-`PreviewImage` produces two temporary preview records. The runner polls the
-corresponding `/history/{prompt_id}` and requires successful completion plus
-exactly two temporary preview entries. These binary previews remain in
-the disposable runner's temporary ComfyUI directory and are **never
-uploaded as evidence**. This verifies a minimal live VHS+rgthree graph,
-not an existing 11-workflow graph, video encoding, model quality or inference.
+A further **real ComfyUI HTTP `/prompt` execution** checks selected
+frame contents and image encoding, not merely the number of outputs.
+Four native `EmptyImage` nodes generate distinct solid-red, solid-green,
+solid-blue and solid-yellow 64×64 images. Three native `ImageBatch` nodes
+form the ordered sequence. The pinned `VHS_SelectEveryNthImage` selects
+indices zero and two, which must be **red, then blue**. Pinned
+`Any Switch (rgthree)` forwards that batch to two outputs: native
+`PreviewImage` and pinned `VHS_VideoCombine` using Pillow's
+`image/gif` encoder at 2 fps, with `save_output=false`.
+
+The harness requires successful `/history/{prompt_id}` completion,
+exactly two temporary PNG previews and one temporary GIF.
+It downloads these three *temporary local files* solely through the
+loopback `/view` API, with strict filename/subfolder checks and a
+2 MB maximum per file. Pillow decodes every pixel, requiring the exact
+red/blue RGB sequence in both PNG previews and the animated GIF, exactly
+two 64×64 GIF frames and 500 ms per frame. Pixel-content SHA-256 values,
+not binary image files or filenames, are written to the JSON evidence
+report. Binary previews and GIF remain on the disposable runner and
+are **never uploaded**.
+
+This qualifies a narrow live VideoHelperSuite selection and GIF encoding
+operation plus rgthree routing. It does not qualify video codecs such as
+H.264/H.265, full media workflows or any pretrained model.
 
 The loopback process is terminated in all normal and exceptional paths.
 
@@ -98,9 +111,9 @@ cannot certify its CUDA/kernel compatibility.
 This is **not a clean installation of all 11 selected workflows**.
 It verifies five *representative* external node imports in addition to
 OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
-method. It executes only the two simple VHS/rgthree graph operations described above.
+method. It executes only the small synthetic VHS selection/GIF-encoding and rgthree routing operations described above.
 It does **not** execute GGUF or UltimateSDUpscale nodes, nor VideoHelperSuite
-video encoders, external model loading or any full 11-workflow graph.
+external model loading or any full 11-workflow graph.
 or the rest of the dependency set. It does not verify SCAIL-2, SAM3,
 Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
 workflow loading or inference. Optical-flow nodes
