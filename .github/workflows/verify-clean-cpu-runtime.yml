@@ -99,7 +99,7 @@ jobs:
           # requirement is provided by the already installed headless wheel.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
           python -m pip check
-      - name: Require five pinned external class imports and no mutable USDU download
+      - name: Qualify five pinned imports, synthetic CPU nodes, and model-free VHS/rgthree graph
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
