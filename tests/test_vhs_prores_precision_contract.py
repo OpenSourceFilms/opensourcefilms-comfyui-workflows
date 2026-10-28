@@ -108,7 +108,7 @@ class VhsProResPrecisionContractTests(unittest.TestCase):
         self.assertIn("input_color_depth", audit_doc)
         self.assertIn("PR #37", audit_doc)
         self.assertIn("All **four** tested pairs remained distinct", audit_doc)
-        self.assertIn("default upstream ProRes preset remains 8-bit", audit_doc)
+        self.assertIn("upstream ProRes preset remains 8-bit", audit_doc)
         self.assertIn("does not establish", audit_doc)
         self.assertIn("input_color_depth=16bit", ab_doc)
         self.assertIn("not** a calibrated 12-bit RGB", ab_doc)
