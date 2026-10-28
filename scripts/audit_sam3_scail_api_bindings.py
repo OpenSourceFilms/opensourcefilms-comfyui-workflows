@@ -82,6 +82,13 @@ NATIVE = {
 }
 SCALAR_TYPES = frozenset({"INT", "FLOAT", "BOOLEAN", "STRING", "COMBO"})
 COMBO_OPTIONS = {"SCAIL2ColoredMask.sort_by": {"none", "left_to_right", "area"}}
+# Pinned public nodes_sam3.py: SAM3_Detect declares these optional sockets
+# with force_input=True. If present, they require an API link, not a literal.
+FORCE_LINK_FIELDS = frozenset({
+    "SAM3_Detect.bboxes",
+    "SAM3_Detect.positive_coords",
+    "SAM3_Detect.negative_coords",
+})
 
 
 def _is_link(value: object) -> bool:
@@ -142,6 +149,9 @@ def check_api_bindings(graph: object) -> dict:
         classes[cls] += 1
         for field, value in fields.items():
             typ = spec["inputs"][field]
+            if (f"{cls}.{field}" in FORCE_LINK_FIELDS
+                    and not _is_link(value)):
+                raise ValueError("Native SAM3 force_input socket requires a link")
             if _is_link(value):
                 src, slot = value
                 upstream = nodes.get(src)
