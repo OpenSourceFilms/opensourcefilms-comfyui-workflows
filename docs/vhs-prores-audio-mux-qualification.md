@@ -35,9 +35,25 @@ an isolated off-grid sample error. Incorrect or missing audio, padding,
 truncation, wrong tone/frequency, wrong output format and missing
 video frames fail closed.
 
-The uploaded evidence is **JSON only**: codec, signal validation,
-counts, maximum and mean full-waveform sample errors and hashes. Neither encoded MOV nor
-decoded waveform is uploaded.
+The runtime now also tests **actual presentation timestamps from the
+muxed MOV**, rather than inferring synchronisation from sample/frame
+counts. The pinned FFmpeg decoder runs `showinfo` and `ashowinfo`
+on both streams and records every video presentation time and every
+audio packet's presentation time, rate and sample count. The gate
+requires two video frames at **0.0 s and 0.5 s**, each lasting 0.5 s,
+plus contiguous **48 kHz PCM** audio packets covering exactly 48,000
+samples from 0.0 to 1.0 s. Audio PTS must match the cumulative decoded
+sample count without gaps or offset; audio/video endpoints and each
+reported clock are checked within 1 ms. Unit tests reject offset or
+missing packets, incomplete audio and shifted video frames. The
+verified result is a deliberately narrow **one-second synthetic
+presentation-timeline** acceptance, not evidence of real-world
+long-form synchronisation or timecode correctness.
+
+The uploaded evidence is **JSON only**: codec, complete signal
+validation, timestamp counts/endpoints, maximum clock error,
+maximum and mean full-waveform sample errors and hashes. Neither
+encoded MOV nor decoded waveform is uploaded.
 
 ## Independent two-channel PCM16 channel identity test
 

@@ -110,6 +110,85 @@ def check_decoded_mono_pcm(samples: array) -> dict:
     }
 
 
+def verify_synthetic_mux_timestamps(ffmpeg_log: str) -> dict:
+    """Require packet-derived audio and video timestamps to share a timeline.
+
+    FFmpeg showinfo/ashowinfo are driven by decoded frames and samples
+    from the *actual muxed MOV*. Do not infer presentation timestamps from
+    sample count or image count alone. Both streams must start at zero,
+    have continuous presentation timestamps, and end at exactly one second.
+    """
+    video_pattern = re.compile(
+        r"\[Parsed_showinfo_\d+\s+@[^\]]+\]\s+"
+        r"n:\s*(\d+)\s+pts:\s*(-?\d+)\s+"
+        r"pts_time:\s*(-?[\d.]+)\s+duration:\s*(\d+)\s+"
+        r"duration_time:\s*([\d.]+)"
+    )
+    audio_pattern = re.compile(
+        r"\[Parsed_ashowinfo_\d+\s+@[^\]]+\]\s+"
+        r"n:(\d+)\s+pts:(-?\d+)\s+pts_time:([\d.]+)\s+"
+        r"fmt:(\w+)\s+channels:(\d+)\s+chlayout:(\S+)\s+"
+        r"rate:(\d+)\s+nb_samples:(\d+)"
+    )
+    if len(ffmpeg_log) > 200_000:
+        raise ValueError("Synthetic media timestamp trace too large")
+    video = [tuple(float(x) if i in (2, 4) else int(x)
+                   for i, x in enumerate(match.groups()))
+             for match in video_pattern.finditer(ffmpeg_log)]
+    audio = [tuple(float(x) if i == 2 else x if i in (3, 5)
+                   else int(x) for i, x in enumerate(match.groups()))
+             for match in audio_pattern.finditer(ffmpeg_log)]
+    if len(video) != 2 or not audio:
+        raise ValueError("Missing two video timestamps or PCM audio timestamps")
+    for expected_index, (index, pts, seconds, duration_ticks, duration) in enumerate(video):
+        if (index != expected_index or pts < 0 or duration_ticks <= 0
+                or abs(seconds - expected_index / 2) > 0.001
+                or abs(duration - 0.5) > 0.001):
+            raise ValueError("Video timestamps are shifted, reordered or discontinuous")
+    running_samples = 0
+    max_clock_error = 0.0
+    for index, (number, pts, seconds, fmt, channels, layout, rate, count) in enumerate(audio):
+        if (number != index or rate != SAMPLE_RATE or channels != 1
+                or layout != "mono" or fmt != "s16" or count <= 0
+                or pts != running_samples):
+            raise ValueError("Audio PCM timestamps are shifted or discontinuous")
+        clock_error = abs(seconds - pts / SAMPLE_RATE)
+        max_clock_error = max(max_clock_error, clock_error)
+        if clock_error > 0.001:
+            raise ValueError("Audio presentation-time clock differs from sample clock")
+        running_samples += count
+    if running_samples != SAMPLE_RATE:
+        raise ValueError("Audio timestamp coverage is not exactly one second")
+    video_end = video[-1][2] + video[-1][4]
+    audio_end = running_samples / SAMPLE_RATE
+    if abs(video_end - audio_end) > 0.001:
+        raise ValueError("Audio and video presentation endpoints differ")
+    return {
+        "status": "synthetic_audio_video_presentation_timeline_verified",
+        "video_presentation_seconds": [frame[2] for frame in video],
+        "video_duration_per_frame_seconds": [frame[4] for frame in video],
+        "video_stream_end_seconds": video_end,
+        "audio_first_sample_pts": audio[0][1],
+        "audio_packets_inspected": len(audio),
+        "audio_samples_covered": running_samples,
+        "audio_stream_end_seconds": audio_end,
+        "maximum_audio_clock_error_seconds": round(max_clock_error, 7),
+        "maximum_permitted_clock_error_seconds": 0.001,
+        "binary_media_uploaded": False,
+    }
+
+
+def extract_actual_mux_timestamps(path: Path, ffmpeg: str) -> dict:
+    """Decode both streams into a null muxer while tracing all presentation times."""
+    trace = subprocess.run(
+        [ffmpeg, "-hide_banner", "-nostdin", "-i", str(path),
+         "-map", "0:v:0", "-map", "0:a:0",
+         "-vf", "showinfo", "-af", "ashowinfo", "-f", "null", "-"],
+        check=True, capture_output=True, timeout=25,
+    )
+    return verify_synthetic_mux_timestamps(trace.stderr.decode("utf-8", "replace"))
+
+
 def verify_synthetic_prores_pcm_mov(data: bytes) -> dict:
     from imageio_ffmpeg import get_ffmpeg_exe
 
@@ -158,6 +237,7 @@ def verify_synthetic_prores_pcm_mov(data: bytes) -> dict:
             "video_dimensions": [64, 64],
             "video_black_source_verified": True,
             "audio": check_decoded_mono_pcm(samples),
+            "av_presentation_timeline": extract_actual_mux_timestamps(path, ffmpeg),
             "mov_sha256": hashlib.sha256(data).hexdigest(),
             "mov_size_bytes": len(data),
             "binary_media_uploaded": False,
