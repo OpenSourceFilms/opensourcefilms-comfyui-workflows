@@ -108,7 +108,7 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertEqual(parent["classes"], ("UltimateSDUpscale",))
         expected = (
             "160000 commit 2322caa480535b1011a1f9c18126d85ea444f146"
-            "\\trepositories/ultimate_sd_upscale\\n"
+            "\trepositories/ultimate_sd_upscale\n"
         )
         self.assertEqual(qualifier.validate_usdu_gitlink(expected),
                          qualifier.USDU_SUBMODULE_COMMIT)
@@ -144,12 +144,11 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
             [sys.executable, "-c",
              "import sitecustomize, urllib.request; "
              "assert urllib.request.urlretrieve is sitecustomize._reject_urlretrieve; "
-             "import sys; "
-             "exec('try:\\n urllib.request.urlretrieve(\\\"no-network://placeholder\\\")"
-             "\\nexcept RuntimeError:\\n sys.exit(0)\\n'); sys.exit(7)"],
+             "urllib.request.urlretrieve('no-network://placeholder')"],
             capture_output=True, text=True, env=env, timeout=12,
         )
-        self.assertEqual(child.returncode, 0, child.stdout + child.stderr)
+        self.assertNotEqual(child.returncode, 0)
+        self.assertIn("Unpinned urllib.request.urlretrieve", child.stderr)
 
     def test_requires_pinned_comfyui_sha_and_no_existing_evidence_file(self):
         with tempfile.TemporaryDirectory() as td:
