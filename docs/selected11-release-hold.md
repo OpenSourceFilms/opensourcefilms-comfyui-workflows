@@ -44,13 +44,31 @@ readiness scoring system. The following are checked together and must agree:
 - Explicit negative GPU, executable API-prompt, rights and embedded-group
   runtime flags. The gate rejects reports that unexpectedly claim such
   acceptance.
+- An explicit historical provider-blocker map is checked against each
+  selected workflow's **actual node-class inventory** and, for GIMM,
+  its canonical declared dependencies. It assigns
+  `PINNED_GIMM_CLASS_BINDINGS_INCOMPATIBLE` to
+  `gimm_sgm_vfi_video_interpolate` and
+  `WAN_FMLF_PROVIDER_LICENSE_NOT_VERIFIED` to the two selected
+  first/middle/last Wan exports. Changes to the expected class names,
+  graph format or GIMM provider baseline **fail closed**, rather than
+  silently removing a blocker.
 
 Each workflow receives reason-coded HOLD blockers. UI exports have an
 additional API-conversion blocker, and `mm_upscale_video_workflow` has
 additional embedded-runtime, reverse-reference and dependency-provenance
-blockers. A passing CI run means the HOLD decision is **consistent with the
-audited source**. It does **not** mean that the eleven workflows are
-executable.
+blockers. The GIMM and two Wan FMLF exports now carry the known-source
+blockers described above. The exact underpinning findings are documented
+in [GIMM/SGM source bindings](gimm-sgm-pinned-source-audit.md) and
+[Wan FMLF candidate licensing](wan-fmlf-provider-candidate.md).
+
+**Evidence boundary:** The consolidated gate checks actual selected
+graph class identities against *previously reviewed pinned-source
+findings*. It does not fetch the external source, re-run those independent
+audits or prove an unchanged external licence. The corresponding dedicated
+source-only CI audits remain separately required. A passing consolidated
+CI run means the **HOLD decision is internally consistent**, not that
+the eleven workflows are executable.
 
 The report deliberately cannot return `GO`: independently reviewed runtime,
 model provenance, licence permissions, GPU inference, and output acceptance
