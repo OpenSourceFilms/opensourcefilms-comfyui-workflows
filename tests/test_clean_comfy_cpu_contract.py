@@ -152,12 +152,12 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
 
     def test_model_free_external_prompt_uses_four_distinct_source_colours(self):
         graph = qualifier.build_model_free_external_prompt()
-        self.assertEqual(set(graph), {str(i) for i in range(1, 12)})
+        self.assertEqual(set(graph), {str(i) for i in range(1, 13)})
         self.assertEqual(
-            [graph[str(i)]["class_type"] for i in range(1, 12)],
+            [graph[str(i)]["class_type"] for i in range(1, 13)],
             ["EmptyImage"] * 4 + ["ImageBatch"] * 3
             + ["VHS_SelectEveryNthImage", "Any Switch (rgthree)",
-               "PreviewImage", "VHS_VideoCombine"],
+               "PreviewImage", "VHS_VideoCombine", "VHS_VideoCombine"],
         )
         self.assertEqual(
             [graph[str(i)]["inputs"]["color"] for i in range(1, 5)],
@@ -183,6 +183,11 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertEqual(graph["11"]["inputs"]["images"], ["9", 0])
         self.assertEqual(graph["11"]["inputs"]["format"], "image/gif")
         self.assertFalse(graph["11"]["inputs"]["save_output"])
+        self.assertEqual(graph["12"]["inputs"]["format"], "video/h264-mp4")
+        self.assertEqual(graph["12"]["inputs"]["pix_fmt"], "yuv420p")
+        self.assertEqual(graph["12"]["inputs"]["crf"], 0)
+        self.assertEqual(graph["12"]["inputs"]["images"], ["9", 0])
+        self.assertFalse(graph["12"]["inputs"]["save_output"])
         self.assertFalse(any(
             "Load" in spec["class_type"] or "Sampler" in spec["class_type"]
             for spec in graph.values()
@@ -193,7 +198,8 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         def event(name, suffix):
             return {
                 "filename": name, "type": "temp", "subfolder": "",
-                **({"format": "image/gif"} if suffix == "gif" else {}),
+                **({"format": "image/gif"} if suffix == "gif" else
+                   {"format": "video/h264-mp4"} if suffix == "mp4" else {}),
             }
         record = {ident: {
             "status": {"completed": True, "status_str": "success"},
@@ -201,11 +207,13 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
                 "10": {"images": [event("one.png", "png"),
                                   event("two.png", "png")]},
                 "11": {"gifs": [event("clip.gif", "gif")]},
+                "12": {"gifs": [event("clip.mp4", "mp4")]},
             },
         }}
         valid = qualifier.validate_model_free_external_history(record, ident)
         self.assertEqual(valid["selected_image_count"], 2)
         self.assertEqual(valid["gif_count"], 1)
+        self.assertEqual(valid["h264_mp4_count"], 1)
         self.assertFalse(valid["model_weights_used"])
         self.assertFalse(valid["binary_outputs_uploaded"])
         record[ident]["outputs"]["10"]["images"].pop()
@@ -216,6 +224,10 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "wrong output count"):
             qualifier.validate_model_free_external_history(record, ident)
         record[ident]["outputs"]["11"]["gifs"].append(event("clip.gif", "gif"))
+        record[ident]["outputs"]["12"]["gifs"].clear()
+        with self.assertRaisesRegex(ValueError, "H264 encoder returned wrong output count"):
+            qualifier.validate_model_free_external_history(record, ident)
+        record[ident]["outputs"]["12"]["gifs"].append(event("clip.mp4", "mp4"))
         record[ident]["status"]["completed"] = False
         with self.assertRaisesRegex(ValueError, "did not complete"):
             qualifier.validate_model_free_external_history(record, ident)
@@ -225,6 +237,25 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
             qualifier.validate_model_free_external_history(record, ident)
         with self.assertRaisesRegex(ValueError, "Missing external"):
             qualifier.validate_model_free_external_history({}, ident)
+
+    def test_h264_decoded_content_rejects_wrong_order_and_channel_mismatch(self):
+        pixels = 64 * 64
+        frame_red = bytes((255, 0, 0)) * pixels
+        frame_blue = bytes((0, 0, 255)) * pixels
+        valid = qualifier.validate_h264_decoded_rgb(frame_red + frame_blue)
+        self.assertEqual(valid["frames_decoded"], 2)
+        self.assertEqual(valid["maximum_absolute_channel_error"], [0, 0])
+        self.assertFalse(valid["binary_outputs_uploaded"])
+        near = bytes((240, 8, 5)) * pixels + bytes((6, 5, 242)) * pixels
+        self.assertEqual(
+            qualifier.validate_h264_decoded_rgb(near)["maximum_absolute_channel_error"],
+            [15, 13],
+        )
+        for bad in (frame_red, frame_blue + frame_red,
+                    bytes((220, 15, 0)) * pixels + frame_blue):
+            with self.subTest(length=len(bad)):
+                with self.assertRaisesRegex(ValueError, "H264 decoded"):
+                    qualifier.validate_h264_decoded_rgb(bad)
 
     def test_temporary_asset_metadata_rejects_absolute_and_parent_paths(self):
         proper = {"filename": "synthetic_temp_00001_.png",
