@@ -22,7 +22,9 @@ def example_history():
     }}
 
 
-def frame_bytes(left=(255, 128, 13), right=(31, 120, 181)):
+def frame_bytes(left=(255, 128, 13), right=(31, 120, 181), frame_index=0):
+    if frame_index == 1:
+        left, right = right, left
     frame = bytearray(64 * 64 * 3)
     for x, y, _ in mod.EXPECTED_PROBES:
         color = left if x == 12 else right if x == 46 else (0, 0, 0)
@@ -71,22 +73,27 @@ class NativeSAM3PreviewContract(unittest.TestCase):
 
     def test_exact_probes_validate_two_distinct_colours_and_black_background(self):
         frame = frame_bytes()
-        r = mod.validate_sam3_preview_pixels(frame + frame)
+        crossing = frame_bytes(frame_index=1)
+        r = mod.validate_sam3_preview_pixels(frame + crossing)
         self.assertEqual(r["colour_probes_checked"], 10)
         self.assertEqual(r["maximum_rgb_channel_error_by_frame"], [0, 0])
         self.assertFalse(r["real_sam3_detection_or_tracking_executed"])
         self.assertFalse(r["video_binary_uploaded"])
+        self.assertNotEqual(frame, crossing)
 
     def test_pixel_mismatch_wrong_frame_size_or_swapped_ids_fails(self):
         frame = frame_bytes()
+        crossing = frame_bytes(frame_index=1)
+        with self.assertRaisesRegex(ValueError, "mask/background colour"):
+            mod.validate_sam3_preview_pixels(frame + frame)
         with self.assertRaisesRegex(ValueError, "decoded frame count"):
             mod.validate_sam3_preview_pixels(frame)
         with self.assertRaisesRegex(ValueError, "mask/background colour"):
             mod.validate_sam3_preview_pixels(frame_bytes(
                 left=(31, 120, 181), right=(255, 128, 13)
-            ) + frame)
+            ) + crossing)
         with self.assertRaisesRegex(ValueError, "mask/background colour"):
-            mod.validate_sam3_preview_pixels(frame_bytes(left=(100, 100, 100)) + frame)
+            mod.validate_sam3_preview_pixels(frame_bytes(left=(100, 100, 100)) + crossing)
 
     def test_runner_keeps_native_preview_separate_from_model_inference(self):
         code = (ROOT / "scripts" / "qualify_clean_comfy_cpu.py").read_text(

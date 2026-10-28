@@ -80,6 +80,8 @@ def validate_sam3_preview_pixels(raw: bytes) -> dict:
         frame = raw[frame_index * stride:(frame_index + 1) * stride]
         frame_errors = []
         for x, y, expected in EXPECTED_PROBES:
+            if frame_index == 1 and x in (12, 46):
+                expected = (31, 120, 181) if x == 12 else (255, 128, 13)
             offset = (y * WIDTH + x) * 3
             observed = frame[offset:offset + 3]
             error = max(abs(value - target)
@@ -92,7 +94,8 @@ def validate_sam3_preview_pixels(raw: bytes) -> dict:
     return {
         "status": "native_sam3_track_preview_cpu_executed",
         "native_class": NATIVE,
-        "source": "synthetic_two_identity_bitpacked_track",
+        "source": "synthetic_two_identity_crossing_bitpacked_track",
+        "track_index_colours_preserved_after_crossing": True,
         "resolution": [WIDTH, HEIGHT],
         "frames": FRAME_COUNT,
         "fps_requested": FPS,

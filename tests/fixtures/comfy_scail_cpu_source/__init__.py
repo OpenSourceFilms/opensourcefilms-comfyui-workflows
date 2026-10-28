@@ -20,8 +20,15 @@ class OSFCISCAILTrack:
         masks = torch.zeros((2, 2, 64, 64), dtype=torch.bool)
         # Deliberately store the RIGHT identity first; native
         # left_to_right sorting must recolour LEFT=blue, RIGHT=red.
-        masks[:, 0, 16:48, 40:56] = True
-        masks[:, 1, 16:48, 8:24] = True
+        # Frame zero establishes first-appearance colour assignment:
+        # right identity index 0 -> RED, left index 1 -> BLUE.
+        masks[0, 0, 16:48, 40:56] = True
+        masks[0, 1, 16:48, 8:24] = True
+        # Subjects exchange sides on frame one but their SAM3 identity
+        # indices stay fixed. Native SCAIL must not re-sort each frame:
+        # index 0 remains RED (now left), index 1 BLUE (now right).
+        masks[1, 0, 16:48, 8:24] = True
+        masks[1, 1, 16:48, 40:56] = True
         shifts = torch.arange(8, dtype=torch.int16)
         packed = (
             masks.view(2, 2, 64, 8, 8).to(torch.int16)
