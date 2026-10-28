@@ -83,19 +83,24 @@ This graph again feeds the identical float32 source to the pinned
 upstream `video/ProRes` default RGB24 input and the disposable
 `input_color_depth=16bit` RGB48 preset, both ProRes 4444 with
 `save_output=false`. It decodes temporary MOVs to planar
-`yuv444p12le`, then checks **nine spatially separate interior
-left/right comparisons per source channel** (27 total). Because the
-ProRes output is YUV, the targeted decoded planes are V for source
-red, Y for source green and U for source blue. All 27 differences must
-collapse in the default 8-bit control but remain **positive and at
-most 32/4095** with the 16-bit option.
+`yuv444p12le`, then checks **every central 16×16 interior pixel pair
+for each source channel**: 256 paired positions per channel, **768
+comparisons total**. Offsets 8 through 23 avoid boundaries of the
+synthetic 32×32 tiles and include points omitted by the former 3×3
+sample grid. Because ProRes output is YUV, the targeted decoded
+planes are V for source red, Y for source green and U for source blue.
+All 768 differences must collapse in the default 8-bit control but
+remain **positive and at most 32/4095** with the 16-bit option. A
+single incorrect off-grid sample now fails the test. This does not
+evaluate tile edges or every pixel of the whole frame.
 
 This is source-channel-sensitive *detail survival*, **not** calibrated
 RGB-channel reconstruction, source RGB accuracy, bit-exact fidelity
 or HDR transfer-function verification. The checks deliberately use
 channel-specific YUV differences rather than treating YUV as source
-RGB. Only counts, channel mapping, min/max delta per component and
-hashes of temporary MOVs enter the JSON CI artifact. No media is
+RGB. Only counts, the exact central-interior offsets, channel mapping,
+minimum/maximum delta per component and hashes of temporary MOVs enter
+the JSON CI artifact. No media is
 uploaded. The earlier 36-point greyscale luminance control is retained
 unchanged.
 

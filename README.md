@@ -171,9 +171,9 @@ red/green/blue/yellow frames are checked for exact red/blue pixels
 in temporary PNG/GIF outputs and bounded channel errors in separately
 decoded H.264/HEVC MP4s and a ProRes 4444 MOV. The latter checks
 12-bit 4:4:4 storage, **not** 12-bit input fidelity; a separate
-RGB-channel-sensitive opt-in VHS test checks 27 YUV fine-detail comparisons
-across red, green and blue sources, retaining the earlier 36 greyscale
-luminance checks. The stock HQ profile's observed 4:4:4 format discrepancy is documented
+RGB-channel-sensitive opt-in VHS test checks all **768 central-interior
+YUV fine-detail pixel pairs** across red, green and blue sources, alongside
+the existing 36 sampled and 1,024 exhaustive greyscale luma checks. The stock HQ profile's observed 4:4:4 format discrepancy is documented
 separately, with a [disposable explicit HQ 4:2:2 preset candidate](docs/vhs-prores-hq422-candidate.md)
 tested independently. This is not a deployable production preset. An additional
 **independent direct-FFmpeg test** generates genuine planar 12-bit YUV444
