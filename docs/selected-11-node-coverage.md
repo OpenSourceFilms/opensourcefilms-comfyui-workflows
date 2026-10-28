@@ -22,6 +22,44 @@ The report omits prompt texts, model filenames, paths to footage and images. It 
 
 For an explicit per-provider reconciliation of the four embedded groups' 89 internal nodes against the canonical mm_upscale dependency block, see [embedded provider gaps](embedded-mm-upscale-provider-gaps.md). The exported metadata identifies three unlisted provider hints (Easy-Use, KJNodes and Essentials) and an unpinned listed Custom-Scripts provider. This is **not** installation, licence or runtime acceptance.
 
+## Embedded `mm_upscale` link integrity, source-only
+
+A second [read-only structural audit](../scripts/audit_embedded_group_links.py)
+checks the **actual four embedded `mm_upscale_video_workflow` UI
+subgraphs**, using the same canonical selected-eleven manifest:
+
+```sh
+python -B scripts/audit_embedded_group_links.py --output /tmp/osf-mm-upscale-links.json
+```
+
+This distinct check understands LiteGraph embedded-group pseudo-node IDs
+`-10` (external input) and `-20` (external output). Those are valid
+endpoints, **not missing node IDs**. It verifies that all **171 active
+link records** reference present internal node outputs/inputs or valid
+exposed group port indices, that the active link IDs are unique, and
+that the active forward records agree with node/port backreferences.
+
+However, the published source also retains **16 unresolved reverse
+references** not present among those 171 active links. Per group, the
+counts are **4, 3, 3 and 6**. They occur in node-output `links` lists
+and exposed group-input `linkIds`, not as invalid active edges. These
+may be stale editor serialization rather than fatal runtime defects,
+but the audit deliberately **does not repair, hide, or declare them
+harmless**. A zero-warning structural sign-off is therefore **HOLD**.
+
+The script reports only public group UUIDs, numeric link identifiers,
+counts, a hash of the selected graph bytes, and explicit negative
+acceptance flags. It prints no widget values, prompts, model filenames,
+media paths or personal data; its CI output remains in runner scratch.
+Regression tests reject missing nodes, slot mismatches, duplicate
+link IDs, inconsistent active backreferences, malformed reference
+types and corrupted group pseudo-port connections.
+
+Neither structurally consistent active links nor an embedded group
+definition establish frontend import, subgraph expansion, valid
+API-prompt conversion, availability of Easy-Use/other custom nodes,
+licensing, or actual inference. The selected workflow is unchanged.
+
 ## Required downstream acceptance
 
 1. Verify all **embedded subgraph internal dependencies**, including each required package, node input/output schema, extension version and licence. Confirm the four matching definitions load and execute correctly in the target ComfyUI frontend and API conversion. Other workflow group definitions, if introduced, must be validated before acceptance.
