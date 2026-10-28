@@ -89,6 +89,8 @@ Verify independently before any commercial distribution.
 | `frame_interpolation_test.json` | 4-way interpolation comparison | BiM-VFI (research/education only) |
 | `tween_interpolate_loop.json` | Looping interpolation via ComfyUI-Tween | BiM-VFI (research/education only) |
 
+A separate [live node-class coverage audit](docs/clean-cpu-runtime-qualification.md#real-eleven-workflow-node-registration-coverage) compares the actual class IDs in **all eleven selected commercial-compatible UI/API graphs** with the `/object_info` registry of the isolated pinned clean ComfyUI CPU test. It reports registered IDs, missing fork-native and custom-node IDs, UI annotations and unresolved UUID-typed groups, without installing the full dependency set or claiming GPU/model inference compatibility.
+
 For a no-GPU structural check of exported graphs, use the
 [offline workflow validator](docs/validate-workflows.md). It does not check model
 availability or runtime correctness.
