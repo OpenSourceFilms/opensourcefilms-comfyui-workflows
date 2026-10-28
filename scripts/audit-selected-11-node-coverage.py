@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 import argparse
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -213,6 +214,10 @@ def audit(root: Path = ROOT) -> dict:
         native = sorted(by_status["sam3_scail_native_class_runtime_unverified"])
         results.append({
             "workflow": path,
+            # Bind coverage to the exact graph bytes, not only its class list.
+            # This allows the independent release HOLD gate to reject a
+            # coverage snapshot from a different mm_upscale revision.
+            "source_graph_sha256": hashlib.sha256(approved[path]).hexdigest(),
             "graph_format": graph_format,
             "node_instances": len(nodes),
             "unique_node_classes": len({n["class"] for n in nodes}),
