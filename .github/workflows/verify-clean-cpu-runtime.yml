@@ -6,6 +6,11 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/audit_selected_workflow_nodes.py"
+      - "tests/test_selected_workflow_node_coverage.py"
+      - "workflows/commercial-compatible/**"
+      - "runpod/commercial-compatible/prepare.py"
+      - "DEPENDENCIES.lock"
       - "scripts/qualify_prores_12bit.py"
       - "tests/test_true_12bit_prores_contract.py"
       - "scripts/usdu_offline_guard/sitecustomize.py"
@@ -16,6 +21,11 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/audit_selected_workflow_nodes.py"
+      - "tests/test_selected_workflow_node_coverage.py"
+      - "workflows/commercial-compatible/**"
+      - "runpod/commercial-compatible/prepare.py"
+      - "DEPENDENCIES.lock"
       - "scripts/qualify_prores_12bit.py"
       - "tests/test_true_12bit_prores_contract.py"
       - "scripts/usdu_offline_guard/sitecustomize.py"
@@ -48,6 +58,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_clean_comfy_cpu_contract.py" -v
       - name: Test actual 12-bit source and quantization rejection contracts
         run: python -B -m unittest discover -s tests -p "test_true_12bit_prores_contract.py" -v
+      - name: Validate all selected 11 graph class IDs and profile inventory
+        run: python -B -m unittest discover -s tests -p "test_selected_workflow_node_coverage.py" -v
       - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
         env:
           COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
@@ -105,7 +117,7 @@ jobs:
           # requirement is provided by the already installed headless wheel.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
           python -m pip check
-      - name: Verify pinned imports, PNG/GIF/video codecs and independent 12-bit ProRes source
+      - name: Audit 11 selected graph class registrations and qualify synthetic CPU/codec tests
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"

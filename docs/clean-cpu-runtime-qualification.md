@@ -200,6 +200,46 @@ upstream GPLv3, not OSF-owned or relicensed by OSF.
 The pinned GIMM-VFI source also declares `cupy-cuda12x`; this CPU test
 cannot certify its CUDA/kernel compatibility.
 
+## Real eleven-workflow node-registration coverage
+
+The clean runner now performs a **read-only node-class coverage audit**
+for the exact eleven `commercial-compatible` workflow JSON files in
+the canonical `DEPENDENCIES.lock` and explicitly approved
+[`prepare.py` profile](../runpod/commercial-compatible/prepare.py).
+The [audit script](../scripts/audit_selected_workflow_nodes.py) reads
+each original UI/API graph without editing or executing it, extracts its
+actual node class IDs and exact source SHA-256, then compares them with
+the **real live `/object_info` class registry** of the pinned disposable
+ComfyUI + five external packages.
+
+The report provides per-workflow node-instance counts, distinct class
+IDs, exact registered IDs and every unregistered ID, grouped into:
+
+- **documented SCAIL/SAM3 fork-native:** `SAM3_Detect`,
+  `SAM3_VideoTrack`, `SCAIL2ColoredMask`, `WanSCAILToVideo`.
+  The specialized fork is *not* part of this clean vanilla CPU runner.
+- **UI annotation/reroute:** `MarkdownNote`, `Note`, `Reroute`,
+  `Label (rgthree)`; absence from the API registry alone does not
+  establish missing execution support.
+- **UUID-typed group/subgraph unresolved:** exported UI node types
+  represented only by UUID strings. Their underlying definitions cannot
+  be inferred from the ID.
+- **other unregistered:** ordinary class IDs absent from this exact
+  small installation. These require further source/dependency tracing;
+  absence does not establish they are unsupported on a different fork
+  or a complete installation.
+
+This is **positive evidence only for classes actually registered** in
+the pinned clean CPU runtime. It is not an attempt to claim that all
+eleven selected workflows now run. Missing class lists are diagnostic
+and do **not** cause the CPU smoke to fail. The audit itself fails
+closed if the manifest differs from the approved eleven, graph source
+is missing, malformed classes appear, or the live registry is absent.
+Only JSON class IDs, per-workflow digests and counts enter the
+metadata-only evidence artifact. No GPU/model inference is attempted.
+The downstream full workflow, GPU, weights and rights acceptance
+remains open in [issue #3](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/issues/3).
+
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
@@ -207,8 +247,8 @@ It verifies five *representative* external node imports in addition to
 OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
 method. It executes only the small synthetic VHS selection/GIF-encoding and rgthree routing operations described above.
 It does **not** execute GGUF or UltimateSDUpscale nodes, nor VideoHelperSuite
-external model loading or any full 11-workflow graph.
-or the rest of the dependency set. It does not verify SCAIL-2, SAM3,
+external model loading or any full 11-workflow graph. It does not install
+or qualify the remaining dependencies or verify SCAIL-2, SAM3,
 Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
 workflow loading or inference. Optical-flow nodes
 are referenced by research-only graphs, so their import acceptance does not
