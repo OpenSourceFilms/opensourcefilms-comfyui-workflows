@@ -266,20 +266,33 @@ The [audit script](../scripts/audit_selected_workflow_nodes.py) reads
 each original UI/API graph without editing or executing it, extracts its
 actual node class IDs and exact source SHA-256, then compares them with
 the **real live `/object_info` class registry** of the pinned disposable
-ComfyUI + five external packages.
+ComfyUI + six exact-pinned external packages.
 
 The report provides per-workflow node-instance counts, distinct class
 IDs, exact registered IDs and every unregistered ID, grouped into:
 
-- **documented SCAIL/SAM3 fork-native:** `SAM3_Detect`,
-  `SAM3_VideoTrack`, `SCAIL2ColoredMask`, `WanSCAILToVideo`.
-  The specialized fork is *not* part of this clean vanilla CPU runner.
+- **historically fork-associated SCAIL/SAM3 identifiers:**
+  `SAM3_Detect`, `SAM3_VideoTrack`, `SAM3_TrackPreview`,
+  `SCAIL2ColoredMask` and `WanSCAILToVideo`. These classes are
+  registered by the **pinned public ComfyUI core** in the clean CPU
+  runner, as [independently verified](selected-11-node-coverage.md)
+  and [socket-checked](sam3-scail-native-api-bindings.md).
+  A specialized fork is **not required merely for these class names**.
+  The historical `documented_scail_sam3_fork_native` missing-class
+  reason label remains a conservative diagnostic if a future installed
+  runtime actually lacks one; it is not evidence of fork exclusivity.
+  None of this proves SAM3/SCAIL video-model inference.
 - **UI annotation/reroute:** `MarkdownNote`, `Note`, `Reroute`,
   `Label (rgthree)`; absence from the API registry alone does not
   establish missing execution support.
-- **UUID-typed group/subgraph unresolved:** exported UI node types
-  represented only by UUID strings. Their underlying definitions cannot
-  be inferred from the ID.
+- **UUID-typed embedded group/subgraph runtime unresolved:**
+  four UUID-typed wrappers in `mm_upscale_video_workflow.json` have
+  **matching embedded `definitions.subgraphs` source definitions**
+  (89 internal node instances). They are not missing source definitions.
+  However, the source still has **16 unresolved reverse link references**,
+  and native API expansion, internal dependencies and execution remain
+  unqualified. A UUID wrapper is not a registered executable API class.
+  See [embedded group/link and provenance audits](selected-11-node-coverage.md).
 - **other unregistered:** ordinary class IDs absent from this exact
   small installation. These require further source/dependency tracing;
   absence does not establish they are unsupported on a different fork
@@ -329,17 +342,31 @@ are counts and flags only, never prompts or private media.
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
-It verifies six *representative* external node-package imports in addition to
-OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
-method. It executes only the small synthetic VHS selection/GIF-encoding and rgthree routing operations described above.
-It does **not** execute GGUF or UltimateSDUpscale nodes, nor VideoHelperSuite
-external model loading or any full 11-workflow graph. It does not install
-or qualify the remaining dependencies or verify SCAIL-2, SAM3,
-Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
-workflow loading or inference. Optical-flow nodes
-are referenced by research-only graphs, so their import acceptance does not
-confer rights to research-restricted VideoMaMa or EffectErase components.
-The 11-workflow staged bundle is still not an installed runtime.
+The disposable runner confirms the exact-pinned source and live registration
+of **six representative external node packages**, the two OSF optical-flow
+nodes, and additional public native ComfyUI SAM3/SCAIL classes. It executes
+the specifically documented **synthetic** CPU operations: OSF optical flow
+and DownsampleFPS frame dropping, a fixed VideoHelperSuite/rgthree
+frame-selection and PNG/GIF/H.264/HEVC/ProRes graph, a short ProRes/PCM
+audio mux, a native `SCAIL2ColoredMask` graph, and precision-limited
+VideoHelperSuite/FFmpeg probes. The direct-FFmpeg 12-bit source roundtrip
+is explicitly separate from ComfyUI/VHS input-fidelity acceptance.
+
+These successes **do not execute any of the eleven selected real workflow
+graphs**, prove UI-to-API conversion or embedded group expansion, or establish
+GGUF/UltimateSDUpscale model execution, Florence2 inference, SAM3
+segmentation/video tracking inference, SCAIL-2/Wan video synthesis,
+GIMM-VFI CUDA interpolation, pretrained-model weights, GPU/CUDA/VRAM
+compatibility, production-media quality or upstream commercial rights.
+Many other declared external dependencies remain uninstalled or unqualified.
+
+OSF optical-flow nodes are referenced by research-only graphs; their own
+CPU test does not confer permission to use research-restricted VideoMaMa
+or EffectErase commercially. The selected eleven-workflow staged bundle
+remains **a validated source selection, not an installed GPU runtime**.
+The [explicit selected-eleven release HOLD](selected11-release-hold.md)
+remains in force pending separate model, dependency, executable API,
+rights and GPU acceptance.
 
 A successful CPU smoke is a first independent clean *ComfyUI core*
 and OSF-node registration/runtime check. The broader live-model
