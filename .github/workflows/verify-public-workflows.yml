@@ -55,6 +55,14 @@ jobs:
         run: python scripts/audit_embedded_group_provider_dependencies.py --output "${{ runner.temp }}/mm-upscale-provider-gaps.json"
       - name: Check reviewed candidate source map for embedded mm_upscale providers
         run: python scripts/audit_embedded_group_source_candidates.py --output "${{ runner.temp }}/mm-upscale-reviewed-source-candidates.json"
+      - name: Reconcile independent source audits into fail-closed eleven-workflow HOLD
+        run: |
+          python -B scripts/check_selected11_release_hold.py \
+            --coverage "${{ runner.temp }}/selected-11-node-coverage.json" \
+            --links "${{ runner.temp }}/mm-upscale-link-preflight.json" \
+            --providers "${{ runner.temp }}/mm-upscale-provider-gaps.json" \
+            --candidates "${{ runner.temp }}/mm-upscale-reviewed-source-candidates.json" \
+            --output "${{ runner.temp }}/selected11-release-hold.json"
       - name: Check embedded Essentials socket parity against reviewed candidate source
         run: python scripts/audit_mm_upscale_essentials_sockets.py --output "${{ runner.temp }}/mm-upscale-essentials-sockets.json"
       - name: Check embedded KJNodes sockets against historical pinned source
