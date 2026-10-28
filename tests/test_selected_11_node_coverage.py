@@ -41,13 +41,13 @@ class ElevenWorkflowNodeCoverageTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     checker.extract_nodes(malformed, fmt)
 
-    def test_fork_is_never_misclassified_as_core(self):
+    def test_historic_native_ids_are_not_unconditionally_fork_only(self):
         registry = {"VHS_VideoCombine": "ComfyUI-VideoHelperSuite"}
         for class_name in checker.FORK_NATIVE:
             status = checker.classify_node(
                 {"class": class_name, "owner_hint": "comfy-core"}, registry
             )
-            self.assertEqual(status, "requires_modified_scail_sam3_fork")
+            self.assertEqual(status, "sam3_scail_native_class_runtime_unverified")
 
     def test_cpu_registry_uses_exact_required_registered_classes_only(self):
         driver = checker._load_python(
@@ -92,6 +92,7 @@ class ElevenWorkflowNodeCoverageTests(unittest.TestCase):
         self.assertEqual(report["workflow_graph_format_counts"],
                          {"api": 4, "ui": 7})
         self.assertEqual(report["unique_node_class_count"], 81)
+        self.assertEqual(len(report["sam3_scail_historic_native_class_ids"]), 5)
         self.assertEqual(len(report["unresolved_uuid_node_classes"]), 4)
         self.assertFalse(report["all_eleven_workflows_executable"])
         self.assertFalse(report["commercial_rights_verified"])
@@ -101,12 +102,12 @@ class ElevenWorkflowNodeCoverageTests(unittest.TestCase):
         for key in ("step4_5_sam3_mask", "step6_animation_mode",
                     "step7_replacement_mode"):
             self.assertIn("SAM3_VideoTrack",
-                          by_name[key]["requires_modified_scail_sam3_fork"])
+                          by_name[key]["sam3_scail_native_class_ids"])
             self.assertIn("SCAIL2ColoredMask",
-                          by_name[key]["requires_modified_scail_sam3_fork"])
+                          by_name[key]["sam3_scail_native_class_ids"])
         self.assertIn("WanSCAILToVideo",
                       by_name["step6_animation_mode"][
-                          "requires_modified_scail_sam3_fork"])
+                          "sam3_scail_native_class_ids"])
         self.assertEqual(by_name["mm_upscale_video_workflow"]["graph_format"],
                          "ui")
         self.assertIn("unresolved_group_uuid",
