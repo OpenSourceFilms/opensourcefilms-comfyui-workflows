@@ -37,13 +37,8 @@ class SelectedWorkflowLiveCoverageContracts(unittest.TestCase):
         self.assertEqual(sum(nodes.values()), 2)
         for malformed in (
             None, [], {}, {"nodes": {}}, {"nodes": [{"type": 7}]},
-            {"8": {"class_type": ""}}, {"foo": {"class_type": "SaveImage"}},
-            {"nodes": [{"type": "../escape"}], "other": None}
+            {"8": {"class_type": ""}}, {"foo": {"class_type": "SaveImage"}}
         ):
-            if isinstance(malformed, dict) and malformed.get("nodes") == [{"type": "../escape"}]:
-                # Graph class names do not imply filesystem paths and
-                # are never used in a filesystem or network operation.
-                continue
             with self.subTest(malformed=malformed):
                 with self.assertRaises(ValueError):
                     audit.extract_class_ids(malformed)
@@ -119,13 +114,17 @@ class SelectedWorkflowLiveCoverageContracts(unittest.TestCase):
                 {"SaveImage": {}},
             )
 
-    def test_symlinked_selected_workflow_source_fails_closed(self):
+    def test_absent_root_and_symlinked_selected_workflow_source_fail_closed(self):
         graphs = audit.load_selected_graphs()
         self.assertEqual(len(graphs), 11)
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
             with self.assertRaisesRegex(ValueError, "Missing/symlinked root"):
                 audit.load_selected_graphs(base / "absent")
+            fake = base / "linked_checkout"
+            fake.symlink_to(ROOT, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "Missing/symlinked root"):
+                audit.load_selected_graphs(fake)
 
     def test_real_runtime_calls_live_coverage_before_evidence(self):
         code = (ROOT / "scripts" / "qualify_clean_comfy_cpu.py").read_text(
