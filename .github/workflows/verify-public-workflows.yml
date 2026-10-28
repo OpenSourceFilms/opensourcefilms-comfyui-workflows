@@ -59,5 +59,7 @@ jobs:
         run: python scripts/audit_mm_upscale_essentials_sockets.py --output "${{ runner.temp }}/mm-upscale-essentials-sockets.json"
       - name: Check embedded KJNodes sockets against historical pinned source
         run: python scripts/audit_mm_upscale_kjnodes_sockets.py --output "${{ runner.temp }}/mm-upscale-kjnodes-sockets.json"
+      - name: Check all 42 embedded Easy-Use sockets against reviewed source candidate
+        run: python scripts/audit_mm_upscale_easy_use_sockets.py --output "${{ runner.temp }}/mm-upscale-easy-use-sockets.json"
       - name: Reject common private values and cache metadata
         run: python scripts/check-workflow-publication.py workflows > "${{ runner.temp }}/publication-audit.json"
