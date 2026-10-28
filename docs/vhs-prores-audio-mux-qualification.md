@@ -73,17 +73,21 @@ loopback `/view` with the existing 2 MB limit. FFmpeg must identify
 ProRes 4444 video containing exactly two black 64×64 frames and a
 **48 kHz stereo PCM s16le track**. Decoded interleaved float32 audio
 is verified *channel by channel* against both independently generated
-sine waves for **46,976 consecutive sample frames**, not a sparse
-selection of checkpoints. Maximum permitted absolute waveform error
-is **0.003 per channel**; the two source-channel amplitudes must also
-fall within their distinct peak ranges.
+sine waves for **all 48,000 sample frames**, including the final 1,024
+frames previously excluded. The decoder must return **exactly 48,000
+stereo sample frames**, with no silence padding or truncated tail.
+Maximum permitted absolute waveform error is **0.003 per channel**;
+the two source-channel amplitudes must also fall within their distinct
+peak ranges.
 
 The negative contracts reject missing/unsafe output, mono duplicates,
 swapped left and right, wrong amplitude or frequency, odd frame
 alignment, NaNs, sample-count discrepancies, and even a single
-out-of-tolerance interior sample. This demonstrates **channel
-identity and separation** through this particular short synthetic
-VHS/ProRes PCM16 mux path, not multi-hour drift or cross-device sync.
+out-of-tolerance interior or final-tail samples, a single extra
+stereo frame, or even 1,024 frames of trailing silence. This demonstrates
+**full one-second channel identity and separation** through this short
+synthetic VHS/ProRes PCM16 mux path, not multi-hour drift or
+cross-device sync.
 Only numeric errors, codec metadata and hashes are included in
 JSON-only evidence; no MOVs or decoded audio are retained or uploaded.
 
