@@ -70,6 +70,69 @@ class Selected11ReleaseHoldTests(unittest.TestCase):
             self.assertIn("COMMERCIAL_RIGHTS_NOT_VERIFIED",
                           row["blocker_codes"])
 
+    def test_known_gimm_and_wan_source_blockers_are_explicit_per_workflow(self):
+        report = gate.assemble(*self.reports())
+        rows = {row["workflow"]: row for row in report["workflows"]}
+        expected = {
+            gate.GIMM_WORKFLOW: "PINNED_GIMM_CLASS_BINDINGS_INCOMPATIBLE",
+            **{path: "WAN_FMLF_PROVIDER_LICENSE_NOT_VERIFIED"
+               for path in gate.WAN_FMLF_WORKFLOWS},
+        }
+        self.assertEqual(report["known_provider_source_blockers"], expected)
+        self.assertEqual(
+            report["release_blocker_counts"]["PINNED_GIMM_CLASS_BINDINGS_INCOMPATIBLE"],
+            1,
+        )
+        self.assertEqual(
+            report["release_blocker_counts"]["WAN_FMLF_PROVIDER_LICENSE_NOT_VERIFIED"],
+            2,
+        )
+        for name, blocker in expected.items():
+            self.assertIn(blocker, rows[name]["blocker_codes"])
+            self.assertEqual(rows[name]["release_decision"], "HOLD")
+        self.assertEqual(report["decision"], "HOLD")
+        self.assertFalse(report["commercial_rights_cleared"])
+        self.assertFalse(report["deployment_authorised_by_this_report"])
+
+    def test_rejects_known_source_graph_class_drift_instead_of_silently_unblocking(self):
+        for name, node_class in gate.KNOWN_PROVIDER_CLASS_BASELINES.items():
+            c, l, p, s = self.reports()
+            row = next(w for w in c["workflows"] if w["workflow"] == name)
+            removed = False
+            for classes in row["node_classes_by_status"].values():
+                if node_class[0] in classes:
+                    classes.remove(node_class[0])
+                    removed = True
+            self.assertTrue(removed, name)
+            with self.subTest(name=name), self.assertRaisesRegex(
+                ValueError, "graph-class baseline changed"
+            ):
+                gate.assemble(c, l, p, s)
+
+    def test_rejects_known_source_loss_of_class_inventory_or_pin_baseline(self):
+        c, l, p, s = self.reports()
+        row = next(w for w in c["workflows"]
+                   if w["workflow"] == gate.GIMM_WORKFLOW)
+        row.pop("node_classes_by_status")
+        with self.assertRaisesRegex(ValueError, "lacks class inventory"):
+            gate.assemble(c, l, p, s)
+        c, l, p, s = self.reports()
+        row = next(w for w in c["workflows"]
+                   if w["workflow"] == gate.GIMM_WORKFLOW)
+        row["manifest_dependency_names"] = []
+        with self.assertRaisesRegex(ValueError, "manifest pin baseline changed"):
+            gate.assemble(c, l, p, s)
+
+    def test_known_provider_reason_is_not_claimed_for_unrelated_workflow(self):
+        report = gate.assemble(*self.reports())
+        qualified = set(gate.KNOWN_PROVIDER_REASON_CODES)
+        for row in report["workflows"]:
+            if row["workflow"] not in qualified:
+                self.assertNotIn("PINNED_GIMM_CLASS_BINDINGS_INCOMPATIBLE",
+                                 row["blocker_codes"])
+                self.assertNotIn("WAN_FMLF_PROVIDER_LICENSE_NOT_VERIFIED",
+                                 row["blocker_codes"])
+
     def test_revision_mismatch_between_link_and_provider_audits_rejected(self):
         c, l, p, s = self.reports()
         p["source_sha256"] = "0" * 64
