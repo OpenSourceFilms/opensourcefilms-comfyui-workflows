@@ -55,10 +55,14 @@ def ensure_loopback_object_info(document: object, expected: str) -> None:
 def verify_external_node_sources(custom_nodes: Path) -> dict:
     """Fail closed on missing, symlinked or unexpected Git revisions."""
     versions = {}
-    for name, spec in EXTERNAL_NODE_PINS.items():
+    # Check *all* paths before running any Git command. A later symlink must
+    # not cause earlier unreviewed directories to be inspected first.
+    for name in EXTERNAL_NODE_PINS:
         package = custom_nodes / name
         if package.is_symlink() or not package.is_dir():
             raise ValueError("Missing or symlinked external custom node: " + name)
+    for name, spec in EXTERNAL_NODE_PINS.items():
+        package = custom_nodes / name
         result = subprocess.run(
             ["git", "-C", str(package), "rev-parse", "HEAD"],
             capture_output=True, text=True, timeout=15, check=True,
