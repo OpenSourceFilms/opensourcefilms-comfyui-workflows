@@ -117,6 +117,88 @@ class ElevenWorkflowNodeCoverageTests(unittest.TestCase):
                             and not w["executable_api_prompt_proven"]
                             for w in report["workflows"]))
 
+    def test_live_registry_delta_requires_actual_pinned_schemas_and_retains_holds(self):
+        source = checker.audit()
+        required = source["cpu_registration_contract_classes"]
+        object_info = {
+            key: {"input": {}, "output": []} for key in required
+        }
+        # Actual vanilla core schemas are allowed but never mean full
+        # model execution or UI-to-API conversion is accepted.
+        object_info["SaveImage"] = {"input": {"required": {}}, "output": []}
+        delta = checker.compare_live_registry(source, object_info)
+        self.assertEqual(delta["schema"], "osf-selected-11-live-cpu-registry-delta-v1")
+        self.assertEqual(delta["source_class_count"], 81)
+        self.assertEqual(delta["workflow_count"], 11)
+        self.assertEqual(delta["accepted_pinned_contract_class_count"], 6)
+        self.assertIn("SaveImage", delta["registered_selected_classes"])
+        self.assertEqual(
+            delta["registered_selected_class_count"]
+            + delta["unregistered_selected_class_count"], 81,
+        )
+        self.assertTrue(delta["fork_native_absent_as_expected"])
+        self.assertTrue(delta["unresolved_uuid_absent_as_expected"])
+        self.assertFalse(delta["all_selected_workflows_executable"])
+        self.assertFalse(delta["gpu_inference_verified"])
+        for w in delta["workflows"]:
+            self.assertFalse(w["executable_api_prompt_proven"])
+            self.assertFalse(w["gpu_inference_verified"])
+            self.assertEqual(
+                w["source_class_count"],
+                w["registered_on_this_cpu"] + w["not_registered_on_this_cpu"],
+            )
+            self.assertTrue(set(w["registered_class_names"]).isdisjoint(
+                w["missing_class_names"]
+            ))
+
+    def test_live_registry_delta_rejects_missing_pins_and_invalid_node_schemas(self):
+        source = checker.audit()
+        schema = {key: {"input": {}, "output": []}
+                  for key in source["cpu_registration_contract_classes"]}
+        missing = dict(schema)
+        missing.pop("VHS_VideoCombine")
+        with self.assertRaisesRegex(ValueError, "Accepted pinned"):
+            checker.compare_live_registry(source, missing)
+        invalid = dict(schema)
+        invalid["VHS_VideoCombine"] = {"input": [], "output": []}
+        with self.assertRaisesRegex(ValueError, "Malformed live class schema"):
+            checker.compare_live_registry(source, invalid)
+        with self.assertRaisesRegex(ValueError, "Invalid live"):
+            checker.compare_live_registry(source, [])
+
+    def test_live_registry_delta_rejects_fork_and_unresolved_groups_in_vanilla(self):
+        source = checker.audit()
+        data = {key: {"input": {}, "output": []}
+                for key in source["cpu_registration_contract_classes"]}
+        for name in (
+            "SAM3_VideoTrack",
+            source["unresolved_uuid_node_classes"][0],
+        ):
+            with self.subTest(name=name):
+                modified = {**data, name: {"input": {}, "output": []}}
+                with self.assertRaisesRegex(ValueError, "Unexpected fork/UUID"):
+                    checker.compare_live_registry(source, modified)
+
+    def test_live_registry_delta_rejects_tampered_source_counts_and_flags(self):
+        source = checker.audit()
+        data = {key: {"input": {}, "output": []}
+                for key in source["cpu_registration_contract_classes"]}
+        tampered = {**source, "unique_node_class_count": 80}
+        with self.assertRaisesRegex(ValueError, "Unexpected/unreviewed"):
+            checker.compare_live_registry(tampered, data)
+        changed = {**source, "fork_native_required_classes": []}
+        with self.assertRaisesRegex(ValueError, "fork/UUID holds lost"):
+            checker.compare_live_registry(changed, data)
+
+    def test_live_registry_wiring_is_separate_from_model_execution(self):
+        source = (ROOT / "scripts/qualify_clean_comfy_cpu.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("qualify_selected_11_live_registry(port)", source)
+        self.assertIn('"selected_11_live_cpu_class_registry"', source)
+        self.assertIn('"/object_info"', source)
+        self.assertIn('"eleven_workflows_qualified": False', source)
+
     def test_report_omits_media_names_and_prompt_values(self):
         serialized = json.dumps(checker.audit(), sort_keys=True)
         self.assertNotIn("scail2_test_driving_video.mp4", serialized)
