@@ -469,7 +469,7 @@ def verify_prores_video(port: int, item: dict) -> dict:
             capture_output=True, check=True, timeout=30,
         )
         stderr = result.stderr.decode("utf-8", "replace")
-        if not re.search(r"Video:\s+prores\s+\(4444\)\b", stderr, flags=re.IGNORECASE):
+        if not re.search(r"Video:\s+prores\s+\(4444\)\s", stderr, flags=re.IGNORECASE):
             stream_line = re.search(r"Video:\s+prores[^\n]{0,220}", stderr,
                                     flags=re.IGNORECASE)
             descriptor = stream_line.group(0) if stream_line else "not reported"
