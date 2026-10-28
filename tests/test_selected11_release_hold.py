@@ -167,6 +167,59 @@ class Selected11ReleaseHoldTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "coverage source hash"):
                     gate.assemble(c, l, p, s)
 
+    def test_all_eleven_coverage_hashes_match_current_checkout_bytes(self):
+        c, _, _, _ = self.reports()
+        self.assertEqual(gate.verify_against_current_checkout(c), 11)
+
+    def test_non_mm_stale_coverage_previously_passed_pure_assembler_but_now_fails_checkout_gate(self):
+        for row_index in range(11):
+            c, links, providers, candidates = self.reports()
+            row = c["workflows"][row_index]
+            if row["workflow"] == gate.MM_WORKFLOW:
+                continue
+            row["source_graph_sha256"] = "0" * 64
+            # Historical four-report reconciliation cannot see the ten
+            # unrelated graph revisions. The additional source gate must.
+            self.assertEqual(gate.assemble(c, links, providers, candidates)["decision"], "HOLD")
+            with self.subTest(workflow=row["workflow"]):
+                with self.assertRaisesRegex(
+                    ValueError, "SHA differs from current selected source",
+                ):
+                    gate.verify_against_current_checkout(c)
+
+    def test_checkout_source_gate_rejects_missing_rows_and_format_drift(self):
+        c, _, _, _ = self.reports()
+        c["workflows"].pop()
+        with self.assertRaisesRegex(ValueError, "source/coverage inventories disagree"):
+            gate.verify_against_current_checkout(c)
+        c, _, _, _ = self.reports()
+        c["workflows"][0]["graph_format"] = (
+            "api" if c["workflows"][0]["graph_format"] == "ui" else "ui"
+        )
+        with self.assertRaisesRegex(ValueError, "source or format differs"):
+            gate.verify_against_current_checkout(c)
+
+    def test_checkout_source_gate_requires_complete_exact_source_and_manifest_sets(self):
+        c, _, _, _ = self.reports()
+        source_bytes = {
+            row["workflow"]: b"synthetic" for row in c["workflows"]
+        }
+        manifest = {
+            row["workflow"]: {"format": row["graph_format"]}
+            for row in c["workflows"]
+        }
+        self.assertEqual(len(source_bytes), 11)
+        with self.assertRaisesRegex(ValueError, "SHA differs"):
+            gate.check_all_eleven_coverage_source_bytes(c, source_bytes, manifest)
+        missing = dict(source_bytes)
+        missing.pop(next(iter(missing)))
+        with self.assertRaisesRegex(ValueError, "source/coverage inventories disagree"):
+            gate.check_all_eleven_coverage_source_bytes(c, missing, manifest)
+        bad_manifest = dict(manifest)
+        bad_manifest.pop(next(iter(bad_manifest)))
+        with self.assertRaisesRegex(ValueError, "source/coverage inventories disagree"):
+            gate.check_all_eleven_coverage_source_bytes(c, source_bytes, bad_manifest)
+
     def test_revision_mismatch_between_link_and_provider_audits_rejected(self):
         c, l, p, s = self.reports()
         p["source_sha256"] = "0" * 64

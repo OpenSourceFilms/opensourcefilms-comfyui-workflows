@@ -74,12 +74,25 @@ CI run means the **HOLD decision is internally consistent**, not that
 the eleven workflows are executable.
 
 The coverage report now includes a `source_graph_sha256` field on
-each workflow row. The reconciler rejects absent, malformed or stale
-hashes and checks the `mm_upscale` coverage hash against the same
-graph fingerprint used by all three specialized audits. This binds
-the four report inputs to the **same mm_upscale graph revision**.
-It does not establish complete temporal consistency across other
-workflows or certify runtime compatibility.
+each workflow row. The reconciler rejects absent or malformed hashes
+and checks `mm_upscale` coverage against the three specialized audits.
+
+**Current-checkout binding across all eleven:** The executable CLI now also
+reuses the canonical `runpod/commercial-compatible/prepare.py` selector,
+reads the **currently approved eleven graph byte strings**, and compares
+every coverage row's SHA-256 and declared API/UI format against the exact
+approved source. It rejects stale, substituted, missing, duplicate or
+mixed-revision coverage evidence for **any** of the eleven selected graphs,
+not only `mm_upscale`. Successful CLI output sets
+`current_checkout_source_hashes_verified=true` and
+`current_checkout_source_hashes_verified_count=11`.
+
+The pure library `assemble()` function only reconciles the four provided
+reports and intentionally has no checkout/filesystem access; callers that
+need to assert current source integrity must invoke
+`verify_against_current_checkout()` or use the CLI. None of these
+checks proves executable workflow graphs, typed sockets, model/GPU
+inference, licences or production readiness. The decision is still HOLD.
 
 The report deliberately cannot return `GO`: independently reviewed runtime,
 model provenance, licence permissions, GPU inference, and output acceptance
