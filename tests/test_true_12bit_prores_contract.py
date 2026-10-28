@@ -36,6 +36,9 @@ class True12BitSourceContractTests(unittest.TestCase):
         self.assertEqual(result["source_precision_bits"], 12)
         self.assertEqual(result["component_sample_count"], 24576)
         self.assertEqual(result["sub_8bit_luma_distinctions_preserved"], 4)
+        self.assertEqual(result["sub_8bit_chroma_distinctions_preserved"], 15)
+        self.assertEqual(result["sub_8bit_chroma_distinctions_by_plane"],
+                         {"Cb": 9, "Cr": 6})
         self.assertEqual(result["maximum_observed_error_12bit"], 0)
         self.assertFalse(result["vhs_node_12bit_input_qualified"])
         self.assertFalse(result["video_binary_uploaded"])
@@ -48,6 +51,22 @@ class True12BitSourceContractTests(unittest.TestCase):
         decoded = true12._bytes_from_samples(samples)
         result = true12.validate_genuine_12bit_roundtrip(raw, decoded)
         self.assertEqual(result["maximum_observed_error_by_frame_12bit"], [3, 2])
+
+    def test_chroma_fine_detail_collapse_fails_even_within_error_tolerance(self):
+        raw = true12.make_genuine_12bit_yuv444p_source()
+        decoded = true12._samples_from_bytes(raw)
+        # Frame zero Cb, top-right tile: source 2053, top-left 2048.
+        # Replacing one 2053 sample with 2048 incurs only 5/4095 error,
+        # below the global 8/4095 threshold, but loses real chroma detail.
+        a = 64 * 64 + 0
+        b = 64 * 64 + 33
+        self.assertEqual(decoded[a], 2048)
+        self.assertEqual(decoded[b], 2053)
+        decoded[b] = decoded[a]
+        with self.assertRaisesRegex(ValueError, "sub-8-bit chroma distinction"):
+            true12.validate_genuine_12bit_roundtrip(
+                raw, true12._bytes_from_samples(decoded),
+            )
 
     def test_rejects_8bit_quantization_even_at_similar_mean_values(self):
         raw = true12.make_genuine_12bit_yuv444p_source()
