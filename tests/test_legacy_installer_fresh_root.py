@@ -163,6 +163,62 @@ class FreshRootLegacyInstallerTests(unittest.TestCase):
         self.assertEqual(self.names(), self.default_nodes - {failed} | {VENDORED})
         self.assert_no_staging()
 
+    def test_preexisting_regular_file_is_preserved_without_clone_or_cleanup(self):
+        self.nodes.mkdir()
+        blocked = "ComfyUI-GGUF"
+        existing = self.nodes / blocked
+        content = b"original-user-owned-file\\n"
+        existing.write_bytes(content)
+        outcome = self.execute()
+        self.assertNotEqual(outcome.returncode, 0)
+        self.assertIn("ERROR: cannot clone " + blocked, outcome.stderr)
+        self.assertIn("preserving " + str(existing), outcome.stderr)
+        self.assertTrue(existing.is_file())
+        self.assertEqual(existing.read_bytes(), content)
+        clones = [x for x in self.activity() if x["command"] == "clone"]
+        self.assertNotIn(blocked, {Path(x["args"][-1]).name for x in clones})
+        self.assertTrue((self.nodes / VENDORED / "__init__.py").is_file())
+        self.assertIn("FAILED to install: " + blocked, outcome.stdout)
+        self.assert_no_staging()
+
+    def test_preexisting_dangling_symlink_is_preserved_without_clone(self):
+        self.nodes.mkdir()
+        blocked = "ComfyUI-KJNodes"
+        existing = self.nodes / blocked
+        target = self.base / "preexisting-missing-checkout"
+        existing.symlink_to(target, target_is_directory=True)
+        self.assertFalse(existing.exists())
+        self.assertTrue(existing.is_symlink())
+        outcome = self.execute()
+        self.assertNotEqual(outcome.returncode, 0)
+        self.assertIn("ERROR: cannot clone " + blocked, outcome.stderr)
+        self.assertTrue(existing.is_symlink())
+        self.assertEqual(existing.readlink(), target)
+        self.assertFalse(target.exists())
+        clones = [x for x in self.activity() if x["command"] == "clone"]
+        self.assertNotIn(blocked, {Path(x["args"][-1]).name for x in clones})
+        self.assertIn("FAILED to install: " + blocked, outcome.stdout)
+        self.assert_no_staging()
+
+    def test_preexisting_directory_symlink_is_only_skipped_not_verified(self):
+        self.nodes.mkdir()
+        target = self.base / "external-node-checkout"
+        target.mkdir()
+        blocked = "ComfyUI-GGUF"
+        existing = self.nodes / blocked
+        existing.symlink_to(target, target_is_directory=True)
+        outcome = self.execute()
+        self.assertEqual(outcome.returncode, 0, outcome.stdout + outcome.stderr)
+        self.assertTrue(existing.is_symlink())
+        self.assertEqual(existing.readlink(), target)
+        self.assertIn("existing " + blocked + " was not checked", outcome.stderr)
+        self.assertNotIn(
+            blocked,
+            {Path(x["args"][-1]).name for x in self.activity()
+             if x["command"] == "clone"},
+        )
+        self.assert_no_staging()
+
     def test_missing_comfy_directory_is_rejected_without_git_commands(self):
         self.comfy.rmdir()
         result = self.execute()
