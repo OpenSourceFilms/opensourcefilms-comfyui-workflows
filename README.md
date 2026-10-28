@@ -93,6 +93,13 @@ For a no-GPU structural check of exported graphs, use the
 [offline workflow validator](docs/validate-workflows.md). It does not check model
 availability or runtime correctness.
 
+For the **eleven selected commercial-compatible workflows**, the
+[source-only node-class coverage preflight](docs/selected-11-node-coverage.md)
+audits both ComfyUI UI and API exports, identifies native SCAIL-2/SAM3 fork
+requirements and unresolved group nodes, and distinguishes pinned clean-CPU
+node registrations from unverified extensions. It is **not** an assertion
+that all eleven workflows run, are GPU-qualified or have cleared model rights.
+
 For byte-level verification of delivered native `SaveImage` sequences, use the
 [read-only PNG sequence audit](docs/audit-native-png-sequence.md). It verifies
 frame counts, dimensions, bit depth, chunk CRCs and file hashes without
