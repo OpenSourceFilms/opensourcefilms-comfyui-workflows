@@ -42,14 +42,22 @@ Both return temporary MOVs with `save_output=false`. The harness
 accepts only safe loopback `/view` filenames, caps media at 2 MB,
 and uses the pinned CPU FFmpeg executable to verify actual ProRes 4444
 storage (`yuv444p12le`) and decode exactly two 64×64 frames of 12-bit
-YUV444 samples per output. It requires four tested luminance tile pairs
-to **collapse** in the default 8-bit control, but remain **distinct and
-correctly ordered** in the opt-in path. Each preserved difference must
-be between 1 and 20 out of 4095 12-bit code levels.
+YUV444 samples per output. It retains the original four centre-point luminance tile-pair checks
+and also examines a **3×3 interior grid in each of the four frame/row
+left/right tile pairs**, giving **36 spatially separated comparisons**.
+The grid samples offsets 8, 16 and 24 within each 32×32 tile, avoiding
+the immediate codec block boundaries. Every corresponding left/right
+point must **collapse to equal decoded luma values** in the default
+8-bit control, but remain **distinct and correctly ordered** in the
+opt-in 16-bit path. Each difference must be between 1 and 20 out of
+4095 12-bit code levels. This detects localized detail loss beyond the
+four original centre points and reports the grid's minimum/maximum
+positive 12-bit differences; it does not establish every-pixel fidelity.
 
-The acceptance report contains only numeric differences, hashes of
-the temporary MOVs and an explicit failure of bit-exact fidelity
-qualification. The videos and source tensors remain in the disposable
+The acceptance report contains only numeric differences (including
+the number of valid interior-grid comparisons and minimum/maximum
+difference), hashes of the temporary MOVs and an explicit failure of
+bit-exact fidelity qualification. The videos and source tensors remain in the disposable
 runner and are not uploaded.
 
 ## Important limitations
