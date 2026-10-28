@@ -79,6 +79,19 @@ class NativeLiveSchemaTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, error):
                     verify_native_live_schemas(info)
 
+    def test_modern_comfy_io_combo_metadata_is_supported_but_not_weakened(self):
+        info = sample_registry()
+        info["SCAIL2ColoredMask"]["input"]["optional"]["sort_by"] = [
+            "COMBO", {"options": ["none", "left_to_right", "area"]}
+        ]
+        result = verify_native_live_schemas(info)
+        self.assertEqual(result["classes_checked"], 5)
+        info["SCAIL2ColoredMask"]["input"]["optional"]["sort_by"][1]["options"] = [
+            "none", "invalid"
+        ]
+        with self.assertRaisesRegex(ValueError, "enum options mismatch"):
+            verify_native_live_schemas(info)
+
     def test_force_input_metadata_must_be_active(self):
         for name in ("bboxes", "positive_coords", "negative_coords"):
             with self.subTest(name=name):
