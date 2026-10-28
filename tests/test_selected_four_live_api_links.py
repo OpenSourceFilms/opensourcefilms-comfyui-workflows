@@ -100,6 +100,45 @@ class SelectedFourLiveLinkTests(unittest.TestCase):
         self.assertGreater(result["dynamic_type_links_unverified"], 0)
         self.assertLess(result["registered_exact_type_links"], 82)
 
+    def test_unreviewed_pipe_union_and_composite_output_remain_unverified(self):
+        registry = deepcopy(self.registry)
+        # Historically unreviewed input union must never be promoted by
+        # matching one member of a textual pipe-separated type.
+        registry["CLIPTextEncode"]["input"]["required"]["clip"] = [
+            "CLIP|MODEL", {}
+        ]
+        result = audit.analyze_live_api_links(registry, self.graphs)
+        self.assertGreater(result["dynamic_type_links_unverified"], 0)
+        self.assertLess(result["registered_exact_type_links"], 82)
+        self.assertEqual(result["incompatible_registered_links"], 0)
+
+        registry = deepcopy(self.registry)
+        # Source composite types cannot be treated as one concrete socket.
+        registry["CheckpointLoaderSimple"]["output"][1] = "CLIP|MODEL"
+        registry["CLIPTextEncode"]["input"]["required"]["clip"] = [
+            "CLIP|MODEL", {}
+        ]
+        result = audit.analyze_live_api_links(registry, self.graphs)
+        self.assertGreater(result["dynamic_type_links_unverified"], 0)
+        self.assertLess(result["registered_exact_type_links"], 82)
+
+    def test_reviewed_sam3_scail_pipe_alias_still_matches_mask(self):
+        registry = deepcopy(self.registry)
+        registry["SAM3_Detect"]["output"][0] = "MASK"
+        registry["SCAIL2ColoredMask"]["input"]["required"]["ref_track_data"] = [
+            "SAM3_TRACK_DATA|MASK", {}
+        ]
+        result = audit.analyze_live_api_links(registry, self.graphs)
+        self.assertEqual(result["registered_exact_type_links"], 82)
+        self.assertEqual(result["incompatible_registered_links"], 0)
+        self.assertEqual(result["dynamic_type_links_unverified"], 0)
+
+        registry["SCAIL2ColoredMask"]["input"]["required"]["ref_track_data"] = [
+            "MASK|LATENT", {}
+        ]
+        result = audit.analyze_live_api_links(registry, self.graphs)
+        self.assertGreater(result["dynamic_type_links_unverified"], 0)
+
     def test_rejects_missing_producer_slot_and_destination_input(self):
         registry = deepcopy(self.registry)
         registry["CheckpointLoaderSimple"]["output"] = ["MODEL"]

@@ -71,20 +71,27 @@ def _linked_type_match(produced: str, accepted: str | None,
 
     Pinned public ComfyUI exposes SCAIL2ColoredMask.ref_track_data as the
     comma-separated runtime multi-type string SAM3_TRACK_DATA,MASK.
-    Source-schema audits denote that exact union with a pipe. Do not
-    globally split comma strings or assume other serialized unions.
+    Source-schema audits denote that same exact union with a pipe.
+    Admit either representation only at that destination. Treat every
+    other composite producer/input type as unresolved, not compatible.
     """
     if accepted is None or produced == "*" or accepted == "*":
         return "unresolved_dynamic"
-    if "," in accepted:
+    # A producer advertising a composite type is not a single statically
+    # established output; never treat a matching composite string as exact.
+    if "," in produced or "|" in produced:
+        return "unresolved_dynamic"
+    if "," in accepted or "|" in accepted:
         if (destination_class == "SCAIL2ColoredMask"
                 and field == "ref_track_data"
-                and accepted == "SAM3_TRACK_DATA,MASK"):
+                and accepted in ("SAM3_TRACK_DATA,MASK", "SAM3_TRACK_DATA|MASK")):
             possibilities = ("SAM3_TRACK_DATA", "MASK")
         else:
+            # Only the one reviewed native union is admitted. A new union
+            # syntax/provider needs a new source audit before acceptance.
             return "unresolved_dynamic"
     else:
-        possibilities = accepted.split("|")
+        possibilities = (accepted,)
     if produced in possibilities:
         return "exact_type_match"
     if "*" in possibilities:
