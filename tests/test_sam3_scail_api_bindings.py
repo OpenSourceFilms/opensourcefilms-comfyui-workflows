@@ -64,6 +64,29 @@ class NativeBindingsTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "scalar input type mismatch"):
                     mod.check_api_bindings(source)
 
+    def test_sam3_forced_input_coordinate_sockets_reject_literals(self):
+        # Public pinned nodes_sam3.py specifies force_input=True for all
+        # three optional prompt sockets. Omission is permitted.
+        self.assertEqual(mod.check_api_bindings(graph())["native_node_instances"], 4)
+        self.assertEqual(mod.FORCE_LINK_FIELDS, {
+            "SAM3_Detect.bboxes",
+            "SAM3_Detect.positive_coords",
+            "SAM3_Detect.negative_coords",
+        })
+        for field, value in (
+            ("positive_coords", "[]"),
+            ("negative_coords", "[]"),
+            ("positive_coords", ""),
+            ("negative_coords", 1),
+            ("bboxes", []),
+            ("bboxes", None),
+        ):
+            with self.subTest(field=field, value=value):
+                source = graph()
+                source["6"]["inputs"][field] = value
+                with self.assertRaisesRegex(ValueError, "force_input socket requires a link"):
+                    mod.check_api_bindings(source)
+
     def test_missing_reference_and_malformed_link_fail(self):
         source = graph()
         source["7"]["inputs"]["driving_track_data"] = ["missing", 0]
