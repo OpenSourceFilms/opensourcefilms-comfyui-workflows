@@ -109,7 +109,7 @@ jobs:
           cp -R custom_nodes/mask_propagate_optical_flow "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
           cp -R tests/fixtures/comfy_scail_cpu_source "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
           cp -R tests/fixtures/comfy_12bit_source "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
-      - name: Fetch five exact reviewed public custom-node commits
+      - name: Fetch six exact reviewed public custom-node commits
         run: |
           set -euo pipefail
           dst="${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes"
@@ -126,6 +126,7 @@ jobs:
           fetch_pinned "ComfyUI-DownsampleFPS" "https://github.com/Austat/ComfyUI-DownsampleFPS.git" "4d741ef8e33b0c5111ad21033f9408acffc63651"
           fetch_pinned "ComfyUI-GGUF" "https://github.com/city96/ComfyUI-GGUF.git" "6ea2651e7df66d7585f6ffee804b20e92fb38b8a"
           fetch_pinned "ComfyUI_UltimateSDUpscale" "https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git" "a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df"
+          fetch_pinned "ComfyUI-Florence2" "https://github.com/kijai/ComfyUI-Florence2.git" "9ece3de914214c5f581d725167bc9d0eeb0d1120"
       - name: Fetch exact UltimateSDUpscale GPLv3 gitlink and forbid mutable fallback
         run: |
           set -euo pipefail
@@ -153,7 +154,9 @@ jobs:
         run: |
           # VideoHelperSuite requires imageio-ffmpeg. The opencv-python
           # requirement is provided by the already installed headless wheel.
-          python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
+          # Florence2's pinned package imports matplotlib at registration.
+          # No Florence model/weights are downloaded or executed here.
+          python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0" "matplotlib==3.10.6"
           python -m pip check
       - name: Audit workflows, codecs, VHS precision and native SCAIL mask CPU rendering
         env:

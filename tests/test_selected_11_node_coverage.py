@@ -60,10 +60,12 @@ class ElevenWorkflowNodeCoverageTests(unittest.TestCase):
         self.assertIn("UnetLoaderGGUF", actual)
         self.assertIn("UltimateSDUpscale", actual)
         self.assertIn("Any Switch (rgthree)", actual)
+        self.assertIn("DownloadAndLoadFlorence2Model", actual)
+        self.assertIn("Florence2Run", actual)
         self.assertNotIn("VHS_LoadVideo", actual)
         self.assertNotIn("UltimateSDUpscaleNoUpscale", actual)
         self.assertNotIn("WanSCAILToVideo", actual)
-        self.assertEqual(len(actual), 6)
+        self.assertEqual(len(actual), 8)
 
     def test_unknown_uuid_and_unverified_extension_require_explicit_gates(self):
         registry = {"UnetLoaderGGUF": "ComfyUI-GGUF"}

@@ -94,6 +94,67 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertIn("commit: " + spec["sha"], lock)
         self.assertIn("name: ComfyUI-GGUF", lock)
 
+    def test_florence2_pinned_source_matches_canonical_manifest(self):
+        pin = qualifier.EXTERNAL_NODE_PINS["ComfyUI-Florence2"]
+        self.assertEqual(pin["sha"], "9ece3de914214c5f581d725167bc9d0eeb0d1120")
+        self.assertEqual(pin["classes"], (
+            "DownloadAndLoadFlorence2Model", "Florence2Run",
+        ))
+        lock = (ROOT / "DEPENDENCIES.lock").read_text(encoding="utf-8")
+        key = "workflows/commercial-compatible/mm_upscale_video_workflow.json:"
+        section = lock.split(key, 1)[1].split("\nworkflows/", 1)[0]
+        self.assertIn("name: ComfyUI-Florence2", section)
+        self.assertIn("commit: " + pin["sha"], section)
+
+    def test_florence2_live_schema_rejects_missing_or_wrong_bindings(self):
+        loader = {
+            "input": {"required": {
+                "model": [["test-model"]], "precision": [["fp16", "bf16", "fp32"]],
+            }},
+            "output": ["FL2MODEL"],
+        }
+        runner = {
+            "input": {"required": {
+                "image": ["IMAGE"], "florence2_model": ["FL2MODEL"],
+                "text_input": ["STRING"], "task": [["caption", "ocr"]],
+                "fill_mask": ["BOOLEAN"],
+            }},
+            "output": ["IMAGE", "MASK", "STRING", "JSON"],
+        }
+        payload = {
+            "DownloadAndLoadFlorence2Model": loader,
+            "Florence2Run": runner,
+        }
+        outcome = qualifier.verify_florence2_live_sockets(payload)
+        self.assertEqual(set(outcome), set(payload))
+        self.assertFalse(outcome["Florence2Run"]["model_execution_tested"])
+        missing = {
+            **payload, "Florence2Run": {
+                **runner, "input": {"required": {
+                    k: v for k, v in runner["input"]["required"].items()
+                    if k != "florence2_model"
+                }},
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "required socket is absent"):
+            qualifier.verify_florence2_live_sockets(missing)
+        wrong = {
+            **payload, "Florence2Run": {
+                **runner, "input": {"required": {
+                    **runner["input"]["required"], "image": ["MASK"],
+                }},
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "Unexpected Florence2 socket type"):
+            qualifier.verify_florence2_live_sockets(wrong)
+        swapped = {
+            **payload, "Florence2Run": {
+                **runner, "output": ["MASK", "IMAGE", "STRING", "JSON"],
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "Unexpected Florence2 output types"):
+            qualifier.verify_florence2_live_sockets(swapped)
+
     def test_external_frame_drop_acceptance_checks_expected_synthetic_values(self):
         # This method imports torch only in the disposable runtime job.
         # The contract test confirms the upstream method is required;

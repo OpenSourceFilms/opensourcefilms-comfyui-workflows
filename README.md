@@ -102,6 +102,11 @@ requirements and unresolved group nodes, and distinguishes pinned clean-CPU
 node registrations from unverified extensions. It is **not** an assertion
 that all eleven workflows run, are GPU-qualified or have cleared model rights.
 
+The disposable CPU acceptance also requires the exact-pinned Florence2
+loader and runner to register with the expected live input/output sockets.
+**This is not Florence2 model loading or inference.** The pinned model
+loader downloads weights only if executed; the CPU test does not execute it.
+
 For byte-level verification of delivered native `SaveImage` sequences, use the
 [read-only PNG sequence audit](docs/audit-native-png-sequence.md). It verifies
 frame counts, dimensions, bit depth, chunk CRCs and file hashes without
@@ -153,8 +158,8 @@ A separate [clean ComfyUI CPU smoke](docs/clean-cpu-runtime-qualification.md)
 is available for **OSF's own two optical-flow nodes only**. It attempts
 a fresh pinned upstream ComfyUI install, loopback node registration and
 synthetic CPU propagation on a disposable CI runner, together with real
-registration checks for five commit-pinned external node packages (VideoHelperSuite, rgthree-comfy,
-DownsampleFPS, GGUF and UltimateSDUpscale), plus CPU-only synthetic frame
+registration checks for six commit-pinned external node packages (VideoHelperSuite, rgthree-comfy,
+DownsampleFPS, GGUF, UltimateSDUpscale and Florence2), plus CPU-only synthetic frame
 dropping by the real DownsampleFPS node, and one minimal synthetic
 ComfyUI API graph combining VideoHelperSuite frame selection, rgthree
 routing and GIF/H.264/H.265/ProRes 4444 encoding. Distinct
