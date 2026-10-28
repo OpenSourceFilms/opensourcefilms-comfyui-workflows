@@ -48,18 +48,27 @@ class RGBChromaPrecisionTests(unittest.TestCase):
         precise = array("H", [2048] * n)
         for frame, plane in enumerate(chroma.PROBED_YUV_PLANES):
             base = frame * chroma.COMPONENTS_PER_FRAME + plane * chroma.PIXELS
-            for dy in chroma.INTERIOR_OFFSETS:
-                for dx in chroma.INTERIOR_OFFSETS:
+            for dy in chroma.FULL_INTERIOR_OFFSETS:
+                for dx in chroma.FULL_INTERIOR_OFFSETS:
                     row = base + dy * chroma.WIDTH
                     precise[row + 32 + dx] = 2053
         return control, precise
 
-    def test_all_rgb_target_channels_pass_27_spatial_checks(self):
+    def test_all_rgb_target_channels_pass_768_central_pixel_checks(self):
         control, precise = self._arrays()
         result = chroma.verify_rgb_chroma_detail(control, precise)
-        self.assertEqual(result["control_collapsed_pairs"], 27)
-        self.assertEqual(result["optin_preserved_pairs"], 27)
+        self.assertEqual(result["control_collapsed_pairs"], 768)
+        self.assertEqual(result["optin_preserved_pairs"], 768)
         self.assertEqual(result["source_rgb_channels_checked"], 3)
+        self.assertEqual(result["grid_offsets"], list(range(8, 24)))
+        self.assertEqual(
+            result["test_region"],
+            "central_16x16_interior_pixels_per_source_RGB_channel",
+        )
+        self.assertTrue(
+            all(item["verified_interior_pairs"] == 256
+                for item in result["per_channel_grid_results"])
+        )
         self.assertEqual(
             [(x["source_rgb_component"], x["decoded_yuv_component"])
              for x in result["per_channel_grid_results"]],
@@ -71,6 +80,28 @@ class RGBChromaPrecisionTests(unittest.TestCase):
             [5, 5, 5],
         )
         self.assertFalse(result["rgb_source_component_accuracy_qualified"])
+
+    def test_off_grid_8bit_control_leak_is_detected(self):
+        # Position (dy=9, dx=13) was absent from the old 3x3 grid.
+        control, precise = self._arrays()
+        frame = 2  # B source: U decoded component.
+        plane = chroma.PROBED_YUV_PLANES[frame]
+        index = (frame * chroma.COMPONENTS_PER_FRAME
+                 + plane * chroma.PIXELS + 9 * chroma.WIDTH + 32 + 13)
+        control[index] = 2053
+        with self.assertRaisesRegex(ValueError, "default 8-bit RGB control"):
+            chroma.verify_rgb_chroma_detail(control, precise)
+
+    def test_off_grid_16bit_loss_is_detected_for_every_rgb_channel(self):
+        # Each interior failure was invisible to the previous sampled grid.
+        for frame, plane in enumerate(chroma.PROBED_YUV_PLANES):
+            control, precise = self._arrays()
+            index = (frame * chroma.COMPONENTS_PER_FRAME
+                     + plane * chroma.PIXELS + 21 * chroma.WIDTH + 32 + 11)
+            precise[index] = 2048
+            with self.subTest(frame=frame):
+                with self.assertRaisesRegex(ValueError, "lost or reversed"):
+                    chroma.verify_rgb_chroma_detail(control, precise)
 
     def test_rejects_8bit_control_that_retains_differences(self):
         control, precise = self._arrays()
