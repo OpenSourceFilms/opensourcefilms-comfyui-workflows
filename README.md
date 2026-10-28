@@ -97,10 +97,14 @@ availability or runtime correctness.
 
 For the **eleven selected commercial-compatible workflows**, the
 [source-only node-class coverage preflight](docs/selected-11-node-coverage.md)
-audits both ComfyUI UI and API exports, identifies native SCAIL-2/SAM3 fork
-requirements and unresolved group nodes, and distinguishes pinned clean-CPU
-node registrations from unverified extensions. It is **not** an assertion
-that all eleven workflows run, are GPU-qualified or have cleared model rights.
+audits both ComfyUI UI and API exports, identifies native SCAIL-2/SAM3
+class names in pinned public ComfyUI and unresolved embedded-group execution,
+and distinguishes clean-CPU registrations from unverified model/runtime
+operations. The [eleven-workflow admission HOLD report](docs/selected11-release-hold.md)
+reconciles this inventory with embedded link and provider-provenance audits
+and **fails closed** on report drift. A passing HOLD report is **not** an
+assertion that the eleven graphs execute, are GPU-qualified or have cleared
+model rights.
 
 The disposable CPU acceptance also requires the exact-pinned Florence2
 loader and runner to register with the expected live input/output sockets.
