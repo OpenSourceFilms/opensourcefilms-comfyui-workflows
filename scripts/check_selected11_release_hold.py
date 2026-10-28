@@ -24,6 +24,59 @@ CANDIDATES_SCHEMA = "osf-mm-upscale-upstream-candidate-snapshot-v1"
 OUTPUT_SCHEMA = "osf-selected-11-admission-hold-v1"
 MM_WORKFLOW = "workflows/commercial-compatible/mm_upscale_video_workflow.json"
 PUBLIC_PATH = re.compile(r"^workflows/commercial-compatible/[a-zA-Z0-9_-]+\.json$")
+
+# Historical source findings are independently audited elsewhere. The
+# reconciler confirms that the selected graph still contains the precise
+# source-blocked node IDs before attaching a reason code. It does NOT
+# import those upstream audits or independently revalidate their sources.
+GIMM_WORKFLOW = "workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json"
+WAN_FMLF_WORKFLOWS = {
+    "workflows/commercial-compatible/wan22_fmlf_first_middle_last_frame.json":
+        ("WanFirstMiddleLastFrameToVideo", "WanFourFrameReferenceUltimate",
+         "WanMultiFrameRefToVideo"),
+    "workflows/commercial-compatible/video_wan2_2_14B_fmlf2v.json":
+        ("WanFirstMiddleLastFrameToVideo",),
+}
+KNOWN_PROVIDER_CLASS_BASELINES = {
+    GIMM_WORKFLOW: ("GIMMVFI_loader", "GIMMVFIInterpolate"),
+    **WAN_FMLF_WORKFLOWS,
+}
+KNOWN_PROVIDER_REASON_CODES = {
+    GIMM_WORKFLOW: "PINNED_GIMM_CLASS_BINDINGS_INCOMPATIBLE",
+    **{name: "WAN_FMLF_PROVIDER_LICENSE_NOT_VERIFIED"
+       for name in WAN_FMLF_WORKFLOWS},
+}
+
+
+def known_provider_blocker(path: str, row: dict) -> str | None:
+    """Attach reviewed-source HOLD only while its actual graph classes match.
+
+    Existing independent source findings:
+    - GIMM: pinned kijai and Tween class-name/schema mismatch.
+    - Wan FMLF: matching external class source with no detected licence.
+    This gate never upgrades rights or predicts model runtime acceptance.
+    """
+    expected = KNOWN_PROVIDER_CLASS_BASELINES.get(path)
+    if expected is None:
+        return None
+    if row.get("graph_format") != "ui":
+        raise ValueError("Known provider blocker graph-format baseline changed")
+    classified = row.get("node_classes_by_status")
+    if not isinstance(classified, dict) or not all(
+        isinstance(values, list) and all(isinstance(value, str) for value in values)
+        for values in classified.values()
+    ):
+        raise ValueError("Known provider blocker lacks class inventory")
+    present = {name for values in classified.values() for name in values}
+    if not set(expected).issubset(present):
+        raise ValueError("Known provider blocker graph-class baseline changed")
+    if path == GIMM_WORKFLOW:
+        deps = row.get("manifest_dependency_names")
+        if (not isinstance(deps, list) or
+                not {"ComfyUI-GIMM-VFI", "ComfyUI-Tween (provides SGM-VFI)"}
+                .issubset(deps)):
+            raise ValueError("GIMM known provider manifest pin baseline changed")
+    return KNOWN_PROVIDER_REASON_CODES[path]
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 BASE_BLOCKERS = (
     "GPU_AND_MODEL_INFERENCE_NOT_QUALIFIED",
@@ -125,6 +178,9 @@ def assemble(
                 or row.get("commercial_rights_verified") is not False):
             raise ValueError("A source-only workflow entry asserts unearned acceptance")
         blocks = list(BASE_BLOCKERS)
+        provider_reason = known_provider_blocker(path, row)
+        if provider_reason is not None:
+            blocks.append(provider_reason)
         if fmt == "ui":
             blocks.append("EDITOR_GRAPH_API_CONVERSION_NOT_QUALIFIED")
         if path == MM_WORKFLOW:
@@ -144,6 +200,8 @@ def assemble(
             "release_decision": "HOLD",
             "blocker_codes": sorted(blocks),
         })
+    if not set(KNOWN_PROVIDER_CLASS_BASELINES).issubset(seen):
+        raise ValueError("Known provider blocker workflows missing from selected eleven")
     reported = coverage.get("workflow_graph_format_counts")
     if reported != formats or MM_WORKFLOW not in seen:
         raise ValueError("Coverage counts or mm_upscale workflow disagree")
@@ -163,6 +221,12 @@ def assemble(
         "embedded_external_providers_missing_from_manifest": sorted(missing),
         "embedded_external_providers_not_commit_pinned": sorted(unpinned),
         "embedded_unmapped_provider_hint_count": len(unmapped),
+        "known_provider_source_blockers": {
+            name: KNOWN_PROVIDER_REASON_CODES[name]
+            for name in sorted(KNOWN_PROVIDER_REASON_CODES)
+        },
+        "known_provider_source_evidence_scope":
+            "previously_reviewed_pinned_sources_and_current_graph_class_identity_only",
         "release_blocker_counts": {
             code: sum(code in row["blocker_codes"] for row in entries)
             for code in sorted(set(
