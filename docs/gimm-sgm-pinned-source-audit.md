@@ -68,6 +68,33 @@ The pinned loader can auto-download a missing checkpoint and the underlying
 SGM implementation depends on CuPy; **runtime approval remains HOLD**.
 The CI JSON evidence is metadata only, not a deployable graph or certificate.
 
+## SGM widget bounds and image-stream links
+
+A second [source-only checker](../scripts/audit_sgm_widget_and_image_links.py)
+extends the already merged SGM schema-parity gate. It verifies **all
+13 saved SGM widget values** against the exact pinned Tween source's
+literal types, enumerated multiplier choices and numeric minimum/maximum
+constraints. The model-checkpoint selector is dynamic: it checks only
+that the saved selection is a nonempty string. It deliberately does
+**not** claim the checkpoint exists, has a verified digest, is licensed
+for commercial use or can be downloaded safely.
+
+It also checks both real graph `IMAGE` wires, beyond the loader's
+previously verified model wire ID 18: **link 17** from
+`VHS_LoadVideo` node 4 to SGM segment node 22, and **link 27**
+from segment node 22 to `DownsampleFPSNode` node 31. The link
+records and the corresponding endpoint port reverse references must
+agree. Unit tests reject invalid numeric bounds, wrong multiplier or
+boolean values, missing model selection, broken image endpoints and
+unreviewed dynamic widget getters.
+
+Passing yields `WIDGET_AND_IMAGE_WIRES_SOURCE_ONLY_HOLD`. The JSON
+evidence contains only pass/fail flags, node widget counts and reviewed
+link IDs, **not** video paths, model filenames or saved widget values.
+The selected workflow remains byte-for-byte unchanged. All checkpoint,
+CuPy/CUDA, full GIMM graph and runtime acceptance requirements remain
+on **HOLD**.
+
 ## Non-destructive class-name migration candidate
 
 [The source-only candidate planner](../scripts/plan_gimm_vfi_class_migration.py)
