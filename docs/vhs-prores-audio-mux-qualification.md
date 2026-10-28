@@ -88,6 +88,24 @@ stereo frame, or even 1,024 frames of trailing silence. This demonstrates
 **full one-second channel identity and separation** through this short
 synthetic VHS/ProRes PCM16 mux path, not multi-hour drift or
 cross-device sync.
+**Stereo presentation-time verification:** The same real MOV is also
+decoded through the pinned FFmpeg `showinfo` / `ashowinfo` filters,
+using the **same packet-level timeline validator** as the mono case,
+now parameterised for actual `s16`, two channels and `stereo` layout.
+It requires two video presentation times at 0.0 and 0.5 s with 0.5 s
+duration each, an uninterrupted sequence of 48 kHz stereo audio packet
+PTS matching cumulative decoded *sample frames*, no initial offset or
+gaps, exactly 48,000 audio sample frames, and aligned 1.0 s
+audio/video endpoints within 1 ms. Contract tests deliberately reject
+wrong mono/stereo layout, audio offsets, packet gaps, an incomplete
+tail and a shifted second video frame.
+
+This verifies a **one-second stereo presentation timeline** in addition
+to complete waveform identity. It is not proof of long-duration stereo
+synchronisation, production timecode or external clock stability.
+Only packet counts, frame PTS, endpoints and maximum clock error are
+stored as JSON; no decoded audio or MOV is uploaded.
+
 Only numeric errors, codec metadata and hashes are included in
 JSON-only evidence; no MOVs or decoded audio are retained or uploaded.
 

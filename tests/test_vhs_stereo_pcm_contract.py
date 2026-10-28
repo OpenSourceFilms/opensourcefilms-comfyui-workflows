@@ -14,6 +14,11 @@ spec = importlib.util.spec_from_file_location("osf_stereo_pcm_gate", FILE)
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
 
+TIMELINE_FILE = ROOT / "scripts" / "qualify_vhs_audio_mux.py"
+timeline_spec = importlib.util.spec_from_file_location("osf_pcm_timeline_gate", TIMELINE_FILE)
+timeline = importlib.util.module_from_spec(timeline_spec)
+timeline_spec.loader.exec_module(timeline)
+
 
 def samples(left_hz=440, right_hz=660, left_amp=0.2, right_amp=0.14,
             frames=48000):
@@ -123,6 +128,86 @@ class StereoMuxContractTests(unittest.TestCase):
             with self.subTest(actual_frames=len(invalid) // 2):
                 with self.assertRaisesRegex(ValueError, "exactly 48000"):
                     gate.check_decoded_stereo_pcm(invalid)
+
+    @staticmethod
+    def _synthetic_stereo_presentation_trace(*, audio_offset=0,
+                                             video_second_shift=0.0,
+                                             audio_gap_after=None,
+                                             truncate_samples=0,
+                                             channels=2, layout="stereo"):
+        lines = []
+        for index in range(2):
+            seconds = index * 0.5
+            if index == 1:
+                seconds += video_second_shift
+            lines.append(
+                f"[Parsed_showinfo_0 @ 0x01] n: {index:3} pts: {index * 8192} "
+                f"pts_time:{seconds:g} duration:8192 duration_time:0.5 "
+                "fmt:yuv444p12le"
+            )
+        consumed = 0
+        remaining = 48000 - truncate_samples
+        index = 0
+        while remaining > 0:
+            count = min(1024, remaining)
+            pts = consumed + audio_offset
+            if audio_gap_after is not None and index > audio_gap_after:
+                pts += 1024
+            lines.append(
+                f"[Parsed_ashowinfo_0 @ 0x02] n:{index} pts:{pts} "
+                f"pts_time:{pts / 48000:.7f} fmt:s16 channels:{channels} "
+                f"chlayout:{layout} rate:48000 nb_samples:{count}"
+            )
+            consumed += count
+            remaining -= count
+            index += 1
+        return chr(10).join(lines)
+
+    def test_stereo_timestamps_verify_each_packet_and_av_endpoints(self):
+        output = timeline.verify_synthetic_mux_timestamps(
+            self._synthetic_stereo_presentation_trace(), expected_channels=2,
+        )
+        self.assertEqual(output["audio_channels"], 2)
+        self.assertEqual(output["audio_layout"], "stereo")
+        self.assertEqual(output["video_presentation_seconds"], [0.0, 0.5])
+        self.assertEqual(output["audio_packets_inspected"], 47)
+        self.assertEqual(output["audio_samples_covered"], 48000)
+        self.assertEqual(output["audio_first_sample_pts"], 0)
+        self.assertEqual(output["audio_stream_end_seconds"], 1.0)
+        self.assertEqual(output["video_stream_end_seconds"], 1.0)
+        self.assertLessEqual(output["maximum_audio_clock_error_seconds"], 0.001)
+        self.assertFalse(output["binary_media_uploaded"])
+
+    def test_stereo_timestamps_reject_wrong_layout_or_continuity(self):
+        invalid = (
+            ({"audio_offset": 1024}, "Audio PCM timestamps"),
+            ({"audio_gap_after": 15}, "Audio PCM timestamps"),
+            ({"video_second_shift": 0.04}, "Video timestamps"),
+            ({"truncate_samples": 1}, "Audio timestamp coverage"),
+            ({"channels": 1, "layout": "mono"}, "Audio PCM timestamps"),
+            ({"channels": 2, "layout": "mono"}, "Audio PCM timestamps"),
+        )
+        for params, expected in invalid:
+            with self.subTest(params=params):
+                with self.assertRaisesRegex(ValueError, expected):
+                    timeline.verify_synthetic_mux_timestamps(
+                        self._synthetic_stereo_presentation_trace(**params),
+                        expected_channels=2,
+                    )
+        with self.assertRaisesRegex(ValueError, "Audio PCM timestamps"):
+            timeline.verify_synthetic_mux_timestamps(
+                self._synthetic_stereo_presentation_trace(), expected_channels=1,
+            )
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            timeline.verify_synthetic_mux_timestamps(
+                self._synthetic_stereo_presentation_trace(), expected_channels=3,
+            )
+
+    def test_stereo_runtime_uses_actual_mov_timestamp_extraction(self):
+        source = (ROOT / "scripts" / "qualify_vhs_stereo_pcm_mux.py").read_text()
+        self.assertIn("extract_actual_mux_timestamps(", source)
+        self.assertIn("expected_channels=2", source)
+        self.assertIn('"av_presentation_timeline": timeline', source)
 
     def test_fixture_contains_no_media_loaders_and_is_test_only(self):
         text = (ROOT / "tests" / "fixtures" / "comfy_synthetic_audio" /
