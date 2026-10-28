@@ -92,25 +92,34 @@ The 2 MB per-file limit, temporary decoding directory, pinned FFmpeg,
 and file-metadata validation are unchanged.
 
 A fourth `VHS_VideoCombine` output uses pinned upstream
-`video/ProRes`, `profile=hq`, 2 FPS and `save_output=false`, producing
-one temporary MOV through `prores_ks`. The harness retrieves the MOV only
-over the loopback `/view` API, enforces the same strict temporary
-filename/subfolder and 2 MB size limits, and requires a QuickTime/MP4
-`ftyp` signature. The CPU FFmpeg decoder must report a real `prores`
-stream with `yuv422p10le` encoded storage, decode exactly two 64×64
-RGB24 frames, and verify **every pixel** against the red/blue source
-colours in order with a maximum permitted absolute channel error of
-24/255. The report stores observed errors, decoded-frame SHA-256 values,
-MOV SHA-256, and size, but uploads no image or video binaries.
+`video/ProRes`, explicitly setting `profile=4444`, 2 FPS and
+`save_output=false`, producing one temporary MOV through `prores_ks`.
+The harness retrieves the MOV only over the loopback `/view` API,
+enforces strict temporary filename/subfolder and 2 MB size limits,
+and requires a QuickTime/MP4 `ftyp` signature. The CPU FFmpeg decoder
+must identify a real **ProRes 4444** stream with `yuv444p10le` storage,
+decode exactly two 64×64 RGB24 frames, and verify **every pixel**
+against the red/blue source colours in order within a 24/255 maximum
+absolute channel error. Only observed errors, decoded-frame SHA-256
+values, MOV SHA-256 and size go in the JSON evidence.
 
-**Precision boundary:** Although the ProRes HQ stream has 10-bit 4:2:2
-storage, these test frames originate as 8-bit red/green/blue/yellow
-`EmptyImage` colour constants and are checked after RGB24 decoding.
-Successful codec identification is **not** a 10-bit fidelity test. No
-10-bit sensor/input source is created or evaluated.
+**Observed upstream profile discrepancy:** The first exploratory
+`profile=hq` test returned an MP4/MOV video stream marked
+`prores (HQ) (apch)`, but FFmpeg reported `yuv444p10le` output,
+not the anticipated HQ 4:2:2 layout. The HQ test therefore **failed**
+and was not accepted. The acceptance case uses explicit ProRes 4444
+and checks the reported profile *and* 4:4:4 storage. This does not
+establish that the upstream HQ profile behaves correctly for every
+codec or pixel format.
+
+**Precision boundary:** Although the ProRes 4444 stream uses 10-bit
+4:4:4 storage, these source frames originate as 8-bit colour
+constants and are checked only after RGB24 decoding. Successful
+codec identification is **not** a 10-bit source-fidelity test.
+No 10-bit sensor/input source is created or evaluated.
 
 These tests qualify narrow CPU VideoHelperSuite selection and GIF,
-H.264, H.265 and ProRes HQ encoding paths plus rgthree routing.
+H.264, H.265 and ProRes 4444 encoding paths plus rgthree routing.
 They do **not** qualify production-quality compression, sustained
 processing, 10-bit/16-bit *fidelity*, colour-management accuracy, arbitrary
 metadata, audio muxing, the eleven real workflows or pretrained models.
