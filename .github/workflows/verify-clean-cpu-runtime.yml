@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/audit_sam3_scail_api_bindings.py"
+      - "scripts/audit_sam3_scail_live_registry.py"
+      - "tests/test_sam3_scail_live_registry.py"
       - "scripts/qualify_scail_native_mask_cpu.py"
       - "tests/test_scail_native_mask_cpu.py"
       - "tests/fixtures/comfy_scail_cpu_source/**"
@@ -31,6 +34,9 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/audit_sam3_scail_api_bindings.py"
+      - "scripts/audit_sam3_scail_live_registry.py"
+      - "tests/test_sam3_scail_live_registry.py"
       - "scripts/qualify_scail_native_mask_cpu.py"
       - "tests/test_scail_native_mask_cpu.py"
       - "tests/fixtures/comfy_scail_cpu_source/**"
@@ -88,6 +94,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_vhs_16bit_contract.py" -v
       - name: Verify synthetic native SCAIL CPU source and result contracts
         run: python -B -m unittest discover -s tests -p "test_scail_native_mask_cpu.py" -v
+      - name: Test public native SAM3/SCAIL registry socket contract
+        run: python -B -m unittest discover -s tests -p "test_sam3_scail_live_registry.py" -v
       - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
         env:
           COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
