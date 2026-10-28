@@ -166,7 +166,10 @@ routing and GIF/H.264/H.265/ProRes 4444 encoding. Distinct
 red/green/blue/yellow frames are checked for exact red/blue pixels
 in temporary PNG/GIF outputs and bounded channel errors in separately
 decoded H.264/HEVC MP4s and a ProRes 4444 MOV. The latter checks
-12-bit 4:4:4 storage, **not** 12-bit input fidelity; HQ profile's
+12-bit 4:4:4 storage, **not** 12-bit input fidelity; a separate
+RGB-channel-sensitive opt-in VHS test checks 27 YUV fine-detail comparisons
+across red, green and blue sources, retaining the earlier 36 greyscale
+luminance checks. HQ profile's
 observed format discrepancy is documented separately. An additional
 **independent direct-FFmpeg test** generates genuine planar 12-bit YUV444
 sample values, encodes/decodes ProRes 4444 and checks that subtle 12-bit
