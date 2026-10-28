@@ -1,6 +1,7 @@
 """Live /object_info comparison contracts atop canonical selected-11 audit."""
 from __future__ import annotations
 
+import copy
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -64,6 +65,79 @@ class LiveSelectedClassCoverageTests(unittest.TestCase):
         self.assertIn("other_unregistered_in_current_cpu_installation",
                       row["unregistered_class_ids_by_category"])
         self.assertEqual(len(row["source_sha256"]), 64)
+
+    def test_real_embedded_group_internal_classes_are_separately_counted(self):
+        source = live_audit.load_selected_graphs()
+        # A group wrapper UUID appearing in a registry is not proof that
+        # its internal group can be compiled or executed via the API.
+        uuid = "3a5d7d35-9999-4738-b299-aed4dbeffd55"
+        simulated = {
+            "SaveImage": {}, "UnetLoaderGGUF": {},
+            "easy forLoopStart": {}, uuid: {},
+        }
+        output = live_audit.coverage_from_registry(source, simulated)
+        mm = output["per_workflow"][
+            "workflows/commercial-compatible/mm_upscale_video_workflow.json"
+        ]
+        embedded = mm["embedded_group_internal_class_registration"]
+        self.assertEqual(embedded["embedded_definition_count"], 4)
+        self.assertEqual(embedded["internal_node_instances"], 89)
+        self.assertTrue(embedded["all_referenced_uuid_definitions_embedded"])
+        self.assertGreater(embedded["unique_internal_class_ids"], 4)
+        self.assertIn("easy forLoopStart",
+                      embedded["registered_unique_internal_class_ids"])
+        self.assertNotIn(uuid, embedded["registered_unique_internal_class_ids"])
+        self.assertTrue(
+            all(not group["group_wrapper_runtime_executed"]
+                and not group["executable_api_prompt_proven"]
+                for group in embedded["per_embedded_group"].values())
+        )
+        self.assertFalse(embedded["embedded_group_runtime_qualified"])
+        self.assertFalse(output["embedded_groups_runtime_qualified"])
+        self.assertEqual(output["embedded_internal_node_instances"], 89)
+        self.assertGreater(output["embedded_unique_internal_class_ids"], 4)
+        self.assertEqual(
+            set(output["embedded_registered_unique_internal_class_ids"])
+            | set(output["embedded_unregistered_unique_internal_class_ids"]),
+            set(source["workflows"][next(
+                i for i, row in enumerate(source["workflows"])
+                if row["workflow"].endswith("mm_upscale_video_workflow.json")
+            )]["embedded_group_definition_preflight"][
+                "unique_embedded_internal_class_ids"
+            ]),
+        )
+        # Original top-level 81 classes still have independent metrics.
+        self.assertEqual(output["unique_graph_class_ids"], 81)
+        self.assertFalse(output["all_11_workflows_executable"])
+
+    def test_embedded_registration_rejects_corrupt_source_definitions(self):
+        source = live_audit.load_selected_graphs()
+        mm = next(row for row in source["workflows"] if
+                  row["workflow"].endswith("mm_upscale_video_workflow.json"))
+        groups = mm["embedded_group_definition_preflight"]
+        module = live_audit._source_module(ROOT)
+        valid = live_audit.embedded_registration_coverage(
+            groups, {"SaveImage": {}}, module
+        )
+        self.assertEqual(valid["embedded_definition_count"], 4)
+        for mutate in ("duplicate", "bad_type", "wrong_count", "empty"):
+            changed = copy.deepcopy(groups)
+            first = changed["embedded_definitions"][0]
+            if mutate == "duplicate":
+                first["internal_unique_class_ids"].append(
+                    first["internal_unique_class_ids"][0]
+                )
+            elif mutate == "bad_type":
+                first["internal_unique_class_ids"] = ["illegal\nname"]
+            elif mutate == "wrong_count":
+                changed["embedded_internal_node_instances"] += 1
+            elif mutate == "empty":
+                first["internal_unique_class_ids"] = []
+            with self.subTest(mutate=mutate):
+                with self.assertRaises(ValueError):
+                    live_audit.embedded_registration_coverage(
+                        changed, {"SaveImage": {}}, module
+                    )
 
     def test_missing_or_malformed_live_registry_fails(self):
         inventory = live_audit.load_selected_graphs()
