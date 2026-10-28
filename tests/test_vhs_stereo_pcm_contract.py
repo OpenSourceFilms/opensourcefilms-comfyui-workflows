@@ -161,7 +161,7 @@ class StereoMuxContractTests(unittest.TestCase):
             consumed += count
             remaining -= count
             index += 1
-        return "\\n".join(lines)
+        return chr(10).join(lines)
 
     def test_stereo_timestamps_verify_each_packet_and_av_endpoints(self):
         output = timeline.verify_synthetic_mux_timestamps(
