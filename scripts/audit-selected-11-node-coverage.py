@@ -176,6 +176,111 @@ def audit(root: Path = ROOT) -> dict:
     }
 
 
+
+def compare_live_registry(source_report: dict, object_info: object) -> dict:
+    """Compare 11 source graph class names against a real ComfyUI object_info.
+
+    This is *registration-only*: a positive match cannot establish inputs,
+    workflow execution, source/weight licences or GPU/model readiness.
+    """
+    if (not isinstance(source_report, dict)
+            or source_report.get("schema") != "osf-selected-11-node-coverage-v1"
+            or source_report.get("selected_workflow_count") != 11
+            or source_report.get("unique_node_class_count") != 81):
+        raise ValueError("Unexpected/unreviewed selected-11 source inventory")
+    if not isinstance(object_info, dict):
+        raise ValueError("Invalid live ComfyUI object_info response")
+
+    workflows = source_report.get("workflows")
+    if not isinstance(workflows, list) or len(workflows) != 11:
+        raise ValueError("Selected workflow inventory is incomplete")
+    declared = set()
+    workflow_types = []
+    for item in workflows:
+        if not isinstance(item, dict) or not isinstance(item.get("workflow"), str):
+            raise ValueError("Malformed selected workflow entry")
+        statuses = item.get("node_classes_by_status")
+        if not isinstance(statuses, dict):
+            raise ValueError("Missing class status inventory")
+        names = set()
+        for category, values in statuses.items():
+            if not isinstance(category, str) or not isinstance(values, list):
+                raise ValueError("Malformed selected workflow class statuses")
+            if any(not isinstance(v, str) or not v for v in values):
+                raise ValueError("Malformed selected workflow node class")
+            overlap = names.intersection(values)
+            if overlap:
+                raise ValueError("Selected class appears in multiple source categories")
+            names.update(values)
+        if not names or len(names) != item.get("unique_node_classes"):
+            raise ValueError("Selected workflow class count differs")
+        workflow_types.append((item["workflow"], names, item["graph_format"]))
+        declared.update(names)
+    if len(declared) != 81:
+        raise ValueError("Selected source report node-class union differs")
+
+    required = source_report.get("cpu_registration_contract_classes")
+    if not isinstance(required, dict) or len(required) != 6:
+        raise ValueError("Missing exact accepted clean CPU registration contract")
+    for node_name in required:
+        if node_name not in object_info:
+            raise ValueError("Accepted pinned clean CPU class is absent: " + node_name)
+    forbidden = (
+        set(source_report.get("fork_native_required_classes", ()))
+        | set(source_report.get("unresolved_uuid_node_classes", ()))
+    )
+    if (not FORK_NATIVE.issubset(forbidden)
+            or any(not UUID.fullmatch(name) for name in
+                   source_report.get("unresolved_uuid_node_classes", ()))):
+        raise ValueError("Modified-fork/UUID holds lost from source report")
+    unexpected = sorted(forbidden.intersection(object_info))
+    if unexpected:
+        raise ValueError("Unexpected fork/UUID class in vanilla CPU registry: "
+                         + unexpected[0])
+
+    registered = sorted(declared.intersection(object_info))
+    for node_name in registered:
+        entry = object_info[node_name]
+        if (not isinstance(entry, dict)
+                or not isinstance(entry.get("input"), dict)
+                or not isinstance(entry.get("output"), list)):
+            raise ValueError("Malformed live class schema: " + node_name)
+    unregistered = sorted(declared.difference(object_info))
+    per_workflow = []
+    for path, names, graph_format in sorted(workflow_types):
+        available = sorted(names.intersection(object_info))
+        absent = sorted(names.difference(object_info))
+        per_workflow.append({
+            "workflow": path,
+            "graph_format": graph_format,
+            "source_class_count": len(names),
+            "registered_on_this_cpu": len(available),
+            "not_registered_on_this_cpu": len(absent),
+            "registered_class_names": available,
+            "missing_class_names": absent,
+            "all_nodes_registered_on_this_cpu": not bool(absent),
+            "executable_api_prompt_proven": False,
+            "gpu_inference_verified": False,
+        })
+    return {
+        "schema": "osf-selected-11-live-cpu-registry-delta-v1",
+        "scope": "real_clean_cpu_object_info_registration_only",
+        "source_class_count": len(declared),
+        "registered_selected_class_count": len(registered),
+        "unregistered_selected_class_count": len(unregistered),
+        "registered_selected_classes": registered,
+        "unregistered_selected_classes": unregistered,
+        "accepted_pinned_contract_class_count": len(required),
+        "fork_native_absent_as_expected": True,
+        "unresolved_uuid_absent_as_expected": True,
+        "workflow_count": len(per_workflow),
+        "workflows": per_workflow,
+        "all_selected_workflows_executable": False,
+        "gpu_inference_verified": False,
+        "commercial_rights_verified": False,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path)
