@@ -24,6 +24,29 @@ def samples(left_hz=440, right_hz=660, left_amp=0.2, right_amp=0.14,
     ))
 
 
+def synthetic_stereo_pts_trace(
+    video_pts=(0.0, 0.5), packet_samples=(12000, 12000, 12000, 12000),
+    *, audio_pts_offset=0, rate=48000, channels=2, layout="stereo",
+    fmt="s16", corrupt_audio_time=False, duration=0.5,
+):
+    """Minimal showinfo/ashowinfo trace matching pinned FFmpeg diagnostics."""
+    lines = [
+        f"[Parsed_showinfo_0 @ 0xabc] n: {i} pts: {i * 8192} "
+        f"pts_time: {pts} duration: 8192 duration_time: {duration}"
+        for i, pts in enumerate(video_pts)
+    ]
+    total = audio_pts_offset
+    for i, count in enumerate(packet_samples):
+        seconds = total / rate + (0.02 if corrupt_audio_time and i == 2 else 0)
+        lines.append(
+            f"[Parsed_ashowinfo_1 @ 0xdef] n:{i} pts:{total} "
+            f"pts_time:{seconds:.6f} fmt:{fmt} channels:{channels} "
+            f"chlayout:{layout} rate:{rate} nb_samples:{count}"
+        )
+        total += count
+    return "\n".join(lines)
+
+
 class StereoMuxContractTests(unittest.TestCase):
     def test_graph_uses_only_synthetic_two_channel_audio(self):
         graph = gate.build_stereo_mux_graph()
@@ -123,6 +146,57 @@ class StereoMuxContractTests(unittest.TestCase):
             with self.subTest(actual_frames=len(invalid) // 2):
                 with self.assertRaisesRegex(ValueError, "exactly 48000"):
                     gate.check_decoded_stereo_pcm(invalid)
+
+    def test_real_stereo_pts_contract_covers_two_frames_and_all_audio_packets(self):
+        result = gate.verify_stereo_mux_timestamps(synthetic_stereo_pts_trace())
+        self.assertEqual(result["status"], "stereo_pcm_presentation_timeline_verified")
+        self.assertEqual(result["video_frame_pts_seconds"], [0.0, 0.5])
+        self.assertEqual(result["audio_packet_count"], 4)
+        self.assertEqual(result["audio_sample_frames_covered"], 48000)
+        self.assertEqual(result["audio_channels"], 2)
+        self.assertEqual(result["audio_stream_end_seconds"], 1.0)
+        self.assertEqual(result["maximum_audio_clock_error_seconds"], 0)
+        self.assertFalse(result["binary_media_uploaded"])
+
+    def test_stereo_pts_rejects_shifted_or_incomplete_audio_and_video(self):
+        invalid = (
+            synthetic_stereo_pts_trace(video_pts=(0.25, 0.5)),
+            synthetic_stereo_pts_trace(video_pts=(0.0, 0.6)),
+            synthetic_stereo_pts_trace(video_pts=(0.0,)),
+            synthetic_stereo_pts_trace(packet_samples=(12000, 12000, 12000)),
+            synthetic_stereo_pts_trace(packet_samples=(12000, 12000, 12000, 12001)),
+            synthetic_stereo_pts_trace(audio_pts_offset=48),
+            synthetic_stereo_pts_trace(rate=44100),
+            synthetic_stereo_pts_trace(channels=1, layout="mono"),
+            synthetic_stereo_pts_trace(fmt="flt"),
+            synthetic_stereo_pts_trace(corrupt_audio_time=True),
+            synthetic_stereo_pts_trace(duration=0.25),
+            "",
+        )
+        for index, sample in enumerate(invalid):
+            with self.subTest(index=index):
+                with self.assertRaises(ValueError):
+                    gate.verify_stereo_mux_timestamps(sample)
+
+    def test_stereo_pts_rejects_gapped_or_reordered_packet_indices(self):
+        valid = synthetic_stereo_pts_trace()
+        with self.assertRaisesRegex(ValueError, "packet timestamps"):
+            gate.verify_stereo_mux_timestamps(
+                valid.replace("n:2 pts:24000", "n:7 pts:24000")
+            )
+        with self.assertRaisesRegex(ValueError, "packet timestamps"):
+            gate.verify_stereo_mux_timestamps(
+                valid.replace("n:2 pts:24000", "n:2 pts:24001")
+            )
+        with self.assertRaisesRegex(ValueError, "oversized"):
+            gate.verify_stereo_mux_timestamps(valid * 2000)
+
+    def test_stereo_video_decoder_invokes_actual_packet_pts_audit(self):
+        runtime = (ROOT / "scripts" / "qualify_vhs_stereo_pcm_mux.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"presentation_timestamps": extract_stereo_mux_timestamps', runtime)
+        self.assertIn('"-vf", "showinfo", "-af", "ashowinfo"', runtime)
 
     def test_fixture_contains_no_media_loaders_and_is_test_only(self):
         text = (ROOT / "tests" / "fixtures" / "comfy_synthetic_audio" /
