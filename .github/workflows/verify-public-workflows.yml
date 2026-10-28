@@ -49,6 +49,8 @@ jobs:
         run: python scripts/validate-workflow-json.py workflows > "${{ runner.temp }}/graph-audit.json"
       - name: Inventory eleven selected API/UI node requirements without claiming runtime
         run: python scripts/audit-selected-11-node-coverage.py --output "${{ runner.temp }}/selected-11-node-coverage.json"
+      - name: Verify exact four selected API graph DAGs and source identities
+        run: python -B scripts/audit_selected_api_topology.py --output "${{ runner.temp }}/selected-four-api-topology.json"
       - name: Audit embedded mm_upscale active links and unresolved reverse references
         run: python scripts/audit_embedded_group_links.py --output "${{ runner.temp }}/mm-upscale-link-preflight.json"
       - name: Prove reversible orphan reverse-link candidate without changing selected UI export
