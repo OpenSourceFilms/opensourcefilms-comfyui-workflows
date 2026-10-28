@@ -37,7 +37,7 @@ class ApiTopologyContracts(unittest.TestCase):
         for value, expected in (
             (["999", 0], "missing upstream"),
             (["1", -1], "negative output slot"),
-            (["1", True], "Boolean API output slot"),
+            (["1", True], "output slot must be an integer"),
         ):
             with self.subTest(value=value):
                 candidate = graph()
@@ -72,12 +72,35 @@ class ApiTopologyContracts(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Malformed API"):
                 audit.audit_api_graph(candidate)
 
-    def test_nested_data_is_not_fabricated_as_an_api_edge(self):
+    def test_rejects_malformed_list_inputs_in_approved_four_graphs(self):
+        # In these exact reviewed exports, every array-valued input is a
+        # node link, not a literal list. A damaged link cannot be ignored.
+        for value, expected in (
+            (["1", "0"], "output slot must be an integer"),
+            (["1", 0.0], "output slot must be an integer"),
+            (["1", None], "output slot must be an integer"),
+            (["1", True], "output slot must be an integer"),
+            (["1"], "not a two-item link"),
+            (["1", 0, "extra"], "not a two-item link"),
+            ([1, 0], "invalid producer node ID"),
+            (["01", 0], "invalid producer node ID"),
+            (["not-an-id", 0], "invalid producer node ID"),
+        ):
+            with self.subTest(value=value):
+                candidate = graph()
+                candidate["2"]["inputs"]["input"] = value
+                with self.assertRaisesRegex(ValueError, expected):
+                    audit.audit_api_graph(candidate)
+
+    def test_nested_object_literal_is_not_fabricated_as_an_api_edge(self):
         candidate = graph()
-        candidate["1"]["inputs"]["real_literal"] = [0, 0]
         candidate["1"]["inputs"]["more_literal"] = {"nested": ["1", 0]}
         result = audit.audit_api_graph(candidate)
         self.assertEqual(result["link_input_count"], 2)
+        # A previously accepted literal *array* is deliberately rejected.
+        candidate["1"]["inputs"]["unsupported_list"] = [0, 0]
+        with self.assertRaisesRegex(ValueError, "invalid producer node ID"):
+            audit.audit_api_graph(candidate)
 
     def test_canonical_four_api_workflows_have_expected_source_topology(self):
         report = audit.audit_selected_api()
