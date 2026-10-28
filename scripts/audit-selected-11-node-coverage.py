@@ -92,6 +92,73 @@ def extract_nodes(graph: dict, graph_format: str) -> list[dict]:
     return result
 
 
+def inspect_embedded_subgraphs(graph: dict, nodes: list[dict]) -> dict:
+    """Match UUID-shaped UI nodes to definitions actually embedded in export.
+
+    Inspect only class IDs and schema counts. No widget values, prompts, input
+    paths, model filenames or arbitrary user-authored graph metadata are output.
+    Even matching definitions do NOT prove the group's internal classes are
+    installed or that the expanded graph will execute.
+    """
+    refs = {node["class"] for node in nodes if UUID.fullmatch(node["class"])}
+    definitions = graph.get("definitions", {})
+    if not isinstance(definitions, dict):
+        raise ValueError("UI graph definitions must be an object")
+    subgraphs = definitions.get("subgraphs", [])
+    if not isinstance(subgraphs, list):
+        raise ValueError("Embedded subgraphs must be an array")
+    by_id = {}
+    for subgraph in subgraphs:
+        if not isinstance(subgraph, dict):
+            raise ValueError("Malformed embedded subgraph")
+        identifier = subgraph.get("id")
+        if not isinstance(identifier, str) or not UUID.fullmatch(identifier):
+            raise ValueError("Malformed embedded subgraph UUID")
+        if identifier in by_id:
+            raise ValueError("Duplicate embedded subgraph UUID")
+        by_id[identifier] = subgraph
+    missing = sorted(refs.difference(by_id))
+    resolved = []
+    for identifier in sorted(refs.intersection(by_id)):
+        subgraph = by_id[identifier]
+        internal = subgraph.get("nodes")
+        if not isinstance(internal, list) or not internal:
+            raise ValueError("Referenced embedded subgraph has no internal nodes")
+        internal_types = []
+        for node in internal:
+            if (not isinstance(node, dict) or
+                    not isinstance(node.get("type"), str) or
+                    not node["type"] or
+                    len(node["type"]) > 200 or
+                    any(ord(char) < 32 for char in node["type"])):
+                raise ValueError("Malformed embedded internal node class")
+            internal_types.append(node["type"])
+        internal_uuid = sorted(set(t for t in internal_types if UUID.fullmatch(t)))
+        resolved.append({
+            "group_uuid": identifier,
+            "definition_embedded_in_workflow": True,
+            "internal_node_instances": len(internal_types),
+            "internal_unique_class_ids": sorted(set(internal_types)),
+            "nested_group_uuid_class_ids": internal_uuid,
+            "runtime_registered": False,
+            "internal_nodes_runtime_qualified": False,
+            "executable_api_prompt_proven": False,
+        })
+    return {
+        "referenced_group_uuid_class_ids": sorted(refs),
+        "embedded_definitions": resolved,
+        "missing_embedded_definition_ids": missing,
+        "all_referenced_uuid_definitions_embedded": not missing,
+        "embedded_internal_node_instances": sum(
+            d["internal_node_instances"] for d in resolved
+        ),
+        "unique_embedded_internal_class_ids": sorted(set(
+            c for d in resolved for c in d["internal_unique_class_ids"]
+        )),
+        "runtime_qualified": False,
+    }
+
+
 def classify_node(node: dict, cpu_registry: dict[str, str]) -> str:
     """No class is classified as executable from a source hint alone."""
     name = node["class"]
@@ -130,6 +197,8 @@ def audit(root: Path = ROOT) -> dict:
         graph_format = entry["format"]
         graph = json.loads(approved[path].decode("utf-8"))
         nodes = extract_nodes(graph, graph_format)
+        groups = (inspect_embedded_subgraphs(graph, nodes)
+                  if graph_format == "ui" else None)
         by_status = defaultdict(set)
         statuses = Counter()
         for node in nodes:
@@ -149,6 +218,7 @@ def audit(root: Path = ROOT) -> dict:
                 k: sorted(v) for k, v in sorted(by_status.items()) if v
             },
             "requires_modified_scail_sam3_fork": fork,
+            "embedded_group_definition_preflight": groups,
             "requires_model_weight_and_gpu_acceptance": True,
             "gpu_inference_verified": False,
             "executable_api_prompt_proven": False,
@@ -169,6 +239,25 @@ def audit(root: Path = ROOT) -> dict:
         "fork_native_required_classes": sorted(FORK_NATIVE),
         "unresolved_uuid_node_classes": sorted(c for c in all_unique
                                                if UUID.fullmatch(c)),
+        "embedded_group_uuid_classes": sorted(set(
+            group_id
+            for w in results
+            if w["embedded_group_definition_preflight"]
+            for group_id in w["embedded_group_definition_preflight"][
+                "referenced_group_uuid_class_ids"]
+        )),
+        "embedded_group_internal_node_instances": sum(
+            w["embedded_group_definition_preflight"][
+                "embedded_internal_node_instances"]
+            for w in results if w["embedded_group_definition_preflight"]
+        ),
+        "missing_embedded_group_uuid_definitions": sorted(set(
+            group_id
+            for w in results
+            if w["embedded_group_definition_preflight"]
+            for group_id in w["embedded_group_definition_preflight"][
+                "missing_embedded_definition_ids"]
+        )),
         "gpu_inference_verified": False,
         "all_eleven_workflows_executable": False,
         "commercial_rights_verified": False,
