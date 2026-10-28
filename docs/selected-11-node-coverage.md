@@ -47,6 +47,19 @@ may be stale editor serialization rather than fatal runtime defects,
 but the audit deliberately **does not repair, hide, or declare them
 harmless**. A zero-warning structural sign-off is therefore **HOLD**.
 
+The existing [non-deployable reversible cleanup planner](../scripts/plan_mm_upscale_reverse_refs.py)
+now also requires the **exact sixteen reviewed stale-reference IDs,
+owning node IDs and output slots or exposed group-input slots**, keyed by
+the four original embedded group UUIDs. This closes a count-only gap:
+replacing one stale ID with another, or moving it to a different port,
+could previously produce the same 16-reference result and a superficially
+successful in-memory candidate. Such drift now fails closed even when
+all 171 active links remain consistent. Negative tests cover exact-ID
+replacement, changing node owners, moving exposed-port references,
+and unknown group identities. The planner still touches **only a deep
+copy**, proving full inverse restoration and leaving the published
+workflow unchanged. There is no frontend import or patch authorization.
+
 The script reports only public group UUIDs, numeric link identifiers,
 counts, a hash of the selected graph bytes, and explicit negative
 acceptance flags. It prints no widget values, prompts, model filenames,
