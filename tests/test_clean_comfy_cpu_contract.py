@@ -150,52 +150,104 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertNotEqual(child.returncode, 0)
         self.assertIn("Unpinned urllib.request.urlretrieve", child.stderr)
 
-    def test_model_free_external_prompt_uses_only_core_vhs_and_rgthree(self):
+    def test_model_free_external_prompt_uses_four_distinct_source_colours(self):
         graph = qualifier.build_model_free_external_prompt()
-        self.assertEqual(set(graph), {"1", "2", "3", "4"})
+        self.assertEqual(set(graph), {str(i) for i in range(1, 12)})
         self.assertEqual(
-            [graph[str(i)]["class_type"] for i in range(1, 5)],
-            ["EmptyImage", "VHS_SelectEveryNthImage",
-             "Any Switch (rgthree)", "PreviewImage"],
+            [graph[str(i)]["class_type"] for i in range(1, 12)],
+            ["EmptyImage"] * 4 + ["ImageBatch"] * 3
+            + ["VHS_SelectEveryNthImage", "Any Switch (rgthree)",
+               "PreviewImage", "VHS_VideoCombine"],
         )
-        self.assertEqual(graph["1"]["inputs"]["batch_size"], 4)
-        self.assertEqual(graph["2"]["inputs"], {
-            "images": ["1", 0],
-            "select_every_nth": 2,
+        self.assertEqual(
+            [graph[str(i)]["inputs"]["color"] for i in range(1, 5)],
+            [0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00],
+        )
+        self.assertTrue(all(graph[str(i)]["inputs"]["batch_size"] == 1
+                            for i in range(1, 5)))
+        self.assertEqual(graph["5"]["inputs"], {
+            "image1": ["1", 0], "image2": ["2", 0],
+        })
+        self.assertEqual(graph["6"]["inputs"], {
+            "image1": ["5", 0], "image2": ["3", 0],
+        })
+        self.assertEqual(graph["7"]["inputs"], {
+            "image1": ["6", 0], "image2": ["4", 0],
+        })
+        self.assertEqual(graph["8"]["inputs"], {
+            "images": ["7", 0], "select_every_nth": 2,
             "skip_first_images": 0,
         })
-        self.assertEqual(graph["3"]["inputs"], {"any_01": ["2", 0]})
-        self.assertEqual(graph["4"]["inputs"], {"images": ["3", 0]})
+        self.assertEqual(graph["9"]["inputs"], {"any_01": ["8", 0]})
+        self.assertEqual(graph["10"]["inputs"], {"images": ["9", 0]})
+        self.assertEqual(graph["11"]["inputs"]["images"], ["9", 0])
+        self.assertEqual(graph["11"]["inputs"]["format"], "image/gif")
+        self.assertFalse(graph["11"]["inputs"]["save_output"])
         self.assertFalse(any(
             "Load" in spec["class_type"] or "Sampler" in spec["class_type"]
             for spec in graph.values()
         ))
 
-    def test_external_history_requires_two_real_temp_previews(self):
+    def test_history_requires_two_previews_and_one_temporary_gif(self):
         ident = "synthetic-prompt-id"
-        def event(name):
-            return {"filename": name, "type": "temp", "subfolder": ""}
+        def event(name, suffix):
+            return {
+                "filename": name, "type": "temp", "subfolder": "",
+                **({"format": "image/gif"} if suffix == "gif" else {}),
+            }
         record = {ident: {
             "status": {"completed": True, "status_str": "success"},
-            "outputs": {"4": {"images": [event("one.png"), event("two.png")]}},
+            "outputs": {
+                "10": {"images": [event("one.png", "png"),
+                                  event("two.png", "png")]},
+                "11": {"gifs": [event("clip.gif", "gif")]},
+            },
         }}
         valid = qualifier.validate_model_free_external_history(record, ident)
         self.assertEqual(valid["selected_image_count"], 2)
+        self.assertEqual(valid["gif_count"], 1)
         self.assertFalse(valid["model_weights_used"])
         self.assertFalse(valid["binary_outputs_uploaded"])
-        record[ident]["outputs"]["4"]["images"].pop()
+        record[ident]["outputs"]["10"]["images"].pop()
         with self.assertRaisesRegex(ValueError, "wrong image count"):
             qualifier.validate_model_free_external_history(record, ident)
-        record[ident]["outputs"]["4"]["images"].append(event("two.png"))
+        record[ident]["outputs"]["10"]["images"].append(event("two.png", "png"))
+        record[ident]["outputs"]["11"]["gifs"].clear()
+        with self.assertRaisesRegex(ValueError, "wrong output count"):
+            qualifier.validate_model_free_external_history(record, ident)
+        record[ident]["outputs"]["11"]["gifs"].append(event("clip.gif", "gif"))
         record[ident]["status"]["completed"] = False
         with self.assertRaisesRegex(ValueError, "did not complete"):
             qualifier.validate_model_free_external_history(record, ident)
         record[ident]["status"]["completed"] = True
-        record[ident]["outputs"]["4"]["images"][0]["type"] = "output"
-        with self.assertRaisesRegex(ValueError, "invalid preview metadata"):
+        record[ident]["outputs"]["10"]["images"][0]["type"] = "output"
+        with self.assertRaisesRegex(ValueError, "Unsafe or unexpected"):
             qualifier.validate_model_free_external_history(record, ident)
         with self.assertRaisesRegex(ValueError, "Missing external"):
             qualifier.validate_model_free_external_history({}, ident)
+
+    def test_temporary_asset_metadata_rejects_absolute_and_parent_paths(self):
+        proper = {"filename": "synthetic_temp_00001_.png",
+                  "type": "temp", "subfolder": ""}
+        self.assertEqual(
+            qualifier._validated_temp_asset(proper, "png"), proper,
+        )
+        for filename in ("../outside.png", "/etc/passwd.png",
+                         "..\\outside.png", "folder/name.png",
+                         "clip.gif", "bad?name.png"):
+            with self.subTest(filename=filename):
+                with self.assertRaisesRegex(ValueError, "Unsafe or unexpected"):
+                    qualifier._validated_temp_asset(
+                        {**proper, "filename": filename}, "png",
+                    )
+        with self.assertRaisesRegex(ValueError, "Unsafe or unexpected"):
+            qualifier._validated_temp_asset(
+                {**proper, "subfolder": "../../outside"}, "png",
+            )
+        with self.assertRaisesRegex(ValueError, "Unsafe or unexpected"):
+            qualifier._validated_temp_asset(
+                {**proper, "type": "output"}, "png",
+            )
 
     def test_requires_pinned_comfyui_sha_and_no_existing_evidence_file(self):
         with tempfile.TemporaryDirectory() as td:
