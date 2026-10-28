@@ -474,9 +474,9 @@ def verify_prores_video(port: int, item: dict) -> dict:
                                     flags=re.IGNORECASE)
             descriptor = stream_line.group(0) if stream_line else "not reported"
             raise ValueError("Expected ProRes 4444 profile differs: " + descriptor)
-        # 4444 intentionally selects 10-bit 4:4:4 storage for RGB inputs.
+        # This pinned 4444 path decodes as 12-bit 4:4:4 for RGB inputs.
         # It cannot establish 10-bit *source* fidelity: inputs are 8-bit.
-        if not re.search(r"\byuv444p10le\b", stderr):
+        if not re.search(r"\byuv444p12le\b", stderr):
             stream_line = re.search(r"Video:\s+prores[^\n]{0,220}", stderr,
                                     flags=re.IGNORECASE)
             descriptor = stream_line.group(0) if stream_line else "not reported"
@@ -484,7 +484,7 @@ def verify_prores_video(port: int, item: dict) -> dict:
         return {
             **validate_prores_decoded_rgb(result.stdout),
             "container": "mov",
-            "storage_pixel_format": "yuv444p10le",
+            "storage_pixel_format": "yuv444p12le",
             "profile_detected": "4444",
             "output_mov_sha256": _sha(data),
             "mov_size_bytes": len(data),
