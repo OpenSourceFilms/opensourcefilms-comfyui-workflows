@@ -49,6 +49,10 @@ EXTERNAL_NODE_PINS = {
         "sha": "a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df",
         "classes": ("UltimateSDUpscale",),
     },
+    "ComfyUI-Florence2": {
+        "sha": "9ece3de914214c5f581d725167bc9d0eeb0d1120",
+        "classes": ("DownloadAndLoadFlorence2Model", "Florence2Run"),
+    },
 }
 
 
@@ -144,6 +148,50 @@ def ensure_external_object_info(document: dict, expected: dict) -> dict:
     return found
 
 
+def verify_florence2_live_sockets(document: dict) -> dict:
+    """Require pinned Florence2 model/run socket compatibility, no downloads."""
+    expected = {
+        "DownloadAndLoadFlorence2Model": {
+            "required": {"model": None, "precision": None},
+            "outputs": ["FL2MODEL"],
+        },
+        "Florence2Run": {
+            "required": {
+                "image": "IMAGE",
+                "florence2_model": "FL2MODEL",
+                "text_input": "STRING",
+                "task": None,
+                "fill_mask": "BOOLEAN",
+            },
+            "outputs": ["IMAGE", "MASK", "STRING", "JSON"],
+        },
+    }
+    record = {}
+    for name, contract in expected.items():
+        entry = document.get(name)
+        if not isinstance(entry, dict):
+            raise ValueError("Missing pinned Florence2 node registration: " + name)
+        fields = entry.get("input", {}).get("required")
+        if not isinstance(fields, dict):
+            raise ValueError("Malformed Florence2 required sockets: " + name)
+        if not set(contract["required"]).issubset(fields):
+            raise ValueError("Pinned Florence2 required socket is absent: " + name)
+        for field, expected_type in contract["required"].items():
+            kind = fields[field]
+            if not isinstance(kind, (tuple, list)) or not kind:
+                raise ValueError("Malformed Florence2 socket: " + name + "." + field)
+            if expected_type is not None and kind[0] != expected_type:
+                raise ValueError("Unexpected Florence2 socket type: " + name + "." + field)
+        if entry.get("output") != contract["outputs"]:
+            raise ValueError("Unexpected Florence2 output types: " + name)
+        record[name] = {
+            "required_socket_names": sorted(contract["required"]),
+            "output_types": contract["outputs"],
+            "model_execution_tested": False,
+        }
+    return record
+
+
 def _sha(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
@@ -165,6 +213,7 @@ def _probe_server(port: int, child: subprocess.Popen, *, seconds: int = 120) -> 
                 for name in CLASSES:
                     ensure_loopback_object_info(info, name)
                 external = ensure_external_object_info(info, EXTERNAL_NODE_PINS)
+                florence2_contract = verify_florence2_live_sockets(info)
                 from audit_selected_workflow_nodes import (
                     coverage_from_registry, load_selected_graphs,
                 )
@@ -175,6 +224,7 @@ def _probe_server(port: int, child: subprocess.Popen, *, seconds: int = 120) -> 
                     "status": "registered",
                     "classes": list(CLASSES),
                     "external_classes": external,
+                    "florence2_live_socket_contract": florence2_contract,
                     "selected_workflow_node_coverage": live_selected_coverage,
                 }
         except (URLError, HTTPError, OSError, ValueError, TimeoutError) as exc:
