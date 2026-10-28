@@ -143,8 +143,16 @@ def verify_stereo_prores_pcm_mov(raw: bytes) -> dict:
         pcm.frombytes(audio.stdout)
         if sys.byteorder != "little":
             pcm.byteswap()
+        from qualify_vhs_audio_mux import extract_actual_mux_timestamps
+        # Inspect packet presentation timestamps from the *same actual MOV*.
+        # Explicit stereo stream acceptance is separate from full waveform
+        # identity and rejects offsets, gaps and audio/video desynchrony.
+        timeline = extract_actual_mux_timestamps(
+            path, ffmpeg, expected_channels=2,
+        )
         return {
             "video_codec": "prores_4444",
+            "av_presentation_timeline": timeline,
             "video_frames": 2,
             "video_dimensions": [64, 64],
             "video_black_source_verified": True,
