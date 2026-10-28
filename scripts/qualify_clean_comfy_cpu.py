@@ -38,6 +38,10 @@ EXTERNAL_NODE_PINS = {
         "sha": "4d741ef8e33b0c5111ad21033f9408acffc63651",
         "classes": ("DownsampleFPSNode",),
     },
+    "ComfyUI-GGUF": {
+        "sha": "6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
+        "classes": ("UnetLoaderGGUF",),
+    },
 }
 
 
@@ -186,6 +190,36 @@ def execute_synthetic(node_directory: Path) -> dict:
     }
 
 
+def execute_downsample_fps_synthetic(node_directory: Path) -> dict:
+    """Execute the real upstream CPU frame-drop node, without model weights."""
+    import torch
+
+    package = _load_osf_classes(node_directory)
+    node_type = package.get("DownsampleFPSNode")
+    if node_type is None:
+        raise RuntimeError("Pinned DownsampleFPS source lacks its registered node")
+    # Fixed exactly-representable values ensure deterministic 8-to-4 indexing.
+    frames = torch.zeros((8, 16, 16, 3), dtype=torch.float32)
+    for i in range(8):
+        frames[i, :, :, :] = float(i) / 8.0
+    downsampled, = node_type().downsample(
+        frames, input_fps=8, target_fps=4, method="Frame dropping", cpu_threads="1"
+    )
+    expected = frames[::2]
+    if (tuple(downsampled.shape) != (4, 16, 16, 3)
+            or not torch.isfinite(downsampled).all()
+            or not torch.allclose(downsampled, expected, atol=1 / 255, rtol=0)):
+        raise RuntimeError("Pinned DownsampleFPS synthetic output differs from expected")
+    return {
+        "node": "DownsampleFPSNode",
+        "method": "Frame dropping",
+        "source_frames": 8,
+        "result_frames": 4,
+        "status": "synthetic_cpu_execution_passed",
+        "result_sha256": _sha(downsampled.numpy().tobytes()),
+    }
+
+
 def qualify(comfy: Path, report: Path, port: int) -> dict:
     comfy = comfy.resolve(strict=True)
     package = comfy / "custom_nodes" / "mask_propagate_optical_flow"
@@ -223,6 +257,9 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             try:
                 registration = _probe_server(port, child)
                 synthetic = execute_synthetic(package)
+                downsample = execute_downsample_fps_synthetic(
+                    comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
+                )
             except Exception as exc:
                 log.flush()
                 log.seek(0)
@@ -247,6 +284,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "runtime": "isolated_github_actions_ubuntu_cpu_only",
         "registration": registration,
         "synthetic_execution": synthetic,
+        "external_synthetic_execution": downsample,
         "model_weights_installed": False,
         "third_party_custom_nodes_installed": True,
         "third_party_source_commits": external_versions,
