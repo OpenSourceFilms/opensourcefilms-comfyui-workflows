@@ -133,6 +133,40 @@ class Selected11ReleaseHoldTests(unittest.TestCase):
                 self.assertNotIn("WAN_FMLF_PROVIDER_LICENSE_NOT_VERIFIED",
                                  row["blocker_codes"])
 
+    def test_selected_coverage_hashes_match_source_and_mm_embedded_audits(self):
+        c, l, p, s = self.reports()
+        hashes = {row["workflow"]: row["source_graph_sha256"]
+                  for row in c["workflows"]}
+        self.assertEqual(len(hashes), 11)
+        self.assertTrue(all(len(digest) == 64 for digest in hashes.values()))
+        self.assertEqual(hashes[gate.MM_WORKFLOW], l["graph_sha256"])
+        self.assertEqual(hashes[gate.MM_WORKFLOW], p["source_sha256"])
+        self.assertEqual(hashes[gate.MM_WORKFLOW], s["workflow_source_sha256"])
+        self.assertEqual(gate.assemble(c, l, p, s)["decision"], "HOLD")
+
+    def test_rejects_stale_mm_coverage_even_when_all_three_other_audits_agree(self):
+        c, l, p, s = self.reports()
+        row = next(x for x in c["workflows"]
+                   if x["workflow"] == gate.MM_WORKFLOW)
+        row["source_graph_sha256"] = "0" * 64
+        self.assertEqual(l["graph_sha256"], p["source_sha256"])
+        self.assertEqual(l["graph_sha256"], s["workflow_source_sha256"])
+        with self.assertRaisesRegex(ValueError, "different mm_upscale revisions"):
+            gate.assemble(c, l, p, s)
+
+    def test_rejects_missing_or_invalid_coverage_source_hashes(self):
+        for value in (None, "x" * 64, "0" * 63, 123, ["0" * 64]):
+            c, l, p, s = self.reports()
+            row = next(x for x in c["workflows"]
+                       if x["workflow"] != gate.MM_WORKFLOW)
+            if value is None:
+                row.pop("source_graph_sha256")
+            else:
+                row["source_graph_sha256"] = value
+            with self.subTest(value=str(value)[:16]):
+                with self.assertRaisesRegex(ValueError, "coverage source hash"):
+                    gate.assemble(c, l, p, s)
+
     def test_revision_mismatch_between_link_and_provider_audits_rejected(self):
         c, l, p, s = self.reports()
         p["source_sha256"] = "0" * 64

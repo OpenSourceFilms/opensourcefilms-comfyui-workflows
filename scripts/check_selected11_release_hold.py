@@ -172,6 +172,17 @@ def assemble(
                 or path in seen or fmt not in formats):
             raise ValueError("Unexpected, duplicate or unsafe workflow identity")
         seen.add(path)
+        # Coverage must identify the exact graph bytes it classified.
+        # A stale coverage report previously could pass alongside the three
+        # fresh embedded-group reports despite differing mm_upscale revisions.
+        coverage_hash = row.get("source_graph_sha256")
+        if (not isinstance(coverage_hash, str)
+                or SHA256.fullmatch(coverage_hash) is None):
+            raise ValueError("Selected workflow coverage source hash missing or invalid")
+        if path == MM_WORKFLOW and coverage_hash != fingerprint:
+            raise ValueError(
+                "Selected coverage and embedded audits refer to different mm_upscale revisions"
+            )
         formats[fmt] += 1
         if (row.get("gpu_inference_verified") is not False
                 or row.get("executable_api_prompt_proven") is not False
