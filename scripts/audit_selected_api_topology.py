@@ -47,19 +47,19 @@ def audit_api_graph(graph: object) -> dict:
         for input_name, value in node["inputs"].items():
             if not isinstance(input_name, str) or not input_name:
                 raise ValueError("Malformed API input name")
-            if not isinstance(value, list) or len(value) != 2:
+            if not isinstance(value, list):
                 continue
-            # The actual four approved API exports use ComfyUI link tuples
-            # [upstream_id, output_slot]. A list with non-string id or bool
-            # output slot may be a literal value: it is NOT granted a link
-            # acceptance. In this constrained profile, fail closed instead.
-            if not isinstance(value[0], str):
-                continue
-            if isinstance(value[1], bool):
-                raise ValueError("Boolean API output slot is not an integer")
-            if type(value[1]) is not int:
-                continue
+            # All array-valued inputs in the exact approved four API exports
+            # are [node_id, output_slot] links, never literal arrays. Do not
+            # silently skip malformed tuples and falsely certify topology.
+            # New literal-array inputs require separate source review.
+            if len(value) != 2:
+                raise ValueError("Selected API array is not a two-item link")
             upstream, slot = value
+            if not isinstance(upstream, str) or NODE_ID.fullmatch(upstream) is None:
+                raise ValueError("Selected API link has invalid producer node ID")
+            if type(slot) is not int:
+                raise ValueError("Selected API link output slot must be an integer")
             if upstream not in graph:
                 raise ValueError("API edge references missing upstream node")
             if slot < 0:
