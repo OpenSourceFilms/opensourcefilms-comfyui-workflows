@@ -51,6 +51,56 @@ negative slots, empty classes, direct and indirect cycles, and
 deceptive claims of model or workflow execution. The unchanged seven UI-format
 exports remain handled by the separate UI/embedded-group audits.
 
+## Live socket type reconciliation, without weights
+
+The [isolated clean ComfyUI CPU job](../.github/workflows/verify-clean-cpu-runtime.yml)
+also evaluates [`audit_selected_four_live_api_links.py`](../scripts/audit_selected_four_live_api_links.py)
+against the **actual** `/object_info` registry on the pinned public
+ComfyUI revision with its reviewed, commit-pinned external packages.
+It reads the original four selected API exports, comprising **60 nodes
+and 82 link references**, without reading their prompt strings or
+model filenames into the emitted report.
+
+For each API link whose source and destination classes are registered,
+it validates the **real output slot index**, destination input-field
+presence, and type declarations. A source type that exactly matches
+one of the target types counts as an exact registered socket match.
+A `*` wildcard, dynamic/enum input, or source/destination class absent
+from the live registry is **unverified**, not passed. A registered
+source-output type incompatible with its destination socket is counted
+and reported by *public class and field identifiers* as a blocker.
+Malformed links, vanished output slots, duplicated or missing
+destination sockets, and changed four-graph cardinality fail the
+validation. The tests cover contradictory types, dynamic links,
+uninstalled custom providers, wrong output slots, and bad graph
+references.
+
+The pinned public `SCAIL2ColoredMask.ref_track_data` uses a reviewed
+two-type socket. In the live registry it serializes as
+`SAM3_TRACK_DATA,MASK`, whereas the pinned source-schema audit writes
+`SAM3_TRACK_DATA|MASK`. This validator explicitly accepts `MASK`
+or `SAM3_TRACK_DATA` for **that one named destination field only**.
+Unknown comma-separated strings and other wildcard/dynamic sockets
+remain unverified; they do not acquire blanket compatibility through
+the exception.
+
+The custom SAM3 probe intentionally depends on a separately sourced
+`LoadSAM3Model`/`SAM3Segmentation` package that is **not** among the
+five clean-runtime external packages. Its uninstalled provider links
+must remain explicit, even when adjacent core nodes are registered.
+The three public-native SAM3/SCAIL workflows are included in the same
+audit so the existing source-derived native-node binding check gains
+external and core *source-to-destination* socket evidence. No missing
+provider is auto-installed and no weight is downloaded.
+
+A positive live type match verifies only the metadata available
+in that exact registry. It is **not** a full prompt validation:
+runtime model objects, model licences, widget values, actual tensors,
+special wildcard rules, native SAM3 tracking, SCAIL inference, or GPU
+execution remain unqualified. None of the four graphs is submitted
+to `/prompt` by this audit. The evidence records acceptance flags
+as false even if every resolvable link has matching types.
+
 ## Important limits
 
 **Passing topology does not mean an API workflow is executable.** This

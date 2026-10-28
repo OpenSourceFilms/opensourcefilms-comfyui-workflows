@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/audit_selected_four_live_api_links.py"
+      - "tests/test_selected_four_live_api_links.py"
       - "scripts/qualify_vhs_loadvideo_cpu.py"
       - "tests/test_vhs_loadvideo_cpu_contract.py"
       - "scripts/qualify_vhs_audio_mux.py"
@@ -47,6 +49,8 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/audit_selected_four_live_api_links.py"
+      - "tests/test_selected_four_live_api_links.py"
       - "scripts/qualify_vhs_loadvideo_cpu.py"
       - "tests/test_vhs_loadvideo_cpu_contract.py"
       - "scripts/qualify_vhs_audio_mux.py"
@@ -132,6 +136,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_vhs_prores_hq422_contract.py" -v
       - name: Verify live loader test's no-network control-flow contracts
         run: python -B -m unittest discover -s tests -p "test_vhs_loadvideo_cpu_contract.py" -v
+      - name: Test real-graph socket-link audit negative contracts
+        run: python -B -m unittest discover -s tests -p "test_selected_four_live_api_links.py" -v
       - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
         env:
           COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
