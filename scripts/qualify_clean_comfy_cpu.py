@@ -771,6 +771,11 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             or (precision_fixture / "__init__.py").is_symlink()
             or not (precision_fixture / "__init__.py").is_file()):
         raise ValueError("Disposable 12-bit precision source node missing")
+    native_fixture = comfy / "custom_nodes" / "comfy_scail_cpu_source"
+    if (native_fixture.is_symlink() or not native_fixture.is_dir()
+            or (native_fixture / "__init__.py").is_symlink()
+            or not (native_fixture / "__init__.py").is_file()):
+        raise ValueError("Missing synthetic SCAIL test-only track source")
     guard = Path(__file__).resolve().parent / "usdu_offline_guard"
     if (guard.is_symlink() or not (guard / "sitecustomize.py").is_file()
             or (guard / "sitecustomize.py").is_symlink()):
@@ -814,6 +819,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
                 external_graph = execute_model_free_external_prompt(port, child)
+                from qualify_scail_native_mask_cpu import execute_scail_cpu_graph
+                scail_mask_result = execute_scail_cpu_graph(
+                    port, child, fetch_asset=_fetch_temporary_asset
+                )
                 from qualify_vhs_16bit import execute_disposable_vhs_precision
                 vhs_precision_result = execute_disposable_vhs_precision(port, child)
                 # Independent FFmpeg path, not a ComfyUI/VHS input precision claim.
@@ -846,6 +855,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
+        "scail_native_cpu_mask_execution": scail_mask_result,
         "vhs_optin_16bit_source_vs_default_8bit": {
             "preset": vhs_precision_preset,
             "result": vhs_precision_result,
