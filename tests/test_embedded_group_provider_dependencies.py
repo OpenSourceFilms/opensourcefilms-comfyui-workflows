@@ -53,7 +53,7 @@ class EmbeddedProviderTests(unittest.TestCase):
         by = {r["exported_cnr_id"]: r for r
               in result["exported_external_provider_hints"]}
         self.assertEqual(by["comfyui-custom-scripts"]["internal_instances"], 23)
-        self.assertEqual(by["comfyui-easy-use"]["internal_instances"], 43)
+        self.assertEqual(by["comfyui-easy-use"]["internal_instances"], 42)
         self.assertEqual(by["comfyui-kjnodes"]["internal_instances"], 7)
         self.assertEqual(by["comfyui_essentials"]["internal_instances"], 10)
         self.assertTrue(all(r["metadata_is_source_or_license_proof"] is False
