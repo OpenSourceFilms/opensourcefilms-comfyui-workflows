@@ -116,7 +116,9 @@ class Selected11ReleaseHoldTests(unittest.TestCase):
             ):
                 gate.assemble(c, l, p, s)
         c, l, p, s = self.reports()
-        c["workflows"][0]["workflow"] = c["workflows"][1]["workflow"]
+        non_mm = [row for row in c["workflows"]
+                  if row["workflow"] != gate.MM_WORKFLOW]
+        non_mm[1]["workflow"] = non_mm[0]["workflow"]
         with self.assertRaisesRegex(ValueError, "duplicate or unsafe"):
             gate.assemble(c, l, p, s)
 
