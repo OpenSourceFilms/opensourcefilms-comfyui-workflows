@@ -68,19 +68,18 @@ def validate_stereo_history(record: object) -> dict:
 
 
 def check_decoded_stereo_pcm(samples: array) -> dict:
-    """Check every sample within a stable prefix against independent tones."""
+    """Check all 48,000 stereo sample frames against distinct analytic tones."""
     if len(samples) % 2:
         raise ValueError("Stereo PCM has an odd interleaved sample count")
     frames = len(samples) // 2
-    if not RATE - 512 <= frames <= RATE + 4096:
-        raise ValueError("Stereo PCM sample count differs from one second")
+    if frames != RATE:
+        raise ValueError("Stereo PCM must have exactly 48000 sample frames with no padding")
     if not all(math.isfinite(x) for x in samples):
         raise ValueError("Stereo PCM contains nonfinite values")
     errors = [0.0, 0.0]
     peaks = [0.0, 0.0]
-    # Test 46,976 successive samples, not only sparse sinusoid checkpoints.
-    stable_count = RATE - 1024
-    for i in range(stable_count):
+    # Validate both channels at every single position, including the tail.
+    for i in range(RATE):
         for ch, (frequency, amplitude) in enumerate(CHANNEL_TONES):
             observed = samples[2 * i + ch]
             expected = amplitude * math.sin(2 * math.pi * frequency * i / RATE)
@@ -97,7 +96,7 @@ def check_decoded_stereo_pcm(samples: array) -> dict:
         "channel_frequencies_hz": [440, 660],
         "channel_amplitudes": [0.20, 0.14],
         "decoded_sample_frames": frames,
-        "checked_sample_frames": stable_count,
+        "checked_sample_frames": RATE,
         "peak_amplitudes": [round(x, 6) for x in peaks],
         "maximum_channel_errors": [round(x, 7) for x in errors],
         "interleaved_pcm_sha256": hashlib.sha256(samples.tobytes()).hexdigest(),
