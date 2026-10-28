@@ -173,8 +173,9 @@ decoded H.264/HEVC MP4s and a ProRes 4444 MOV. The latter checks
 12-bit 4:4:4 storage, **not** 12-bit input fidelity; a separate
 RGB-channel-sensitive opt-in VHS test checks 27 YUV fine-detail comparisons
 across red, green and blue sources, retaining the earlier 36 greyscale
-luminance checks. HQ profile's
-observed format discrepancy is documented separately. An additional
+luminance checks. The stock HQ profile's observed 4:4:4 format discrepancy is documented
+separately, with a [disposable explicit HQ 4:2:2 preset candidate](docs/vhs-prores-hq422-candidate.md)
+tested independently. This is not a deployable production preset. An additional
 **independent direct-FFmpeg test** generates genuine planar 12-bit YUV444
 sample values, encodes/decodes ProRes 4444 and checks that subtle 12-bit
 differences survive within a bounded error. This does **not** establish
