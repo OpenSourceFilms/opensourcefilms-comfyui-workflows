@@ -69,6 +69,36 @@ maximum deltas), hashes of temporary MOVs and an explicit failure of
 bit-exact fidelity qualification. The videos and source tensors remain in the disposable
 runner and are not uploaded.
 
+## RGB-channel fine-detail extension
+
+A **second independent three-frame** graph uses
+`OSFTestChromaPrecisionFrames` from the same disposable, OSF-authored
+test-only fixture. In frame zero only **red** increases; in frame one
+only **green** increases; in frame two only **blue** increases, in
+the right-hand half of each 64×64 IMAGE tensor. Source values are
+`2038/4095` and `2046/4095`. They differ by **8 out of 4095**
+but produce the **same 8-bit rounded value**.
+
+This graph again feeds the identical float32 source to the pinned
+upstream `video/ProRes` default RGB24 input and the disposable
+`input_color_depth=16bit` RGB48 preset, both ProRes 4444 with
+`save_output=false`. It decodes temporary MOVs to planar
+`yuv444p12le`, then checks **nine spatially separate interior
+left/right comparisons per source channel** (27 total). Because the
+ProRes output is YUV, the targeted decoded planes are V for source
+red, Y for source green and U for source blue. All 27 differences must
+collapse in the default 8-bit control but remain **positive and at
+most 32/4095** with the 16-bit option.
+
+This is source-channel-sensitive *detail survival*, **not** calibrated
+RGB-channel reconstruction, source RGB accuracy, bit-exact fidelity
+or HDR transfer-function verification. The checks deliberately use
+channel-specific YUV differences rather than treating YUV as source
+RGB. Only counts, channel mapping, min/max delta per component and
+hashes of temporary MOVs enter the JSON CI artifact. No media is
+uploaded. The earlier 36-point greyscale luminance control is retained
+unchanged.
+
 ## Important limitations
 
 Passing this narrow comparison is **evidence of retaining controlled

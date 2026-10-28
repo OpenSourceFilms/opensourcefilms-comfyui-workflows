@@ -28,4 +28,28 @@ class OSFTestPrecisionFrames:
         return (image,)
 
 
-NODE_CLASS_MAPPINGS = {"OSFTestPrecisionFrames": OSFTestPrecisionFrames}
+class OSFTestChromaPrecisionFrames:
+    """Separate 3-frame R/G/B 12-bit-indexed sub-8-bit source, test-only."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {}}
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "generate"
+    CATEGORY = "OSF CPU Test Only"
+
+    def generate(self):
+        # Each frame varies exactly one RGB channel by eight 12-bit levels.
+        # 2038 and 2046 map to the same 8-bit value in VHS's default path.
+        image = torch.full((3, 64, 64, 3), 2038 / 4095.0,
+                           dtype=torch.float32)
+        for channel in range(3):
+            image[channel, :, 32:, channel] = 2046 / 4095.0
+        return (image,)
+
+
+NODE_CLASS_MAPPINGS = {
+    "OSFTestPrecisionFrames": OSFTestPrecisionFrames,
+    "OSFTestChromaPrecisionFrames": OSFTestChromaPrecisionFrames,
+}

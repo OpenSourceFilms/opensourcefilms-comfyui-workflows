@@ -886,6 +886,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                 )
                 from qualify_vhs_16bit import execute_disposable_vhs_precision
                 vhs_precision_result = execute_disposable_vhs_precision(port, child)
+                from qualify_vhs_chroma_16bit import execute_disposable_vhs_rgb_precision
+                vhs_rgb_precision_result = execute_disposable_vhs_rgb_precision(port, child)
                 # Independent FFmpeg path, not a ComfyUI/VHS input precision claim.
                 from qualify_prores_12bit import qualify_genuine_12bit_ffmpeg
                 real_12bit_roundtrip = qualify_genuine_12bit_ffmpeg()
@@ -922,6 +924,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             "preset": vhs_precision_preset,
             "result": vhs_precision_result,
         },
+        "vhs_rgb_channel_16bit_source_vs_default_8bit": vhs_rgb_precision_result,
         "independent_real_12bit_ffmpeg_roundtrip": real_12bit_roundtrip,
         "pinned_vhs_prores_input_precision": vhs_source_precision,
         "model_weights_installed": False,
