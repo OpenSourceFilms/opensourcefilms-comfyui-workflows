@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/qualify_prores_12bit.py"
+      - "tests/test_true_12bit_prores_contract.py"
       - "scripts/usdu_offline_guard/sitecustomize.py"
       - "tests/test_clean_comfy_cpu_contract.py"
       - "custom_nodes/mask_propagate_optical_flow/**"
@@ -14,6 +16,8 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/qualify_prores_12bit.py"
+      - "tests/test_true_12bit_prores_contract.py"
       - "scripts/usdu_offline_guard/sitecustomize.py"
       - "tests/test_clean_comfy_cpu_contract.py"
       - "custom_nodes/mask_propagate_optical_flow/**"
@@ -42,6 +46,8 @@ jobs:
           python-version: "3.12"
       - name: Test CPU smoke driver before external installs
         run: python -B -m unittest discover -s tests -p "test_clean_comfy_cpu_contract.py" -v
+      - name: Test actual 12-bit source and quantization rejection contracts
+        run: python -B -m unittest discover -s tests -p "test_true_12bit_prores_contract.py" -v
       - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
         env:
           COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
@@ -99,7 +105,7 @@ jobs:
           # requirement is provided by the already installed headless wheel.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
           python -m pip check
-      - name: Verify pinned imports and synthetic GIF, H264, HEVC and ProRes decoded pixels
+      - name: Verify pinned imports, PNG/GIF/video codecs and independent 12-bit ProRes source
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
