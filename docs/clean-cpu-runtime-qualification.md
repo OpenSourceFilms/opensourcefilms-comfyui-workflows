@@ -15,9 +15,23 @@ checkout's requirements into the isolated runner Python environment plus
 `opencv-python-headless==4.10.0.84`. The checkout's exact SHA is validated,
 and `pip check` must pass.
 
-The job copies **only OSF's own** optical-flow node into that scratch
-ComfyUI installation. It does not invoke the broad legacy installer or
-add any third-party custom nodes. The runner then starts ComfyUI with
+The job copies OSF's own optical-flow node into that scratch
+ComfyUI installation. It additionally fetches **exactly three public,
+commit-pinned third-party packages** to the same disposable checkout,
+without invoking the broad legacy installer:
+
+| Package | Exact source revision | Required registered class |
+|---|---|---|
+| ComfyUI-VideoHelperSuite | `2984ec4c4b93292421888f38db74a5e8802a8ff8` | `VHS_VideoCombine` |
+| rgthree-comfy | `d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4` | `Any Switch (rgthree)` |
+| ComfyUI-DownsampleFPS | `4d741ef8e33b0c5111ad21033f9408acffc63651` | `DownsampleFPSNode` |
+
+The job requires actual Git HEAD to match each pinned SHA, installs the
+VideoHelperSuite `imageio-ffmpeg==0.6.0` prerequisite with CPU/headless
+OpenCV provided by the core test, and disables persistence of the checkout
+credential. These packages are independent upstream software with their
+own GPL/MIT/Apache terms; they are neither vendored nor relicensed by OSF.
+The runner then starts ComfyUI with
 `--cpu --offline --listen 127.0.0.1`, checks the real
 `/object_info` API for both registered OSF nodes, and executes their
 functions on generated 48×48 tensors: zero-flow propagation and static
