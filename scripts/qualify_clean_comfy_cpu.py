@@ -248,9 +248,9 @@ def build_model_free_external_prompt() -> dict:
             "images": ["9", 0],
             "frame_rate": 2,
             "loop_count": 0,
-            "filename_prefix": "osf_synthetic_vhs_prores",
+            "filename_prefix": "osf_synthetic_vhs_prores4444",
             "format": "video/ProRes",
-            "profile": "hq",
+            "profile": "4444",
             "pingpong": False,
             "save_output": False,
         }},
@@ -437,7 +437,7 @@ def validate_prores_decoded_rgb(raw: bytes) -> dict:
         errors.append(error)
     return {
         "codec": "prores",
-        "profile_requested": "hq",
+        "profile_requested": "4444",
         "source_colour_precision_bits": 8,
         "frames_decoded": 2,
         "width": 64,
@@ -453,7 +453,7 @@ def validate_prores_decoded_rgb(raw: bytes) -> dict:
 
 
 def verify_prores_video(port: int, item: dict) -> dict:
-    """Check temporary pinned VHS ProRes HQ MOV and decode via runner FFmpeg."""
+    """Check temporary pinned VHS ProRes 4444 MOV and decode via runner FFmpeg."""
     from imageio_ffmpeg import get_ffmpeg_exe
 
     data = _fetch_temporary_asset(port, item, "mov")
@@ -469,21 +469,23 @@ def verify_prores_video(port: int, item: dict) -> dict:
             capture_output=True, check=True, timeout=30,
         )
         stderr = result.stderr.decode("utf-8", "replace")
-        if not re.search(r"Video:\s+prores\b", stderr, flags=re.IGNORECASE):
-            raise ValueError("FFmpeg did not identify the encoded stream as ProRes")
-        # The selected HQ profile is 10-bit 4:2:2 video storage, but our
-        # synthetic EmptyImage frames originate as 8-bit RGB colours.
-        if not re.search(r"\byuv422p10le\b", stderr):
-            # Emit only the restricted codec descriptor for diagnosing a
-            # genuinely different storage format; never log source paths.
+        if not re.search(r"Video:\s+prores\s+\(4444\)\b", stderr, flags=re.IGNORECASE):
             stream_line = re.search(r"Video:\s+prores[^\n]{0,220}", stderr,
                                     flags=re.IGNORECASE)
             descriptor = stream_line.group(0) if stream_line else "not reported"
-            raise ValueError("ProRes HQ storage pixel format differs: " + descriptor)
+            raise ValueError("Expected ProRes 4444 profile differs: " + descriptor)
+        # 4444 intentionally selects 10-bit 4:4:4 storage for RGB inputs.
+        # It cannot establish 10-bit *source* fidelity: inputs are 8-bit.
+        if not re.search(r"\byuv444p10le\b", stderr):
+            stream_line = re.search(r"Video:\s+prores[^\n]{0,220}", stderr,
+                                    flags=re.IGNORECASE)
+            descriptor = stream_line.group(0) if stream_line else "not reported"
+            raise ValueError("ProRes 4444 storage pixel format differs: " + descriptor)
         return {
             **validate_prores_decoded_rgb(result.stdout),
             "container": "mov",
-            "storage_pixel_format": "yuv422p10le",
+            "storage_pixel_format": "yuv444p10le",
+            "profile_detected": "4444",
             "output_mov_sha256": _sha(data),
             "mov_size_bytes": len(data),
         }
