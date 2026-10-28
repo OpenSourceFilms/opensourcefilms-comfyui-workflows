@@ -1,138 +1,104 @@
-"""Fail-closed offline contracts for real 11-workflow class coverage audit."""
+"""Live /object_info comparison contracts atop canonical selected-11 audit."""
 from __future__ import annotations
 
-from collections import Counter
 import importlib.util
-import json
 from pathlib import Path
 import tempfile
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-script = ROOT / "scripts" / "audit_selected_workflow_nodes.py"
-spec = importlib.util.spec_from_file_location("osf_selected_node_audit", script)
-audit = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(audit)
+SCRIPT = ROOT / "scripts" / "audit_selected_workflow_nodes.py"
+spec = importlib.util.spec_from_file_location("osf_live_selected_11", SCRIPT)
+live_audit = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(live_audit)
 
 
-class SelectedWorkflowLiveCoverageContracts(unittest.TestCase):
-    def test_extract_ui_api_and_reject_malformed(self):
-        mode, nodes = audit.extract_class_ids({
-            "nodes": [
-                {"type": "VHS_LoadVideo"},
-                {"type": "VHS_VideoCombine"},
-                {"type": "VHS_VideoCombine"},
-            ]
-        })
-        self.assertEqual(mode, "ui")
-        self.assertEqual(nodes, Counter({
-            "VHS_LoadVideo": 1, "VHS_VideoCombine": 2,
-        }))
-        mode, nodes = audit.extract_class_ids({
-            "1": {"class_type": "SAM3_Detect"},
-            "2": {"class_type": "SCAIL2ColoredMask"},
-        })
-        self.assertEqual(mode, "api")
-        self.assertEqual(sum(nodes.values()), 2)
-        for malformed in (
-            None, [], {}, {"nodes": {}}, {"nodes": [{"type": 7}]},
-            {"8": {"class_type": ""}}, {"foo": {"class_type": "SaveImage"}}
-        ):
-            with self.subTest(malformed=malformed):
-                with self.assertRaises(ValueError):
-                    audit.extract_class_ids(malformed)
+class LiveSelectedClassCoverageTests(unittest.TestCase):
+    def test_reuses_canonical_11_graph_preflight(self):
+        audit = live_audit.load_selected_graphs()
+        self.assertEqual(audit["schema"], "osf-selected-11-node-coverage-v1")
+        self.assertEqual(audit["selected_workflow_count"], 11)
+        self.assertEqual(audit["unique_node_class_count"], 81)
+        self.assertEqual(len(audit["workflows"]), 11)
+        self.assertEqual(audit["workflow_graph_format_counts"],
+                         {"api": 4, "ui": 7})
 
-    def test_real_manifest_graph_allowlist_and_fork_classes(self):
-        graphs = audit.load_selected_graphs()
-        self.assertEqual(len(graphs), 11)
-        paths = list(graphs)
-        self.assertTrue(all(p.startswith("workflows/commercial-compatible/")
-                            for p in paths))
-        self.assertTrue(all(len(row["source_sha256"]) == 64
-                            for row in graphs.values()))
-        native = graphs["workflows/commercial-compatible/step6_animation_mode.json"]
-        self.assertEqual(native["graph_format"], "api")
-        self.assertIn("WanSCAILToVideo", native["classes"])
-        self.assertIn("SAM3_Detect", native["classes"])
-        self.assertNotIn("MaskPropagateOpticalFlow", native["classes"])
-        ui = graphs["workflows/commercial-compatible/mm_upscale_video_workflow.json"]
-        self.assertEqual(ui["graph_format"], "ui")
-        self.assertIn("UnetLoaderGGUF", ui["classes"])
+    def test_fork_annotations_and_uuids_separate_from_other_gaps(self):
+        for name in ("SAM3_Detect", "SAM3_TrackPreview",
+                     "SCAIL2ColoredMask", "WanSCAILToVideo"):
+            self.assertEqual(live_audit.classify_missing(name),
+                             "documented_scail_sam3_fork_native")
+        self.assertEqual(live_audit.classify_missing("MarkdownNote"),
+                         "editor_or_extension_type_unqualified")
+        self.assertEqual(
+            live_audit.classify_missing(
+                "3a5d7d35-9999-4738-b299-aed4dbeffd55"),
+            "unresolved_group_uuid",
+        )
+        self.assertEqual(live_audit.classify_missing("GIMMVFI_loader"),
+                         "other_unregistered_in_current_cpu_installation")
 
-    def test_fork_ui_uuid_classifications_are_separate(self):
-        self.assertEqual(audit.classify_missing("SAM3_Detect"),
-                         "documented_scail_sam3_fork_native")
-        self.assertEqual(audit.classify_missing("MarkdownNote"),
-                         "ui_annotation_or_reroute")
-        self.assertEqual(audit.classify_missing("3a5d7d35-9999-4738-b299-aed4dbeffd55"),
-                         "uuid_typed_group_or_subgraph_unresolved")
-        self.assertEqual(audit.classify_missing("UnetLoaderGGUF"),
-                         "other_unregistered")
-
-    def test_live_class_coverage_no_inference_claims(self):
-        graphs = audit.load_selected_graphs()
-        fake_registry = {
-            "SaveImage": {"input": {}},
-            "VHS_VideoCombine": {"input": {}},
+    def test_exact_real_graphs_against_synthetic_registration(self):
+        source = live_audit.load_selected_graphs()
+        simulated = {
+            "SaveImage": {"input": {}}, "VHS_VideoCombine": {"input": {}},
             "UnetLoaderGGUF": {"input": {}},
         }
-        result = audit.coverage_from_registry(graphs, fake_registry)
-        self.assertEqual(result["selected_workflows"], 11)
-        self.assertGreater(result["total_node_instances"], 100)
-        self.assertIn("SAM3_Detect", result["known_fork_only_missing"])
-        self.assertIn("WanSCAILToVideo", result["known_fork_only_missing"])
-        self.assertIn("GIMMVFI_loader",
-                      result["unregistered_other_across_workflows"])
-        self.assertFalse(result["all_11_runtime_compatible"])
-        self.assertFalse(result["model_inference_tested"])
-        self.assertFalse(result["license_rights_cleared"])
-        up = result["per_workflow"][
-            "workflows/commercial-compatible/mm_upscale_video_workflow.json"
-        ]
-        self.assertIn("UnetLoaderGGUF", up["registered_class_ids"])
-        self.assertIn(
-            "other_unregistered", up["missing_class_ids_by_category"]
-        )
-        self.assertIn(
-            "uuid_typed_group_or_subgraph_unresolved",
-            up["missing_class_ids_by_category"],
-        )
-        self.assertLess(len(json.dumps(result)), 75_000)
+        output = live_audit.coverage_from_registry(source, simulated)
+        self.assertEqual(output["status"],
+                         "real_live_cpu_class_registration_coverage_only")
+        self.assertEqual(output["selected_workflows"], 11)
+        self.assertEqual(output["unique_graph_class_ids"], 81)
+        self.assertGreater(output["total_node_instances"], 300)
+        self.assertIn("SAM3_TrackPreview", output["missing_documented_fork_native"])
+        self.assertIn("GIMMVFI_loader", output["missing_other_unregistered"])
+        self.assertFalse(output["all_11_workflows_executable"])
+        self.assertFalse(output["gpu_inference_tested"])
+        self.assertFalse(output["commercial_rights_cleared"])
+        row = output["per_workflow"][
+            "workflows/commercial-compatible/mm_upscale_video_workflow.json"]
+        self.assertIn("UnetLoaderGGUF", row["registered_class_ids"])
+        self.assertIn("unresolved_group_uuid",
+                      row["unregistered_class_ids_by_category"])
+        self.assertIn("other_unregistered_in_current_cpu_installation",
+                      row["unregistered_class_ids_by_category"])
+        self.assertEqual(len(row["source_sha256"]), 64)
 
-    def test_missing_live_inventory_and_bad_shapes_fail_closed(self):
-        graphs = audit.load_selected_graphs()
-        for registry in (None, {}, [], {"SaveImage": 1, 7: None}):
-            with self.subTest(registry=registry):
+    def test_missing_or_malformed_live_registry_fails(self):
+        inventory = live_audit.load_selected_graphs()
+        for invalid in (None, [], {}, {12: {}}, {"": {}}):
+            with self.subTest(invalid=invalid):
                 with self.assertRaises(ValueError):
-                    audit.coverage_from_registry(graphs, registry)
-        with self.assertRaisesRegex(ValueError, "exactly 11"):
-            audit.coverage_from_registry(
-                {"only": {"graph_format": "ui",
-                          "source_sha256": "0" * 64,
-                          "classes": Counter({"SaveImage": 1})}},
-                {"SaveImage": {}},
-            )
+                    live_audit.coverage_from_registry(inventory, invalid)
 
-    def test_absent_root_and_symlinked_selected_workflow_source_fail_closed(self):
-        graphs = audit.load_selected_graphs()
-        self.assertEqual(len(graphs), 11)
+    def test_different_or_malformed_source_audit_fails(self):
+        for invalid in (None, [], {}, {
+            "schema": "osf-selected-11-node-coverage-v1",
+            "selected_workflow_count": 11,
+            "workflows": [],
+        }):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    live_audit.coverage_from_registry(invalid, {"SaveImage": {}})
+
+    def test_missing_and_symlinked_checkout_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:
-            base = Path(td)
-            with self.assertRaisesRegex(ValueError, "Missing/symlinked root"):
-                audit.load_selected_graphs(base / "absent")
-            fake = base / "linked_checkout"
-            fake.symlink_to(ROOT, target_is_directory=True)
-            with self.assertRaisesRegex(ValueError, "Missing/symlinked root"):
-                audit.load_selected_graphs(fake)
+            root = Path(td)
+            with self.assertRaisesRegex(ValueError, "Missing/symlinked"):
+                live_audit.load_selected_graphs(root / "absent")
+            link = root / "linked_checkout"
+            link.symlink_to(ROOT, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "Missing/symlinked"):
+                live_audit.load_selected_graphs(link)
 
-    def test_real_runtime_calls_live_coverage_before_evidence(self):
-        code = (ROOT / "scripts" / "qualify_clean_comfy_cpu.py").read_text(
+    def test_clean_cpu_runner_attaches_live_coverage_to_metadata(self):
+        runtime = (ROOT / "scripts" / "qualify_clean_comfy_cpu.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn("coverage_from_registry(", code)
-        self.assertIn("load_selected_graphs()", code)
-        self.assertIn('"selected_workflow_node_coverage"', code)
+        self.assertIn("load_selected_graphs()", runtime)
+        self.assertIn("coverage_from_registry(", runtime)
+        self.assertIn('"selected_workflow_node_coverage"', runtime)
 
 
 if __name__ == "__main__":
