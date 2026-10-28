@@ -101,6 +101,55 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertTrue(callable(qualifier.execute_downsample_fps_synthetic))
         self.assertIn("ComfyUI-DownsampleFPS", qualifier.EXTERNAL_NODE_PINS)
 
+    def test_usdu_gitlink_is_exact_and_provenance_is_declared(self):
+        parent = qualifier.EXTERNAL_NODE_PINS["ComfyUI_UltimateSDUpscale"]
+        self.assertEqual(parent["sha"],
+                         "a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df")
+        self.assertEqual(parent["classes"], ("UltimateSDUpscale",))
+        expected = (
+            "160000 commit 2322caa480535b1011a1f9c18126d85ea444f146"
+            "\trepositories/ultimate_sd_upscale\n"
+        )
+        self.assertEqual(qualifier.validate_usdu_gitlink(expected),
+                         qualifier.USDU_SUBMODULE_COMMIT)
+        with self.assertRaisesRegex(ValueError, "gitlink differs"):
+            qualifier.validate_usdu_gitlink(
+                expected.replace("2322caa", "0322caa")
+            )
+        lock = (ROOT / "DEPENDENCIES.lock").read_text(encoding="utf-8")
+        self.assertIn("name: ComfyUI_UltimateSDUpscale", lock)
+
+    def test_missing_or_symlinked_usdu_submodule_fails_before_git(self):
+        with tempfile.TemporaryDirectory() as td:
+            nodes = Path(td)
+            child = nodes / "ComfyUI_UltimateSDUpscale" / "repositories" / "ultimate_sd_upscale"
+            child.parent.mkdir(parents=True)
+            with mock.patch.object(qualifier.subprocess, "run") as cmd:
+                with self.assertRaisesRegex(ValueError, "Missing/symlinked"):
+                    qualifier.verify_usdu_submodule(nodes)
+                cmd.assert_not_called()
+                child.symlink_to(child.parent)
+                with self.assertRaisesRegex(ValueError, "Missing/symlinked"):
+                    qualifier.verify_usdu_submodule(nodes)
+                cmd.assert_not_called()
+
+    def test_download_guard_intercepts_urllib_urlretrieve_without_network(self):
+        import os
+        import subprocess
+        import sys
+        env = os.environ.copy()
+        guard = ROOT / "scripts" / "usdu_offline_guard"
+        env["PYTHONPATH"] = str(guard) + os.pathsep + env.get("PYTHONPATH", "")
+        child = subprocess.run(
+            [sys.executable, "-c",
+             "import sitecustomize, urllib.request; "
+             "assert urllib.request.urlretrieve is sitecustomize._reject_urlretrieve; "
+             "urllib.request.urlretrieve('no-network://placeholder')"],
+            capture_output=True, text=True, env=env, timeout=12,
+        )
+        self.assertNotEqual(child.returncode, 0)
+        self.assertIn("Unpinned urllib.request.urlretrieve", child.stderr)
+
     def test_requires_pinned_comfyui_sha_and_no_existing_evidence_file(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

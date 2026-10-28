@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/usdu_offline_guard/sitecustomize.py"
       - "tests/test_clean_comfy_cpu_contract.py"
       - "custom_nodes/mask_propagate_optical_flow/**"
       - "docs/clean-cpu-runtime-qualification.md"
@@ -13,6 +14,7 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/usdu_offline_guard/sitecustomize.py"
       - "tests/test_clean_comfy_cpu_contract.py"
       - "custom_nodes/mask_propagate_optical_flow/**"
       - "docs/clean-cpu-runtime-qualification.md"
@@ -51,7 +53,7 @@ jobs:
           git -C "${{ runner.temp }}/osf-disposable-ComfyUI" checkout --detach "$COMFY_SHA"
           test "$(git -C "${{ runner.temp }}/osf-disposable-ComfyUI" rev-parse HEAD)" = "$COMFY_SHA"
           cp -R custom_nodes/mask_propagate_optical_flow "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
-      - name: Fetch four exact reviewed public custom-node commits
+      - name: Fetch five exact reviewed public custom-node commits
         run: |
           set -euo pipefail
           dst="${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes"
@@ -67,6 +69,23 @@ jobs:
           fetch_pinned "rgthree-comfy" "https://github.com/rgthree/rgthree-comfy.git" "d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4"
           fetch_pinned "ComfyUI-DownsampleFPS" "https://github.com/Austat/ComfyUI-DownsampleFPS.git" "4d741ef8e33b0c5111ad21033f9408acffc63651"
           fetch_pinned "ComfyUI-GGUF" "https://github.com/city96/ComfyUI-GGUF.git" "6ea2651e7df66d7585f6ffee804b20e92fb38b8a"
+          fetch_pinned "ComfyUI_UltimateSDUpscale" "https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git" "a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df"
+      - name: Fetch exact UltimateSDUpscale GPLv3 gitlink and forbid mutable fallback
+        run: |
+          set -euo pipefail
+          p="${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/ComfyUI_UltimateSDUpscale"
+          sha="2322caa480535b1011a1f9c18126d85ea444f146"
+          expected="$(printf '160000 commit %s\trepositories/ultimate_sd_upscale' "$sha")"
+          test "$(git -C "$p" ls-tree HEAD repositories/ultimate_sd_upscale)" = "$expected"
+          sub="$p/repositories/ultimate_sd_upscale"
+          test -d "$sub"
+          git init "$sub"
+          git -C "$sub" remote add origin https://github.com/Coyote-A/ultimate-upscale-for-automatic1111.git
+          git -C "$sub" fetch --no-tags --depth=1 origin "$sha"
+          git -C "$sub" checkout --detach "$sha"
+          test "$(git -C "$sub" rev-parse HEAD)" = "$sha"
+          test -s "$sub/LICENSE"
+          test -s "$sub/scripts/ultimate-upscale.py"
       - name: Install pinned CPU-only torch and torchvision in disposable CI
         run: |
           python -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu             "torch==2.8.0" "torchvision==0.23.0"
@@ -80,7 +99,7 @@ jobs:
           # requirement is provided by the already installed headless wheel.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
           python -m pip check
-      - name: Register two OSF and four pinned external custom-node classes; execute CPU frame drop
+      - name: Require five pinned external class imports and no mutable USDU download
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"

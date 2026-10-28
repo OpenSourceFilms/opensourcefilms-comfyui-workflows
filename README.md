@@ -144,9 +144,10 @@ A separate [clean ComfyUI CPU smoke](docs/clean-cpu-runtime-qualification.md)
 is available for **OSF's own two optical-flow nodes only**. It attempts
 a fresh pinned upstream ComfyUI install, loopback node registration and
 synthetic CPU propagation on a disposable CI runner, together with real
-registration checks for four commit-pinned shared external node packages
-(VideoHelperSuite, rgthree-comfy, DownsampleFPS and GGUF), plus CPU-only
-synthetic frame dropping by the real DownsampleFPS node. It is not GPU/model
+registration checks for five commit-pinned external node packages (VideoHelperSuite, rgthree-comfy,
+DownsampleFPS, GGUF and UltimateSDUpscale), plus CPU-only synthetic frame
+dropping by the real DownsampleFPS node. UltimateSDUpscale requires its exact
+nested GPLv3 Git submodule and a fail-closed guard against a mutable download. It is not GPU/model
 or 11-workflow acceptance.
 
 Once separately installed and validated, open UI-format workflows via
