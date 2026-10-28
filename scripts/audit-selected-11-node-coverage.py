@@ -21,9 +21,10 @@ PREPARE = ROOT / "runpod" / "commercial-compatible" / "prepare.py"
 CPU_DRIVER = ROOT / "scripts" / "qualify_clean_comfy_cpu.py"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
-# These five node classes were authored as native features of the modified
-# SCAIL/SAM3 ComfyUI fork. They are NOT in vanilla ComfyUI by implication.
-FORK_NATIVE = frozenset({
+# These classes exist in pinned upstream Comfy-Org/ComfyUI (not only a fork):
+# 08cf0284ff45723aa67841c80cabb0e3cb50c9d7, nodes_sam3.py/nodes_scail.py.
+# Source presence is not evidence of GPU/model compatibility or usage rights.
+PINNED_UPSTREAM_SAM_SCAIL = frozenset({
     "SAM3_Detect", "SAM3_VideoTrack", "SAM3_TrackPreview",
     "SCAIL2ColoredMask", "WanSCAILToVideo",
 })
@@ -165,8 +166,8 @@ def classify_node(node: dict, cpu_registry: dict[str, str]) -> str:
     hint = node["owner_hint"]
     if UUID.fullmatch(name):
         return "unresolved_group_uuid"
-    if name in FORK_NATIVE:
-        return "requires_modified_scail_sam3_fork"
+    if name in PINNED_UPSTREAM_SAM_SCAIL:
+        return "pinned_upstream_sam_scail_class_unverified"
     if name in cpu_registry:
         return "class_registered_on_clean_cpu_only"
     if name in EDITOR_OR_LAYOUT_TYPES:
@@ -207,7 +208,7 @@ def audit(root: Path = ROOT) -> dict:
             statuses[classification] += 1
             all_unique.add(node["class"])
         summary.update(statuses)
-        fork = sorted(by_status["requires_modified_scail_sam3_fork"])
+        upstream = sorted(by_status["pinned_upstream_sam_scail_class_unverified"])
         results.append({
             "workflow": path,
             "graph_format": graph_format,
@@ -217,7 +218,7 @@ def audit(root: Path = ROOT) -> dict:
             "node_classes_by_status": {
                 k: sorted(v) for k, v in sorted(by_status.items()) if v
             },
-            "requires_modified_scail_sam3_fork": fork,
+            "pinned_upstream_sam_scail_classes": upstream,
             "embedded_group_definition_preflight": groups,
             "requires_model_weight_and_gpu_acceptance": True,
             "gpu_inference_verified": False,
@@ -236,7 +237,8 @@ def audit(root: Path = ROOT) -> dict:
         "unique_node_class_count": len(all_unique),
         "node_instance_status_counts": dict(sorted(summary.items())),
         "cpu_registration_contract_classes": dict(sorted(cpu.items())),
-        "fork_native_required_classes": sorted(FORK_NATIVE),
+        "pinned_upstream_sam_scail_class_names": sorted(PINNED_UPSTREAM_SAM_SCAIL),
+        "pinned_upstream_comfyui_commit": "08cf0284ff45723aa67841c80cabb0e3cb50c9d7",
         "unresolved_uuid_node_classes": sorted(c for c in all_unique
                                                if UUID.fullmatch(c)),
         "embedded_group_uuid_classes": sorted(set(
