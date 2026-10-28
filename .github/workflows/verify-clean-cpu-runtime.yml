@@ -1,0 +1,73 @@
+name: Qualify isolated clean ComfyUI CPU node runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-clean-cpu-runtime.yml"
+      - "scripts/qualify_clean_comfy_cpu.py"
+      - "tests/test_clean_comfy_cpu_contract.py"
+      - "custom_nodes/mask_propagate_optical_flow/**"
+      - "docs/clean-cpu-runtime-qualification.md"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-clean-cpu-runtime.yml"
+      - "scripts/qualify_clean_comfy_cpu.py"
+      - "tests/test_clean_comfy_cpu_contract.py"
+      - "custom_nodes/mask_propagate_optical_flow/**"
+      - "docs/clean-cpu-runtime-qualification.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clean-comfy-cpu-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-cpu-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - name: Checkout OSF workflow source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Choose Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Test CPU smoke driver before external installs
+        run: python -B -m unittest discover -s tests -p "test_clean_comfy_cpu_contract.py" -v
+      - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
+        env:
+          COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
+        run: |
+          set -euo pipefail
+          git init "${{ runner.temp }}/osf-disposable-ComfyUI"
+          git -C "${{ runner.temp }}/osf-disposable-ComfyUI" remote add origin https://github.com/Comfy-Org/ComfyUI.git
+          git -C "${{ runner.temp }}/osf-disposable-ComfyUI" fetch --no-tags --depth=1 origin "$COMFY_SHA"
+          git -C "${{ runner.temp }}/osf-disposable-ComfyUI" checkout --detach "$COMFY_SHA"
+          test "$(git -C "${{ runner.temp }}/osf-disposable-ComfyUI" rev-parse HEAD)" = "$COMFY_SHA"
+          cp -R custom_nodes/mask_propagate_optical_flow "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
+      - name: Install pinned CPU-only torch and torchvision in disposable CI
+        run: |
+          python -m pip install --disable-pip-version-check --index-url https://download.pytorch.org/whl/cpu             "torch==2.8.0" "torchvision==0.23.0"
+      - name: Install real ComfyUI Python runtime without model weights
+        run: |
+          python -m pip install --disable-pip-version-check             -r "${{ runner.temp }}/osf-disposable-ComfyUI/requirements.txt"             "opencv-python-headless==4.10.0.84"
+          python -m pip check
+      - name: Register both custom nodes and execute synthetic CPU optical flow
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          DO_NOT_TRACK: "1"
+          CUDA_VISIBLE_DEVICES: ""
+        run: |
+          python -B scripts/qualify_clean_comfy_cpu.py             --comfy-root "${{ runner.temp }}/osf-disposable-ComfyUI"             --report "${{ runner.temp }}/osf-clean-comfy-cpu-evidence.json"
+      - name: Retain metadata-only CPU smoke evidence, not third-party binaries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: osf-clean-comfy-cpu-evidence
+          path: ${{ runner.temp }}/osf-clean-comfy-cpu-evidence.json
+          if-no-files-found: error
+          retention-days: 14
