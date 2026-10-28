@@ -71,6 +71,17 @@ class SCAILNativeSyntheticCPUContract(unittest.TestCase):
             self.assertEqual(pix(drive, 1, 1), drive_bg)
             self.assertEqual(pix(ref, 27, 27), (0, 0, 255))
             self.assertEqual(pix(ref, 1, 1), ref_bg)
+            # On frame one the exact same identities have exchanged sides.
+            drive_after = mod._expected_rgb(mode, "drive", 1)
+            self.assertEqual(pix(drive_after, 9, 18), (255, 0, 0))
+            self.assertEqual(pix(drive_after, 42, 18), (0, 0, 255))
+            self.assertEqual(pix(drive_after, 1, 1), drive_bg)
+            self.assertNotEqual(drive, drive_after)
+            self.assertEqual(mod._expected_rgb(mode, "drive", 0), drive)
+            with self.assertRaisesRegex(ValueError, "Unrecognized"):
+                mod._expected_rgb(mode, "drive", 2)
+            with self.assertRaisesRegex(ValueError, "Unrecognized"):
+                mod._expected_rgb(mode, "ref", 1)
 
     def test_history_requires_completed_six_temp_previews(self):
         self.assertEqual(mod.validate_scail_history(history(), "synthetic"),
@@ -92,14 +103,18 @@ class SCAILNativeSyntheticCPUContract(unittest.TestCase):
         self.assertIn('RETURN_TYPES = ("SAM3_TRACK_DATA",)', source)
         self.assertIn('RETURN_TYPES = ("MASK",)', source)
         self.assertIn("masks.view(2, 2, 64, 8, 8)", source)
-        self.assertIn("40:56", source)
-        self.assertIn("8:24", source)
+        self.assertIn("masks[0, 0, 16:48, 40:56] = True", source)
+        self.assertIn("masks[0, 1, 16:48, 8:24] = True", source)
+        self.assertIn("masks[1, 0, 16:48, 8:24] = True", source)
+        self.assertIn("masks[1, 1, 16:48, 40:56] = True", source)
         self.assertNotIn("load_model_gpu(", source)
 
     def test_driver_keeps_native_graph_scope_distinct_from_model_inference(self):
         code = (ROOT / "scripts" / "qualify_clean_comfy_cpu.py").read_text()
         self.assertIn('"scail_native_cpu_mask_execution"', code)
         self.assertIn("execute_scail_cpu_graph(", code)
+        self.assertIn("tracked_identity_palette_preserved_across_crossing",
+                      PATH.read_text(encoding="utf-8"))
         self.assertIn("gpu_or_model_inference_qualified", code)
 
 
