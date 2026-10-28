@@ -140,6 +140,12 @@ That profile only copies graph files and documentation; it **does not install
 ComfyUI, custom nodes or model weights**. There is no verified clean
 ComfyUI deployment or one-click RunPod template yet.
 
+A separate [clean ComfyUI CPU smoke](docs/clean-cpu-runtime-qualification.md)
+is available for **OSF's own two optical-flow nodes only**. It attempts
+a fresh pinned upstream ComfyUI install, loopback node registration and
+synthetic CPU propagation on a disposable CI runner. It is not GPU/model
+or 11-workflow acceptance.
+
 Once separately installed and validated, open UI-format workflows via
 **Workflow → Open**. The `sam3_custompkg_probe.json` file is an API-format
 prompt and is not a normal UI-canvas graph.
