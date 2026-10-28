@@ -7,6 +7,8 @@ on:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
       - "scripts/qualify_vhs_audio_mux.py"
+      - "scripts/qualify_vhs_stereo_pcm_mux.py"
+      - "tests/test_vhs_stereo_pcm_contract.py"
       - "tests/test_vhs_audio_mux_contract.py"
       - "tests/fixtures/comfy_synthetic_audio/**"
       - "scripts/qualify_vhs_prores_hq422.py"
@@ -42,6 +44,8 @@ on:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
       - "scripts/qualify_vhs_audio_mux.py"
+      - "scripts/qualify_vhs_stereo_pcm_mux.py"
+      - "tests/test_vhs_stereo_pcm_contract.py"
       - "tests/test_vhs_audio_mux_contract.py"
       - "tests/fixtures/comfy_synthetic_audio/**"
       - "scripts/qualify_vhs_prores_hq422.py"
@@ -98,6 +102,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_clean_comfy_cpu_contract.py" -v
       - name: Test offline synthetic audio mux and fail-closed PCM validator
         run: python -B -m unittest discover -s tests -p "test_vhs_audio_mux_contract.py" -v
+      - name: Test independent stereo PCM channel identity and leakage contracts
+        run: python -B -m unittest discover -s tests -p "test_vhs_stereo_pcm_contract.py" -v
       - name: Test actual 12-bit source and quantization rejection contracts
         run: python -B -m unittest discover -s tests -p "test_true_12bit_prores_contract.py" -v
       - name: Validate all selected 11 graph class IDs and profile inventory
