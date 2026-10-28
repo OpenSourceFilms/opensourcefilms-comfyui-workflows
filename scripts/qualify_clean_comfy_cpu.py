@@ -786,6 +786,9 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
                 external_graph = execute_model_free_external_prompt(port, child)
+                # Independent FFmpeg path, not a ComfyUI/VHS input precision claim.
+                from qualify_prores_12bit import qualify_genuine_12bit_ffmpeg
+                real_12bit_roundtrip = qualify_genuine_12bit_ffmpeg()
             except Exception as exc:
                 log.flush()
                 log.seek(0)
@@ -812,13 +815,14 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
+        "independent_real_12bit_ffmpeg_roundtrip": real_12bit_roundtrip,
         "model_weights_installed": False,
         "third_party_custom_nodes_installed": True,
         "third_party_source_commits": external_versions,
         "pinned_usdu_submodule": usdu_submodule,
         "third_party_nodes_imported": registration["external_classes"],
         "third_party_graphs_executed": True,
-        "third_party_graph_scope": "one four-node synthetic VHS+rgthree API graph only",
+        "third_party_graph_scope": "one fixed 14-node synthetic VHS+rgthree ComfyUI API graph, plus separate direct-FFmpeg 12-bit source test",
         "gpu_or_model_inference_qualified": False,
         "eleven_workflows_qualified": False,
     }
