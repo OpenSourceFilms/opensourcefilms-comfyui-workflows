@@ -152,8 +152,15 @@ def verify_against_current_checkout(coverage: dict) -> int:
         raise ValueError("Cannot load canonical approved workflow selector")
     selector = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(selector)
-    approved, manifest = selector.choose_files()
-    return check_all_eleven_coverage_source_bytes(coverage, approved, manifest)
+    staged_files, manifest = selector.choose_files()
+    # The staging selector also returns eleven Markdown sidecars and public
+    # licence/lock documents. Only the eleven graph JSON byte strings belong
+    # to the source-graph fingerprint comparison.
+    approved_graphs = {path: staged_files[path] for path in manifest
+                       if path in staged_files}
+    return check_all_eleven_coverage_source_bytes(
+        coverage, approved_graphs, manifest
+    )
 
 
 def assemble(
