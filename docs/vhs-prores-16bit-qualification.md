@@ -45,18 +45,27 @@ storage (`yuv444p12le`) and decode exactly two 64×64 frames of 12-bit
 YUV444 samples per output. It retains the original four centre-point luminance tile-pair checks
 and also examines a **3×3 interior grid in each of the four frame/row
 left/right tile pairs**, giving **36 spatially separated comparisons**.
-The grid samples offsets 8, 16 and 24 within each 32×32 tile, avoiding
-the immediate codec block boundaries. Every corresponding left/right
-point must **collapse to equal decoded luma values** in the default
-8-bit control, but remain **distinct and correctly ordered** in the
-opt-in 16-bit path. Each difference must be between 1 and 20 out of
-4095 12-bit code levels. This detects localized detail loss beyond the
-four original centre points and reports the grid's minimum/maximum
-positive 12-bit differences; it does not establish every-pixel fidelity.
+The original sparse grid samples offsets 8, 16 and 24 within each
+32×32 tile. An additional **exhaustive central-interior scan** now checks
+all 16×16 paired positions at offsets 8 through 23, across both
+horizontal tile pairs and both frames: **1,024 pixel pairs**.
+Each corresponding left/right point must **collapse to equal decoded
+luma values** in the default 8-bit control, but remain **distinct and
+correctly ordered** in the opt-in 16-bit path, with a positive difference
+of 1 to 20 out of 4095 code levels. The 36 historic grid comparisons
+remain independently required, including offset 24 outside the new
+central scan.
+
+The expanded gate catches a single lost fine-detail sample even between
+the previously tested grid points. It reports the pair count and
+minimum/maximum 12-bit luma deltas for the full central region.
+This is exhaustive for the **specified central 16×16 interiors only**,
+not a full-frame pixel-fidelity claim: edges, chroma, intermediate
+colour transforms, camera profiles and wider source ranges are not covered.
 
 The acceptance report contains only numeric differences (including
-the number of valid interior-grid comparisons and minimum/maximum
-difference), hashes of the temporary MOVs and an explicit failure of
+36 grid and 1,024 full-central-interior comparisons and their minimum/
+maximum deltas), hashes of temporary MOVs and an explicit failure of
 bit-exact fidelity qualification. The videos and source tensors remain in the disposable
 runner and are not uploaded.
 
