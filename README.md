@@ -148,11 +148,12 @@ registration checks for five commit-pinned external node packages (VideoHelperSu
 DownsampleFPS, GGUF and UltimateSDUpscale), plus CPU-only synthetic frame
 dropping by the real DownsampleFPS node, and one minimal synthetic
 ComfyUI API graph combining VideoHelperSuite frame selection, rgthree
-routing and GIF/H.264/H.265/ProRes HQ encoding. Distinct
+routing and GIF/H.264/H.265/ProRes 4444 encoding. Distinct
 red/green/blue/yellow frames are checked for exact red/blue pixels
 in temporary PNG/GIF outputs and bounded channel errors in separately
-decoded H.264/HEVC MP4s and a ProRes HQ MOV. The latter checks 10-bit
-storage format, **not** 10-bit input fidelity. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
+decoded H.264/HEVC MP4s and a ProRes 4444 MOV. The latter checks
+10-bit 4:4:4 storage, **not** 10-bit input fidelity; HQ profile's
+observed format discrepancy is documented separately. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
 and a fail-closed guard against a mutable download. It is not GPU/model
 or 11-workflow acceptance.
 
