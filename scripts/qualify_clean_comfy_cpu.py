@@ -23,6 +23,22 @@ from urllib.request import urlopen
 
 COMFY_SHA = "08cf0284ff45723aa67841c80cabb0e3cb50c9d7"
 CLASSES = ("MaskPropagateOpticalFlow", "MaskPropagateFromFlow")
+# Pinned source was checked against the public DEPENDENCIES.lock. These are
+# nodes shared by the selected 11-workflow profile, not model or graph tests.
+EXTERNAL_NODE_PINS = {
+    "ComfyUI-VideoHelperSuite": {
+        "sha": "2984ec4c4b93292421888f38db74a5e8802a8ff8",
+        "classes": ("VHS_VideoCombine",),
+    },
+    "rgthree-comfy": {
+        "sha": "d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4",
+        "classes": ("Any Switch (rgthree)",),
+    },
+    "ComfyUI-DownsampleFPS": {
+        "sha": "4d741ef8e33b0c5111ad21033f9408acffc63651",
+        "classes": ("DownsampleFPSNode",),
+    },
+}
 
 
 def ensure_loopback_object_info(document: object, expected: str) -> None:
@@ -34,6 +50,41 @@ def ensure_loopback_object_info(document: object, expected: str) -> None:
         raise ValueError("Invalid ComfyUI object_info entry: " + expected)
     if entry.get("output") != ["MASK"] or not isinstance(entry.get("input"), dict):
         raise ValueError("OSF node has unexpected API schema: " + expected)
+
+
+def verify_external_node_sources(custom_nodes: Path) -> dict:
+    """Fail closed on missing, symlinked or unexpected Git revisions."""
+    versions = {}
+    for name, spec in EXTERNAL_NODE_PINS.items():
+        package = custom_nodes / name
+        if package.is_symlink() or not package.is_dir():
+            raise ValueError("Missing or symlinked external custom node: " + name)
+        result = subprocess.run(
+            ["git", "-C", str(package), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=15, check=True,
+        )
+        found = result.stdout.strip()
+        if found != spec["sha"]:
+            raise ValueError("Unapproved external custom-node SHA: " + name)
+        versions[name] = found
+    return dict(sorted(versions.items()))
+
+
+def ensure_external_object_info(document: dict, expected: dict) -> dict:
+    """Require each actual pinned-package class in live ComfyUI registry."""
+    found = {}
+    for package, spec in expected.items():
+        names = []
+        for name in spec["classes"]:
+            entry = document.get(name)
+            if not isinstance(entry, dict):
+                raise ValueError("Missing external ComfyUI class: " + name)
+            if (not isinstance(entry.get("input"), dict)
+                    or not isinstance(entry.get("output"), list)):
+                raise ValueError("Invalid external ComfyUI class API: " + name)
+            names.append(name)
+        found[package] = names
+    return found
 
 
 def _sha(raw: bytes) -> str:
@@ -56,7 +107,12 @@ def _probe_server(port: int, child: subprocess.Popen, *, seconds: int = 120) -> 
                 info = json.loads(data)
                 for name in CLASSES:
                     ensure_loopback_object_info(info, name)
-                return {"status": "registered", "classes": list(CLASSES)}
+                external = ensure_external_object_info(info, EXTERNAL_NODE_PINS)
+                return {
+                    "status": "registered",
+                    "classes": list(CLASSES),
+                    "external_classes": external,
+                }
         except (URLError, HTTPError, OSError, ValueError, TimeoutError) as exc:
             last_reason = type(exc).__name__
         time.sleep(2)
@@ -131,6 +187,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
     package = comfy / "custom_nodes" / "mask_propagate_optical_flow"
     if not (comfy / "main.py").is_file() or not package.is_dir():
         raise ValueError("No isolated ComfyUI root with OSF optical flow package")
+    external_versions = verify_external_node_sources(comfy / "custom_nodes")
     version = subprocess.run(
         ["git", "-C", str(comfy), "rev-parse", "HEAD"],
         capture_output=True, text=True, check=True, timeout=15,
@@ -187,7 +244,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "registration": registration,
         "synthetic_execution": synthetic,
         "model_weights_installed": False,
-        "third_party_custom_nodes_installed": False,
+        "third_party_custom_nodes_installed": True,
+        "third_party_source_commits": external_versions,
+        "third_party_nodes_imported": registration["external_classes"],
+        "third_party_graphs_executed": False,
         "gpu_or_model_inference_qualified": False,
         "eleven_workflows_qualified": False,
     }
