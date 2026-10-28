@@ -45,6 +45,38 @@ Offline regressions reject a changed default, missing `rgb24` or
 `tensor_to_bytes` path, unexpected encoder format and missing
 upstream node definition.
 
+## CI-only explicit RGB48/16-bit source probe
+
+The disposable clean CPU job additionally stages **two OSF-authored test
+fixtures**, never an upstream patch or production dependency:
+
+- `tests/fixtures/osf_ci_precision_probe/__init__.py` registers a
+  deterministic `OSF_CI_Precision12BitSource` test node producing
+  floating-point ComfyUI `IMAGE` tensors with adjacent 12-bit levels
+  `2038/2043` and `2048/2053`. In each pair, both values share
+  one 8-bit bucket.
+- `tests/fixtures/osf-prores4444-rgb48-16bit.json` supplies a **test-only**
+  `video/osf-prores4444-rgb48-16bit` preset with
+  `input_color_depth=16bit`, `prores_ks`, ProRes 4444 and
+  `yuv444p12le` storage. It is copied as a new untracked format file
+  into the disposable pinned VHS checkout. No tracked upstream file or
+  production preset is modified.
+
+A second *actual* ComfyUI `/prompt` graph invokes the fixture source
+and pinned `VHS_VideoCombine`. The harness requires a temporary MOV
+with ProRes 4444/12-bit 4:4:4 storage, decodes to packed `rgb48le`,
+checks every 16-bit RGB sample against the original normalized 12-bit
+source with a **256/65535** maximum absolute channel error, and requires
+the two subtle same-8-bit-bucket distinctions to survive in strict order.
+A returned video lacking real sub-8-bit differentiation **must fail**,
+even if its output file is labelled ProRes 4444.
+
+This is a **test-only alternative preset** and a restricted synthetic
+two-frame smoke test, not acceptance of VideoHelperSuite's *default*
+ProRes preset, production pipeline, HDR mastering, image formats or
+arbitrary 12/16-bit source input. Generated MOV and source frames remain
+on the disposable runner; only metadata and hashes enter JSON evidence.
+
 ## Requirements for eventual ComfyUI/VHS high-bit-depth acceptance
 
 A positive acceptance would need a **separately reviewed,

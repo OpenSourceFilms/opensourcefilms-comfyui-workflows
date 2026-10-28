@@ -132,6 +132,23 @@ versions, registration, synthetic output hashes and explicit exclusions.
 No generated images, model weights, third-party source or logs containing
 personal paths are uploaded.
 
+## Isolated experimental VHS RGB48 precision probe
+
+The clean CPU runner also adds a **test-only** ComfyUI `IMAGE` node
+containing normalized 12-bit channel values, and a separate untracked
+VideoHelperSuite format with `input_color_depth=16bit`. Its real
+ComfyUI API graph uses the pinned `VHS_VideoCombine` node to encode
+ProRes 4444 and verifies two same-8-bit-bucket source level pairs
+survive after `rgb48le` decoding. The test checks all samples with
+a maximum absolute 256/65535 RGB16 channel error and fails if either
+fine-grained distinction collapses. See
+[`vhs-prores-input-precision.md`](vhs-prores-input-precision.md).
+
+This is a synthetic experimental **alternative** format. It does not
+alter or qualify the pinned default 8-bit VHS ProRes configuration,
+any selected production workflow, high-resolution image fidelity,
+transfer functions or commercial output licensing.
+
 ## Independent real 12-bit ProRes source and fidelity gate
 
 The same isolated CI job also runs

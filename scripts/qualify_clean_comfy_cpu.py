@@ -807,6 +807,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
                 external_graph = execute_model_free_external_prompt(port, child)
+                from qualify_vhs_16bit_cpu import execute_vhs_16bit_precision_graph
+                vhs_explicit16bit = execute_vhs_16bit_precision_graph(
+                    port, child, fetch_asset=_fetch_temporary_asset
+                )
                 # Independent FFmpeg path, not a ComfyUI/VHS input precision claim.
                 from qualify_prores_12bit import qualify_genuine_12bit_ffmpeg
                 real_12bit_roundtrip = qualify_genuine_12bit_ffmpeg()
@@ -837,6 +841,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
+        "ci_only_vhs_explicit16bit_source": vhs_explicit16bit,
         "independent_real_12bit_ffmpeg_roundtrip": real_12bit_roundtrip,
         "pinned_vhs_prores_input_precision": vhs_source_precision,
         "model_weights_installed": False,

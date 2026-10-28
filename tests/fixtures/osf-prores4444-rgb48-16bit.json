@@ -1,0 +1,22 @@
+{
+  "main_pass": [
+    "-n",
+    "-c:v",
+    "prores_ks",
+    "-profile:v",
+    "4",
+    "-pix_fmt",
+    "yuv444p12le",
+    "-vf",
+    "scale=out_color_matrix=bt709",
+    "-colorspace",
+    "bt709",
+    "-color_primaries",
+    "bt709",
+    "-color_trc",
+    "bt709"
+  ],
+  "extension": "mov",
+  "input_color_depth": "16bit",
+  "fake_trc": "bt709"
+}

@@ -14,6 +14,10 @@ on:
       - "runpod/commercial-compatible/prepare.py"
       - "DEPENDENCIES.lock"
       - "scripts/qualify_prores_12bit.py"
+      - "scripts/qualify_vhs_16bit_cpu.py"
+      - "tests/fixtures/osf_ci_precision_probe/**"
+      - "tests/fixtures/osf-prores4444-rgb48-16bit.json"
+      - "tests/test_vhs_16bit_cpu_contract.py"
       - "scripts/audit_vhs_prores_precision.py"
       - "tests/test_vhs_prores_precision_contract.py"
       - "tests/test_true_12bit_prores_contract.py"
@@ -33,6 +37,10 @@ on:
       - "runpod/commercial-compatible/prepare.py"
       - "DEPENDENCIES.lock"
       - "scripts/qualify_prores_12bit.py"
+      - "scripts/qualify_vhs_16bit_cpu.py"
+      - "tests/fixtures/osf_ci_precision_probe/**"
+      - "tests/fixtures/osf-prores4444-rgb48-16bit.json"
+      - "tests/test_vhs_16bit_cpu_contract.py"
       - "scripts/audit_vhs_prores_precision.py"
       - "tests/test_vhs_prores_precision_contract.py"
       - "tests/test_true_12bit_prores_contract.py"
@@ -72,6 +80,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_vhs_prores_precision_contract.py" -v
       - name: Test synthetic video frame timing and cadence contracts
         run: python -B -m unittest discover -s tests -p "test_synthetic_video_timing.py" -v
+      - name: Contract tests for CI-only VHS 16bit precision source
+        run: python -B -m unittest discover -s tests -p "test_vhs_16bit_cpu_contract.py" -v
       - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
         env:
           COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
@@ -100,6 +110,16 @@ jobs:
           fetch_pinned "ComfyUI-DownsampleFPS" "https://github.com/Austat/ComfyUI-DownsampleFPS.git" "4d741ef8e33b0c5111ad21033f9408acffc63651"
           fetch_pinned "ComfyUI-GGUF" "https://github.com/city96/ComfyUI-GGUF.git" "6ea2651e7df66d7585f6ffee804b20e92fb38b8a"
           fetch_pinned "ComfyUI_UltimateSDUpscale" "https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git" "a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df"
+      - name: Stage CI-only 16bit precision fixture and test format
+        run: |
+          set -euo pipefail
+          dst="${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes"
+          cp -R tests/fixtures/osf_ci_precision_probe "$dst/"
+          preset="$dst/ComfyUI-VideoHelperSuite/video_formats/osf-prores4444-rgb48-16bit.json"
+          test ! -e "$preset"
+          cp tests/fixtures/osf-prores4444-rgb48-16bit.json "$preset"
+          test -s "$preset"
+          test "$(git -C "$dst/ComfyUI-VideoHelperSuite" rev-parse HEAD)" = "2984ec4c4b93292421888f38db74a5e8802a8ff8"
       - name: Fetch exact UltimateSDUpscale GPLv3 gitlink and forbid mutable fallback
         run: |
           set -euo pipefail
@@ -129,7 +149,7 @@ jobs:
           # requirement is provided by the already installed headless wheel.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
           python -m pip check
-      - name: Audit 11 workflows, VHS precision, codecs, PTS cadence and 12bit source
+      - name: Audit 11 workflows and real CI-only VHS RGB48 precision
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"
