@@ -21,12 +21,22 @@ unexpected change to the four API graph identities and requires every
 API node to have a numeric, nonzero string key, a nonempty class ID
 and a dictionary of inputs.
 
-For every explicit ComfyUI `[upstream_node_id, output_slot]` input link,
-it rejects a missing source node, negative or boolean output slot and
-self-reference. It constructs a directed dependency graph and requires
-an acyclic topological ordering, so indirect cyclic references also
-fail. Repeated references to the same upstream node count as separate
-connected inputs while the dependency graph uses unique directed pairs.
+All **array-valued inputs** in these exact four reviewed API exports
+are `[upstream_node_id, output_slot]` connections. The auditor now
+requires **every such array** to contain exactly two items, a canonical
+positive decimal producer ID and an integer (not boolean) output index.
+An array with a string-valued index, float index, missing/extra entry,
+noncanonical producer ID or literal-array shape is rejected rather than
+silently omitted from the dependency graph. Any future workflow that
+genuinely uses literal list inputs needs an explicit source-reviewed
+exception before this strict four-export gate can admit it.
+
+For every accepted link, the auditor rejects a missing source node,
+negative output slot and self-reference. It constructs a directed
+dependency graph and requires an acyclic topological ordering, so
+indirect cyclic references also fail. Repeated references to the same
+upstream node count as separate connected inputs while the dependency
+graph uses unique directed pairs.
 
 The current four approved API exports have **60 node instances** and
 **82 link input references**. Their exact workflow source SHA-256 hashes,
@@ -35,9 +45,10 @@ depths enter a small, source-only JSON report in disposable CI scratch.
 No prompt strings, widget values, model filenames, image/video sources
 or private file paths are included.
 
-The offline tests reject missing references, boolean/negative slots,
-bad node keys, empty classes, direct and indirect cycles, and deceptive
-claims of model or workflow execution. The unchanged seven UI-format
+The offline tests reject missing references, malformed array link
+shapes, noninteger/boolean slots, bad producer and node IDs,
+negative slots, empty classes, direct and indirect cycles, and
+deceptive claims of model or workflow execution. The unchanged seven UI-format
 exports remain handled by the separate UI/embedded-group audits.
 
 ## Important limits
