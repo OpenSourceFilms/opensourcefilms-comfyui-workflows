@@ -76,7 +76,7 @@ class ReversibleMMGroupTests(unittest.TestCase):
         for field in ("node_input", "group_output"):
             sample = minimal_group()
             if field == "node_input":
-                sample["nodes"][1]["inputs"][0]["link"] = 42
+                sample["nodes"][1]["inputs"].append({"link": 42})
             else:
                 sample["outputs"][0]["linkIds"].append(43)
             with self.subTest(field=field):
@@ -110,7 +110,11 @@ class ReversibleMMGroupTests(unittest.TestCase):
                     "eleven_workflows_qualified"):
             self.assertFalse(actual[key])
         self.assertNotIn("non_links", str(actual))
-        self.assertNotIn("prompt", str(actual))
+        for edit in actual["operations"]:
+            self.assertTrue(set(edit).issubset({
+                "group_index", "kind", "slot", "node_index",
+                "removed_orphan_ids",
+            }))
         self.assertNotIn("widgets_values", str(actual))
         self.assertNotIn(".safetensors", str(actual))
 
