@@ -16,8 +16,12 @@ A small **test-only** custom-node fixture,
 creates two frames of two synthetic identities in SAM3's bit-packed
 `SAM3_TRACK_DATA` shape, plus a plain `MASK` reference subject. The
 track's right-hand object deliberately precedes the left-hand object
-in its original index order. No SAM3 detection, tracking model, camera
-footage, external files or model downloads are used.
+in its original index order. **In frame one, the two tracked subjects
+exchange horizontal positions while retaining their SAM3 indices.**
+Native SCAIL must preserve each subject's original palette colour after
+the crossing, rather than sorting colours afresh by current screen x.
+No SAM3 detection, tracking model, camera footage, external files or
+model downloads are used.
 
 The [CPU test driver](../scripts/qualify_scail_native_mask_cpu.py)
 submits an **actual ComfyUI `/prompt` graph** with two calls to native
@@ -29,8 +33,12 @@ sent to native `PreviewImage` nodes.
 The harness requires successful completion in `/history` and checks
 all pixels in **six** temporary 64×64 PNG previews:
 
-- Both driving frames show the **left identity blue** and **right
-  identity red**, regardless of the reverse object index order.
+- The first driving frame has the **left identity blue** and the
+  **right identity red**, despite the reverse object index order.
+- The second driving frame has the **left subject red** and **right
+  subject blue** after the two identities exchange sides. The native
+  palette must follow the tracked identity across frames, not its
+  instantaneous left/right position.
 - Animation-mode driving background is **black** and its reference-mask
   background is **white**.
 - Replacement-mode driving background is **white** and its reference-mask
@@ -46,8 +54,10 @@ existing temporary-asset safeguards (safe filename, temp-only and a
 
 ## Non-acceptance
 
-This verifies **native SCAIL-2 mask-colour rendering and background
-semantics**, not SAM3 segmentation/tracking inference, SCAIL-2 or Wan
+This verifies **native SCAIL-2 mask-colour rendering, frame-to-frame
+palette stability for one synthetic two-subject crossing, and
+animation/replacement background semantics**, not SAM3
+segmentation/tracking inference, SCAIL-2 or Wan
 diffusion, driving-video realism, arbitrary multi-identity occlusion,
 reference matching on real media, GPU execution or model rights.
 It does not substitute conventional VFX or compositing for SCAIL; it
