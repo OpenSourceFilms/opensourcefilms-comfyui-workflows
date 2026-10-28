@@ -80,6 +80,28 @@ NATIVE = {
         "outputs": ("CONDITIONING", "CONDITIONING", "LATENT", "INT"),
     },
 }
+# Static source-schema review only. Pinned public ComfyUI source:
+# Comfy-Org/ComfyUI@08cf0284ff45723aa67841c80cabb0e3cb50c9d7
+# nodes.py (CheckpointLoaderSimple, CLIPTextEncode, LoadImage,
+# VAELoader and CLIPVisionEncode). Pinned external VideoHelperSuite:
+# Kosinkadink/ComfyUI-VideoHelperSuite@2984ec4c4b93292421888f38db74a5e8802a8ff8
+# load_video_nodes.py's LoadVideoUpload output 0 is imageOrLatent:
+# MultiInput("IMAGE", ["IMAGE", "LATENT"]); only IMAGE is valid for
+# native IMAGE sockets. The selected API exports do NOT connect a VAE.
+# Treat adding VAE as fail-closed rather than silently accepting LATENT.
+SOURCE_OUTPUTS = {
+    "CheckpointLoaderSimple": ("MODEL", "CLIP", "VAE"),
+    "CLIPTextEncode": ("CONDITIONING",),
+    "LoadImage": ("IMAGE", "MASK"),
+    "VAELoader": ("VAE",),
+    "CLIPVisionEncode": ("CLIP_VISION_OUTPUT",),
+    "VHS_LoadVideo": ("IMAGE|LATENT", "INT", "AUDIO", "VHS_VIDEOINFO"),
+}
+SOURCE_REVISIONS = {
+    "Comfy-Org/ComfyUI": CORE_COMMIT,
+    "Kosinkadink/ComfyUI-VideoHelperSuite":
+        "2984ec4c4b93292421888f38db74a5e8802a8ff8",
+}
 SCALAR_TYPES = frozenset({"INT", "FLOAT", "BOOLEAN", "STRING", "COMBO"})
 COMBO_OPTIONS = {"SCAIL2ColoredMask.sort_by": {"none", "left_to_right", "area"}}
 # Pinned public nodes_sam3.py: SAM3_Detect declares these optional sockets
@@ -133,6 +155,8 @@ def check_api_bindings(graph: object) -> dict:
     classes = Counter()
     checked_links = 0
     checked_native_edges = 0
+    checked_pinned_provider_edges = 0
+    checked_conditional_vhs_image_edges = 0
     unknown_source_edges = 0
     for ident, node in native:
         cls = node["class_type"]
@@ -164,9 +188,36 @@ def check_api_bindings(graph: object) -> dict:
                     if outputs[slot] not in typ.split("|"):
                         raise ValueError("Native SAM3/SCAIL link output type mismatch")
                     checked_native_edges += 1
+                elif upstream["class_type"] in SOURCE_OUTPUTS:
+                    source_cls = upstream["class_type"]
+                    outputs = SOURCE_OUTPUTS[source_cls]
+                    if slot >= len(outputs):
+                        raise ValueError("Pinned source output slot out of range")
+                    # VHS can emit LATENT when supplied a VAE. Our selected
+                    # graphs omit it: without an explicit VAE, check the
+                    # published nominal IMAGE path but *not* runtime tensors.
+                    if source_cls == "VHS_LoadVideo":
+                        upstream_inputs = upstream.get("inputs")
+                        if not isinstance(upstream_inputs, dict):
+                            raise ValueError("Pinned VHS source inputs malformed")
+                        if "vae" in upstream_inputs:
+                            raise ValueError(
+                                "Pinned VHS output could become LATENT with VAE"
+                            )
+                        if slot == 0:
+                            if "IMAGE" not in typ.split("|"):
+                                raise ValueError(
+                                    "Pinned VHS image source type mismatch"
+                                )
+                            checked_conditional_vhs_image_edges += 1
+                        elif outputs[slot] not in typ.split("|"):
+                            raise ValueError("Pinned source output type mismatch")
+                    elif outputs[slot] not in typ.split("|"):
+                        raise ValueError("Pinned source output type mismatch")
+                    checked_pinned_provider_edges += 1
                 else:
-                    # Output types of external/core input source nodes are
-                    # explicitly NOT verified by this limited preflight.
+                    # Unreviewed provider schemas are not silently promoted
+                    # to accepted output types.
                     unknown_source_edges += 1
                 checked_links += 1
             elif typ in SCALAR_TYPES:
@@ -178,7 +229,11 @@ def check_api_bindings(graph: object) -> dict:
         "native_class_counts": dict(sorted(classes.items())),
         "checked_source_links": checked_links,
         "checked_native_to_native_output_types": checked_native_edges,
+        "checked_pinned_provider_source_output_types": checked_pinned_provider_edges,
+        "vhs_nominal_image_links_without_vae": checked_conditional_vhs_image_edges,
         "external_source_output_types_unverified": unknown_source_edges,
+        "vhs_runtime_output_type_verified": False,
+        "full_graph_link_type_verification": False,
         "native_input_names_and_scalar_shapes_pass": True,
         "all_other_workflow_nodes_qualified": False,
         "model_weights_or_inference_tested": False,
@@ -196,6 +251,13 @@ def audit(root: Path = ROOT) -> dict:
         results.append({"workflow": name, **result})
     if total != 12:
         raise ValueError("Unexpected total of native SAM3/SCAIL node instances")
+    if (sum(result["checked_pinned_provider_source_output_types"]
+            for result in results) != 31
+            or sum(result["vhs_nominal_image_links_without_vae"]
+                   for result in results) != 6
+            or any(result["external_source_output_types_unverified"]
+                   for result in results)):
+        raise ValueError("Selected native edges no longer match reviewed provider bindings")
     return {
         "schema": "osf-sam3-scail-public-native-api-binding-preflight-v1",
         "public_core_commit": CORE_COMMIT,
@@ -204,6 +266,14 @@ def audit(root: Path = ROOT) -> dict:
         ],
         "api_workflows_checked": len(WORKFLOWS),
         "native_node_instances_checked": total,
+        "pinned_provider_source_revisions": SOURCE_REVISIONS,
+        "pinned_provider_links_checked": sum(
+            result["checked_pinned_provider_source_output_types"]
+            for result in results
+        ),
+        "vhs_nominal_image_links_checked": sum(
+            result["vhs_nominal_image_links_without_vae"] for result in results
+        ),
         "workflows": results,
         "full_graph_or_gpu_inference_qualified": False,
         "source_schema_snapshot_only": True,

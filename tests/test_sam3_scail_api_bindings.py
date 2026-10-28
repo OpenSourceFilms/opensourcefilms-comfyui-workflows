@@ -38,6 +38,80 @@ class NativeBindingsTests(unittest.TestCase):
             self.assertFalse(item["model_weights_or_inference_tested"])
             self.assertFalse(item["all_other_workflow_nodes_qualified"])
 
+    def test_all_31_pinned_provider_edges_have_reviewed_output_slots(self):
+        report = mod.audit()
+        self.assertEqual(report["pinned_provider_links_checked"], 31)
+        self.assertEqual(report["vhs_nominal_image_links_checked"], 6)
+        self.assertEqual(report["pinned_provider_source_revisions"], {
+            "Comfy-Org/ComfyUI": mod.CORE_COMMIT,
+            "Kosinkadink/ComfyUI-VideoHelperSuite":
+                "2984ec4c4b93292421888f38db74a5e8802a8ff8",
+        })
+        self.assertEqual(
+            [item["checked_pinned_provider_source_output_types"]
+             for item in report["workflows"]],
+            [7, 12, 12],
+        )
+        self.assertEqual(
+            [item["vhs_nominal_image_links_without_vae"]
+             for item in report["workflows"]],
+            [2, 2, 2],
+        )
+        for item in report["workflows"]:
+            self.assertEqual(item["external_source_output_types_unverified"], 0)
+            self.assertFalse(item["vhs_runtime_output_type_verified"])
+            self.assertFalse(item["full_graph_link_type_verification"])
+
+    def test_pinned_provider_output_slot_and_type_mismatch_fail(self):
+        for upstream_class, output_slot, downstream_class, downstream_field in (
+            ("CheckpointLoaderSimple", 1, "SAM3_VideoTrack", "model"),
+            ("CheckpointLoaderSimple", 9, "SAM3_Detect", "model"),
+            ("CLIPTextEncode", 1, "SAM3_VideoTrack", "conditioning"),
+            ("VHS_LoadVideo", 1, "SAM3_VideoTrack", "images"),
+            ("VHS_LoadVideo", 7, "SAM3_VideoTrack", "images"),
+            ("LoadImage", 1, "SAM3_Detect", "image"),
+            ("VAELoader", 1, "WanSCAILToVideo", "vae"),
+            ("CLIPVisionEncode", 4, "WanSCAILToVideo",
+             "clip_vision_output"),
+        ):
+            with self.subTest(
+                source=upstream_class, slot=output_slot, target=downstream_class
+            ):
+                source = graph()
+                origin = next(
+                    ident for ident, node in source.items()
+                    if node["class_type"] == upstream_class
+                )
+                target = next(
+                    node for node in source.values()
+                    if node["class_type"] == downstream_class
+                )
+                target["inputs"][downstream_field] = [origin, output_slot]
+                with self.assertRaisesRegex(
+                    ValueError, "Pinned source output|Pinned VHS image source"
+                ):
+                    mod.check_api_bindings(source)
+
+    def test_vhs_optional_vae_disallows_nominal_image_link_acceptance(self):
+        source = graph()
+        vhs = next(node for node in source.values()
+                   if node["class_type"] == "VHS_LoadVideo")
+        self.assertNotIn("vae", vhs["inputs"])
+        source_without_vae = mod.check_api_bindings(source)
+        self.assertEqual(source_without_vae["vhs_nominal_image_links_without_vae"], 2)
+        vhs["inputs"]["vae"] = ["18", 0]
+        with self.assertRaisesRegex(ValueError, "could become LATENT with VAE"):
+            mod.check_api_bindings(source)
+
+    def test_unreviewed_provider_is_not_claimed_source_verified(self):
+        source = graph()
+        vhs = next(node for node in source.values()
+                   if node["class_type"] == "VHS_LoadVideo")
+        vhs["class_type"] = "OtherUnverifiedVideoLoader"
+        report = mod.check_api_bindings(source)
+        self.assertGreater(report["external_source_output_types_unverified"], 0)
+        self.assertFalse(report["full_graph_link_type_verification"])
+
     def test_unknown_native_input_fails(self):
         source = graph()
         source["4"]["inputs"]["not_an_upstream_input"] = 1
