@@ -181,7 +181,7 @@ RASTER_LIMIT = 2_000_000
 
 
 def build_model_free_external_prompt() -> dict:
-    """Four distinct colours, VHS selection, rgthree, GIF, H.264 and H.265.
+    """Four distinct colours, VHS selection, rgthree, GIF, H.264, HEVC and ProRes.
 
     All image content is authored by native EmptyImage; no file inputs,
     model loaders, private media or user-supplied prompt fields.
@@ -244,6 +244,16 @@ def build_model_free_external_prompt() -> dict:
             "pingpong": False,
             "save_output": False,
         }},
+        "14": {"class_type": "VHS_VideoCombine", "inputs": {
+            "images": ["9", 0],
+            "frame_rate": 2,
+            "loop_count": 0,
+            "filename_prefix": "osf_synthetic_vhs_prores4444",
+            "format": "video/ProRes",
+            "profile": "4444",
+            "pingpong": False,
+            "save_output": False,
+        }},
     })
     return graph
 
@@ -290,6 +300,10 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
         outputs.get("13"), dict) else None
     if not isinstance(h265s, list) or len(h265s) != 1:
         raise ValueError("External synthetic H265 encoder returned wrong output count")
+    prores = outputs.get("14", {}).get("gifs") if isinstance(
+        outputs.get("14"), dict) else None
+    if not isinstance(prores, list) or len(prores) != 1:
+        raise ValueError("External synthetic ProRes encoder returned wrong output count")
     for preview in previews:
         _validated_temp_asset(preview, "png")
     gif = _validated_temp_asset(gifs[0], "gif")
@@ -301,6 +315,9 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
     _validated_temp_asset(h265s[0], "mp4")
     if h265s[0].get("format") != "video/h265-mp4":
         raise ValueError("Unexpected external HEVC codec")
+    _validated_temp_asset(prores[0], "mov")
+    if prores[0].get("format") != "video/ProRes":
+        raise ValueError("Unexpected external ProRes codec")
     return {
         "status": "synthetic_api_graph_executed",
         "classes": ["EmptyImage", "ImageBatch", "VHS_SelectEveryNthImage",
@@ -310,7 +327,8 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
         "gif_count": len(gifs),
         "h264_mp4_count": len(h264s),
         "h265_mp4_count": len(h265s),
-        "route": "four colored core images -> VHS every-second -> rgthree -> previews + GIF/H264/H265",
+        "prores_mov_count": len(prores),
+        "route": "four colored core images -> VHS every-second -> rgthree -> PNG/GIF/H264/HEVC/ProRes",
         "model_weights_used": False,
         "binary_outputs_uploaded": False,
     }
@@ -400,6 +418,79 @@ def verify_h265_video(port: int, item: dict) -> dict:
         }
 
 
+def validate_prores_decoded_rgb(raw: bytes) -> dict:
+    """Validate all decoded ProRes RGB pixels, not a high-bit-depth source test."""
+    pixels_per_frame = 64 * 64 * 3
+    if len(raw) != 2 * pixels_per_frame:
+        raise ValueError("ProRes decoded frame count or dimensions differ")
+    errors = []
+    hashes = []
+    for index, rgb in enumerate(EXPECTED_RGB):
+        frame = raw[index * pixels_per_frame:(index + 1) * pixels_per_frame]
+        error = max(
+            max(abs(value - target) for value in frame[channel::3])
+            for channel, target in enumerate(rgb)
+        )
+        if error > 24:
+            raise ValueError("ProRes decoded RGB differs from expected red/blue order")
+        hashes.append(_sha(frame))
+        errors.append(error)
+    return {
+        "codec": "prores",
+        "profile_requested": "4444",
+        "source_colour_precision_bits": 8,
+        "frames_decoded": 2,
+        "width": 64,
+        "height": 64,
+        "expected_rgb": [list(color) for color in EXPECTED_RGB],
+        "maximum_absolute_channel_error": errors,
+        "maximum_permitted_channel_error": 24,
+        "decoded_frame_sha256": hashes,
+        "content": "bounded_full_frame_rgb_verified",
+        "high_bit_depth_fidelity_qualified": False,
+        "binary_outputs_uploaded": False,
+    }
+
+
+def verify_prores_video(port: int, item: dict) -> dict:
+    """Check temporary pinned VHS ProRes 4444 MOV and decode via runner FFmpeg."""
+    from imageio_ffmpeg import get_ffmpeg_exe
+
+    data = _fetch_temporary_asset(port, item, "mov")
+    if len(data) < 12 or data[4:8] != b"ftyp":
+        raise ValueError("ProRes asset lacks an MOV/QuickTime ftyp signature")
+    with tempfile.TemporaryDirectory(prefix="osf_prores_cpu_") as scratch:
+        video = Path(scratch) / "synthetic.mov"
+        video.write_bytes(data)
+        result = subprocess.run(
+            [get_ffmpeg_exe(), "-hide_banner", "-nostdin",
+             "-i", str(video), "-map", "0:v:0", "-vsync", "0",
+             "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+            capture_output=True, check=True, timeout=30,
+        )
+        stderr = result.stderr.decode("utf-8", "replace")
+        if not re.search(r"Video:\s+prores\s+\(4444\)\s", stderr, flags=re.IGNORECASE):
+            stream_line = re.search(r"Video:\s+prores[^\n]{0,220}", stderr,
+                                    flags=re.IGNORECASE)
+            descriptor = stream_line.group(0) if stream_line else "not reported"
+            raise ValueError("Expected ProRes 4444 profile differs: " + descriptor)
+        # This pinned 4444 path decodes as 12-bit 4:4:4 for RGB inputs.
+        # It cannot establish 10-bit *source* fidelity: inputs are 8-bit.
+        if not re.search(r"\byuv444p12le\b", stderr):
+            stream_line = re.search(r"Video:\s+prores[^\n]{0,220}", stderr,
+                                    flags=re.IGNORECASE)
+            descriptor = stream_line.group(0) if stream_line else "not reported"
+            raise ValueError("ProRes 4444 storage pixel format differs: " + descriptor)
+        return {
+            **validate_prores_decoded_rgb(result.stdout),
+            "container": "mov",
+            "storage_pixel_format": "yuv444p12le",
+            "profile_detected": "4444",
+            "output_mov_sha256": _sha(data),
+            "mov_size_bytes": len(data),
+        }
+
+
 def verify_model_free_raster_content(port: int, record: dict) -> dict:
     """Verify real preview and GIF pixels against red/blue source-frame order."""
     from PIL import Image
@@ -428,6 +519,7 @@ def verify_model_free_raster_content(port: int, record: dict) -> dict:
         raise ValueError("VHS GIF pixels differ from rgthree-routed previews")
     h264 = verify_h264_video(port, outputs["12"]["gifs"][0])
     h265 = verify_h265_video(port, outputs["13"]["gifs"][0])
+    prores = verify_prores_video(port, outputs["14"]["gifs"][0])
     return {
         "content": "exact_full_frame_RGB_verified",
         "expected_selected_rgb": [list(color) for color in EXPECTED_RGB],
@@ -436,8 +528,9 @@ def verify_model_free_raster_content(port: int, record: dict) -> dict:
         "gif_frames": 2,
         "h264_mp4": h264,
         "h265_mp4": h265,
+        "prores_mov": prores,
         "gif_frame_duration_ms": 500,
-        "temporary_assets_inspected": 5,
+        "temporary_assets_inspected": 6,
         "binary_outputs_uploaded": False,
     }
 

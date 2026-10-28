@@ -99,7 +99,7 @@ jobs:
           # requirement is provided by the already installed headless wheel.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
           python -m pip check
-      - name: Verify pinned imports and synthetic GIF, H264 and HEVC decoded pixels
+      - name: Verify pinned imports and synthetic GIF, H264, HEVC and ProRes decoded pixels
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"

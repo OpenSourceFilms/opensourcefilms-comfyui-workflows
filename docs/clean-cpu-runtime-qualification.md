@@ -91,11 +91,38 @@ errors and an MP4 hash are retained in JSON. No binary video is uploaded.
 The 2 MB per-file limit, temporary decoding directory, pinned FFmpeg,
 and file-metadata validation are unchanged.
 
+A fourth `VHS_VideoCombine` output uses pinned upstream
+`video/ProRes`, explicitly setting `profile=4444`, 2 FPS and
+`save_output=false`, producing one temporary MOV through `prores_ks`.
+The harness retrieves the MOV only over the loopback `/view` API,
+enforces strict temporary filename/subfolder and 2 MB size limits,
+and requires a QuickTime/MP4 `ftyp` signature. The CPU FFmpeg decoder
+must identify a real **ProRes 4444** stream with `yuv444p12le` storage,
+decode exactly two 64×64 RGB24 frames, and verify **every pixel**
+against the red/blue source colours in order within a 24/255 maximum
+absolute channel error. Only observed errors, decoded-frame SHA-256
+values, MOV SHA-256 and size go in the JSON evidence.
+
+**Observed upstream profile discrepancy:** The first exploratory
+`profile=hq` test returned an MP4/MOV video stream marked
+`prores (HQ) (apch)`, but FFmpeg reported `yuv444p10le` output,
+not the anticipated HQ 4:2:2 layout. The HQ test therefore **failed**
+and was not accepted. The acceptance case uses explicit ProRes 4444
+and checks the reported profile *and* 4:4:4 storage. This does not
+establish that the upstream HQ profile behaves correctly for every
+codec or pixel format.
+
+**Precision boundary:** Although the ProRes 4444 stream uses 12-bit
+4:4:4 storage, these source frames originate as 8-bit colour
+constants and are checked only after RGB24 decoding. Successful
+codec identification is **not** a 12-bit source-fidelity test.
+No 12-bit sensor/input source is created or evaluated.
+
 These tests qualify narrow CPU VideoHelperSuite selection and GIF,
-H.264 and H.265 encoding paths plus rgthree routing. They do **not**
-qualify commercial-grade video compression settings, sustained processing,
-10-bit/16-bit fidelity, colour-management accuracy, arbitrary metadata,
-audio muxing, ProRes, the eleven real workflows or pretrained models.
+H.264, H.265 and ProRes 4444 encoding paths plus rgthree routing.
+They do **not** qualify production-quality compression, sustained
+processing, 10-bit/16-bit *fidelity*, colour-management accuracy, arbitrary
+metadata, audio muxing, the eleven real workflows or pretrained models.
 
 The loopback process is terminated in all normal and exceptional paths.
 
