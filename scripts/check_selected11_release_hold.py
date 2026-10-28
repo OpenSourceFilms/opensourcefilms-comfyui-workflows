@@ -12,6 +12,8 @@ unreviewed upstream code in the report.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -99,6 +101,59 @@ def _read(path: Path, schema: str) -> dict:
     if data.get("schema") != schema:
         raise ValueError("Unexpected source report schema")
     return data
+
+
+def check_all_eleven_coverage_source_bytes(
+    coverage: dict, source_bytes: dict, manifest: dict,
+) -> int:
+    """Bind all 11 coverage SHA-256 claims to current approved source bytes.
+
+    This checks actual checkout content, not merely the format of a supplied
+    hash. It is separate from the pure multi-report `assemble` routine.
+    """
+    rows = coverage.get("workflows") if isinstance(coverage, dict) else None
+    if (not isinstance(rows, list) or len(rows) != 11
+            or not isinstance(source_bytes, dict)
+            or not isinstance(manifest, dict)
+            or len(source_bytes) != 11 or len(manifest) != 11
+            or set(source_bytes) != set(manifest)):
+        raise ValueError("Current eleven source/coverage inventories disagree")
+    seen = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("Malformed current-graph coverage row")
+        name = row.get("workflow")
+        if (not isinstance(name, str) or PUBLIC_PATH.fullmatch(name) is None
+                or name not in source_bytes or name in seen):
+            raise ValueError("Coverage contains missing, duplicate or unexpected source")
+        seen.add(name)
+        source = source_bytes[name]
+        spec = manifest[name]
+        if (not isinstance(source, bytes) or not isinstance(spec, dict)
+                or spec.get("format") not in ("api", "ui")
+                or row.get("graph_format") != spec["format"]):
+            raise ValueError("Current selected graph source or format differs")
+        current = hashlib.sha256(source).hexdigest()
+        if row.get("source_graph_sha256") != current:
+            raise ValueError("Coverage graph SHA differs from current selected source bytes")
+    if seen != set(source_bytes):
+        raise ValueError("Coverage omitted a current approved workflow source")
+    return len(seen)
+
+
+def verify_against_current_checkout(coverage: dict) -> int:
+    """Read the canonical manifest and graph bytes in this checkout, without writes."""
+    root = Path(__file__).resolve().parents[1]
+    script = root / "runpod" / "commercial-compatible" / "prepare.py"
+    if script.is_symlink() or not script.is_file():
+        raise ValueError("Canonical approved workflow selector unavailable")
+    spec = importlib.util.spec_from_file_location("osf_current_selected11", script)
+    if spec is None or spec.loader is None:
+        raise ValueError("Cannot load canonical approved workflow selector")
+    selector = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(selector)
+    approved, manifest = selector.choose_files()
+    return check_all_eleven_coverage_source_bytes(coverage, approved, manifest)
 
 
 def assemble(
@@ -267,12 +322,18 @@ def main() -> int:
     args = cli.parse_args()
     if args.output.is_symlink() or args.output.exists():
         cli.error("Output must not exist or be a symlink")
+    coverage = _read(args.coverage, COVERAGE_SCHEMA)
+    # Reject stale, substituted or mixed coverage reports for ANY selected
+    # workflow, not just the mm_upscale graph shared by three specialist audits.
+    verified_source_count = verify_against_current_checkout(coverage)
     report = assemble(
-        _read(args.coverage, COVERAGE_SCHEMA),
+        coverage,
         _read(args.links, LINKS_SCHEMA),
         _read(args.providers, PROVIDER_SCHEMA),
         _read(args.candidates, CANDIDATES_SCHEMA),
     )
+    report["current_checkout_source_hashes_verified"] = True
+    report["current_checkout_source_hashes_verified_count"] = verified_source_count
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n",
                            encoding="utf-8")
     print("Eleven workflow release decision: HOLD, source-only; no GPU/rights clearance")
