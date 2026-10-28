@@ -55,5 +55,7 @@ jobs:
         run: python scripts/audit_embedded_group_provider_dependencies.py --output "${{ runner.temp }}/mm-upscale-provider-gaps.json"
       - name: Check reviewed candidate source map for embedded mm_upscale providers
         run: python scripts/audit_embedded_group_source_candidates.py --output "${{ runner.temp }}/mm-upscale-reviewed-source-candidates.json"
+      - name: Check embedded Essentials socket parity against reviewed candidate source
+        run: python scripts/audit_mm_upscale_essentials_sockets.py --output "${{ runner.temp }}/mm-upscale-essentials-sockets.json"
       - name: Reject common private values and cache metadata
         run: python scripts/check-workflow-publication.py workflows > "${{ runner.temp }}/publication-audit.json"
