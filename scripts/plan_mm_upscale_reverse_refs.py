@@ -25,6 +25,69 @@ EXPECTED_ACTIVE = 171
 EXPECTED_STALE = 16
 EXPECTED_PER_GROUP = (3, 3, 4, 6)
 
+# This second gate protects the exact sixteen observed orphan locations,
+# not just their count. Replacing one stale ID with another at the same
+# location previously produced an indistinguishable count-only success.
+# Each tuple: (reverse-reference category, node ID or None, port slot, link ID).
+EXPECTED_STALE_BY_GROUP = {
+    "6f5ab705-8e1b-4b53-a3f4-a35676bec4e9": (
+        ("node_output", 362, 0, 620),
+        ("node_output", 232, 0, 459),
+        ("group_input", None, 4, 609),
+        ("group_input", None, 5, 614),
+    ),
+    "1434deb7-2315-427a-8ad1-73b4f683e72d": (
+        ("node_output", 224, 0, 548),
+        ("node_output", 249, 0, 601),
+        ("node_output", 248, 1, 543),
+    ),
+    "3a5d7d35-9999-4738-b299-aed4dbeffd55": (
+        ("node_output", 465, 0, 548),
+        ("node_output", 470, 0, 601),
+        ("node_output", 478, 1, 543),
+    ),
+    "3ed84f91-ec12-4881-a8e3-1d2fc355c673": (
+        ("node_output", 411, 0, 672),
+        ("node_output", 412, 0, 673),
+        ("node_output", 170, 0, 303),
+        ("node_output", 413, 0, 675),
+        ("node_output", 264, 0, 509),
+        ("node_output", 434, 0, 698),
+    ),
+}
+
+
+def require_exact_reviewed_orphans(group: dict) -> None:
+    """Reject stale ID/location drift even when all sixteen counts still match.
+
+    Call only after inspect_group has validated the active link structure.
+    """
+    group_id = group.get("id")
+    if group_id not in EXPECTED_STALE_BY_GROUP:
+        raise ValueError("Unknown embedded group UUID in reviewed orphan snapshot")
+    active_ids = {link["id"] for link in group["links"]}
+    found = []
+    for node in group["nodes"]:
+        for slot, port in enumerate(node.get("outputs", [])):
+            for link_id in _references(port, "links"):
+                if link_id not in active_ids:
+                    found.append(("node_output", node["id"], slot, link_id))
+        for slot, port in enumerate(node.get("inputs", [])):
+            link_id = port.get("link")
+            if link_id is not None and link_id not in active_ids:
+                found.append(("node_input", node["id"], slot, link_id))
+    for port_key, kind in (("inputs", "group_input"),
+                           ("outputs", "group_output")):
+        for slot, port in enumerate(group[port_key]):
+            for link_id in _references(port, "linkIds"):
+                if link_id not in active_ids:
+                    found.append((kind, None, slot, link_id))
+    reviewed = EXPECTED_STALE_BY_GROUP[group_id]
+    if sorted(found, key=repr) != sorted(reviewed, key=repr):
+        raise ValueError("Exact reviewed orphan reference ID/location drift")
+
+
+
 
 def _references(port: dict, field: str) -> list[int]:
     return links._ref_ids(port.get(field), "embedded " + field)
@@ -120,9 +183,12 @@ def plan(root: Path = ROOT) -> dict:
     groups = candidate["definitions"]["subgraphs"]
     if len(groups) != EXPECTED_GROUPS:
         raise ValueError("Selected embedded group count differs")
+    if {g.get("id") for g in groups} != set(EXPECTED_STALE_BY_GROUP):
+        raise ValueError("Selected embedded group UUID set differs from reviewed snapshot")
     all_edits: list[dict] = []
     summaries: list[dict] = []
     for index, group in enumerate(groups):
+        require_exact_reviewed_orphans(group)
         modified, edits = propose_group_cleanup(group, index)
         groups[index] = modified
         all_edits.extend(edits)
@@ -165,6 +231,7 @@ def plan(root: Path = ROOT) -> dict:
         "internal_nodes_untouched": EXPECTED_NODES,
         "active_links_untouched": EXPECTED_ACTIVE,
         "removed_orphan_reverse_references": EXPECTED_STALE,
+        "reviewed_orphan_ids_and_port_locations_exact": True,
         "operations": [
             {
                 "group_index": x["group_index"],
