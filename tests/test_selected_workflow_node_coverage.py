@@ -101,11 +101,12 @@ class LiveSelectedClassCoverageTests(unittest.TestCase):
             for g in embedded["groups"]
         ))
         self.assertEqual(output["unique_graph_class_ids"], 81)
-        self.assertEqual(
-            output["per_workflow"][
-                "workflows/commercial-compatible/sam3_custompkg_probe.json"
-            ]["embedded_internal_class_registration_coverage"],
-            None,
+        an_api = next(w["workflow"] for w in source["workflows"]
+                      if w["graph_format"] == "api")
+        self.assertIsNone(
+            output["per_workflow"][an_api][
+                "embedded_internal_class_registration_coverage"
+            ],
         )
 
     def test_uuid_group_references_not_mistaken_for_runtime_registration(self):
