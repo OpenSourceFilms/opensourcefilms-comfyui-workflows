@@ -90,15 +90,30 @@ not external package availability or licence compliance.
 
 ## Verification status
 
-The accompanying stdlib-only
-[`tests/test_runpod_commercial_profile.py`](../../tests/test_runpod_commercial_profile.py)
-checks selection, research-only exclusion, read-only mode, staging,
-UI/API graph link validation, SHA-256 bundle verification, filtered
-dependency-pin preservation and fail-closed scenarios (including a
-rehashed but malformed graph) without a GPU, model download or external
-dependency. It is part of public CI.
+The restricted staging profile has **source-only structural, inventory,
+hash and dependency-provenance checks**. It is not a clean RunPod GPU
+installation, does not install weights and does not execute the eleven
+selected workflows.
 
-**Not yet accepted:** a genuinely clean RunPod/ComfyUI installation,
-node-import compatibility, model availability, inference results, image
-quality or runtime performance. Those remain separate project acceptance
-tasks; see [issues #2 and #1](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/issues).
+Separately, a fresh disposable GitHub-hosted **CPU** runner has successfully
+installed pinned public ComfyUI and a limited set of pinned third-party
+custom nodes, verified live node registration, executed synthetic
+OSF/third-party CPU paths and checked generated PNG, GIF, H.264, HEVC
+and ProRes results. There is also a separate genuine 12-bit direct-FFmpeg
+ProRes roundtrip. See the [narrow CPU acceptance scope](../../docs/clean-cpu-runtime-qualification.md).
+These tests are **not** evidence that the eleven selected workflows are
+installable, inference-capable, GPU-qualified or rights-cleared. Their
+individual source-only barriers are consolidated under the
+[selected-eleven release HOLD](../../docs/selected11-release-hold.md).
+
+Before testing on GPU, follow the [per-workflow GPU and model acceptance
+protocol](../../docs/gpu-acceptance-protocol.md). It requires a registered
+dedicated ComfyUI target, an approved project and GPU reservation,
+exact reviewed provider/model revisions and rights, separate UI-to-API
+conversion where needed, and per-workflow inference/output evidence.
+A running GPU pod or an installed node family does not itself establish
+any of these conditions.
+
+**Current production decision: HOLD for all eleven.** Track model and
+GPU admission in [issue #3](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/issues/3)
+and legacy installer compatibility in [issue #2](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/issues/2).
