@@ -132,6 +132,24 @@ versions, registration, synthetic output hashes and explicit exclusions.
 No generated images, model weights, third-party source or logs containing
 personal paths are uploaded.
 
+## Real ComfyUI test-only RGB48 input-precision probe
+
+This CPU qualification also constructs a **separate 2-node ComfyUI API graph**
+from an OSF test fixture that returns actual 12-bit-normalized floating
+`IMAGE` tensors. An additional test-only ProRes 4444 configuration explicitly
+sets `input_color_depth=16bit` for pinned VideoHelperSuite's existing
+`tensor_to_shorts`/`rgb48` path. It requires two same-8-bit-bucket source
+level pairs to remain distinguishable after actual MOV encode/decode.
+The runner checks every `rgb48le` output sample against its original
+source within 256 of 65,535 code values. All test-only video output is
+temporary; the evidence is metadata-only.
+
+**This does not change or clear the existing upstream ProRes default.**
+That preset still converts source tensors to 8-bit RGB24 before encoding,
+and no 12-bit source fidelity is claimed for any of the eleven selected
+production workflows. See
+[`vhs-prores-input-precision.md`](vhs-prores-input-precision.md).
+
 ## Independent real 12-bit ProRes source and fidelity gate
 
 The same isolated CI job also runs
