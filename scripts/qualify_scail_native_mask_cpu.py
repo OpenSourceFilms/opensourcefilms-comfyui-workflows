@@ -70,9 +70,12 @@ def validate_scail_history(history: object, prompt_id: str) -> dict:
     return entry
 
 
-def _expected_rgb(mode: str, category: str) -> bytes:
-    """Expected full raster for native sort and animation/replacement modes."""
-    if mode not in ("animation", "replacement") or category not in ("drive", "ref"):
+def _expected_rgb(mode: str, category: str, frame_index: int = 0) -> bytes:
+    """Expected full raster, including track-stable colours after crossing."""
+    if (mode not in ("animation", "replacement")
+            or category not in ("drive", "ref")
+            or frame_index not in (0, 1)
+            or (category == "ref" and frame_index != 0)):
         raise ValueError("Unrecognized SCAIL synthetic expectation")
     background = (
         (255, 255, 255)
@@ -88,9 +91,11 @@ def _expected_rgb(mode: str, category: str) -> bytes:
             pixel = background
             if category == "drive":
                 if 16 <= y < 48 and 8 <= x < 24:
-                    pixel = (0, 0, 255)  # left sorted to palette[0] blue
+                    # First frame LEFT is blue. Second-frame LEFT is red:
+                    # colours follow tracked identity, not current x-position.
+                    pixel = (0, 0, 255) if frame_index == 0 else (255, 0, 0)
                 elif 16 <= y < 48 and 40 <= x < 56:
-                    pixel = (255, 0, 0)  # right sorted to palette[1] red
+                    pixel = (255, 0, 0) if frame_index == 0 else (0, 0, 255)
             elif 24 <= y < 40 and 24 <= x < 40:
                 pixel = (0, 0, 255)  # ref MASK is single blue identity
             data.extend(pixel)
@@ -109,10 +114,10 @@ def inspect_scail_rasters(port: int, entry: dict, fetch_asset) -> dict:
     hashes = {}
     inspected = 0
     for node_id, mode, category in specs:
-        expected = _expected_rgb(mode, category)
         images = entry["outputs"][node_id]["images"]
         seen = []
-        for item in images:
+        for index, item in enumerate(images):
+            expected = _expected_rgb(mode, category, index)
             raw = fetch_asset(port, item, "png")
             with Image.open(BytesIO(raw)) as image:
                 if image.format != "PNG" or image.size != (WIDTH, HEIGHT):
@@ -129,11 +134,13 @@ def inspect_scail_rasters(port: int, entry: dict, fetch_asset) -> dict:
         "status": "native_scail_colored_masks_executed_on_cpu",
         "public_native_class": NATIVE,
         "models_used": False,
-        "input_source": "synthetic_2identity_bitpacked_sam3_track_plus_plain_mask",
+        "input_source": "synthetic_2identity_crossing_bitpacked_sam3_track_plus_plain_mask",
         "frames": 2,
         "resolution": [WIDTH, HEIGHT],
         "all_preview_pixels_verified": True,
-        "left_identity_blue_right_identity_red": True,
+        "first_frame_left_identity_blue_right_identity_red": True,
+        "second_frame_left_identity_red_right_identity_blue": True,
+        "tracked_identity_palette_preserved_across_crossing": True,
         "animation_drive_background_black": True,
         "animation_reference_background_white": True,
         "replacement_drive_background_white": True,
