@@ -248,6 +248,37 @@ metadata-only evidence artifact. No GPU/model inference is attempted.
 The downstream full workflow, GPU, weights and rights acceptance
 remains open in [issue #3](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/issues/3).
 
+## Native SAM3/SCAIL live API schema parity
+
+The pinned public `Comfy-Org/ComfyUI@08cf0284ff45723aa67841c80cabb0e3cb50c9d7`
+contains native `SAM3_Detect`, `SAM3_VideoTrack`,
+`SAM3_TrackPreview`, `SCAIL2ColoredMask`, and
+`WanSCAILToVideo`. The existing
+[`audit_sam3_scail_api_bindings.py`](../scripts/audit_sam3_scail_api_bindings.py)
+preflights three selected *actual API prompt files* against these
+source-derived class/input/output declarations, but source inspection
+alone does not establish that these declarations match the installed
+server's runtime registry.
+
+The separate [live registry comparator](../scripts/audit_sam3_scail_live_registry.py)
+now reads `/object_info` on the **same disposable pinned ComfyUI CPU
+server** and checks all five class registrations, every documented
+source-defined socket name, declared socket type, required input
+presence, output-slot order/types, and the three `SAM3_Detect`
+`forceInput` connection-only flags. It checks the published
+`SCAIL2ColoredMask.sort_by` enum values too. Missing classes,
+required fields, typed sockets, forced-link metadata or output slots
+fail the isolated CPU acceptance job. Additional runtime fields are
+counted as **unreviewed** rather than automatically approved.
+
+**Explicit limits:** `SCAIL2ColoredMask.ref_track_data` is an
+`SAM3_TRACK_DATA | MASK` multi-type socket; this narrow test confirms
+its presence but does not claim full runtime union-type serialization
+compatibility. Actual model loading, SAM3 segmentation, SCAIL inference,
+ComfyUI submission of the three original API graphs, and GPU/VRAM
+acceptance remain untested. The live registry report contains only
+field/slot counts and acceptance flags, not prompts or media.
+
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
