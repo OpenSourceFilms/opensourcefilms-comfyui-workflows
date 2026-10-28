@@ -248,6 +248,17 @@ metadata-only evidence artifact. No GPU/model inference is attempted.
 The downstream full workflow, GPU, weights and rights acceptance
 remains open in [issue #3](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/issues/3).
 
+## Model-free native SCAIL2ColoredMask execution
+
+The disposable runner additionally executes an actual ComfyUI API graph
+using the **pinned public native `SCAIL2ColoredMask` node** and synthetic,
+bit-packed two-object `SAM3_TRACK_DATA` plus a plain reference `MASK`.
+It checks all pixels of six temporary previews in both animation and
+replacement modes: deterministic left-to-right blue/red identity order
+and inverse white/black background rules. This does not execute any
+SAM3 or Wan model or infer a driving video. Full evidence and exclusions:
+[native SCAIL mask CPU qualification](scail-native-mask-cpu-qualification.md).
+
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
