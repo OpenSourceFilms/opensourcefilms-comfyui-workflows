@@ -33,8 +33,11 @@ readiness scoring system. The following are checked together and must agree:
 
 - Eleven selected workflow identities from the canonical selected-profile
   audit, including four API exports and seven editor/UI exports.
-- Exact graph SHA-256 agreement between the embedded-group link,
-  provider-manifest and provider-source-candidate audits.
+- SHA-256 fingerprints of the **exact bytes of all eleven selected
+  workflows** in the coverage report, with explicit `mm_upscale` agreement
+  against the independent embedded-group link, provider-manifest and
+  provider-source-candidate audits. A coverage report from an earlier
+  `mm_upscale` revision must fail even if those other three agree.
 - Four embedded group definitions, 89 internal nodes and consistent
   group/instance counts. Source audits currently report 171 structurally
   consistent active links, but **16 unresolved reverse references**.
@@ -69,6 +72,14 @@ audits or prove an unchanged external licence. The corresponding dedicated
 source-only CI audits remain separately required. A passing consolidated
 CI run means the **HOLD decision is internally consistent**, not that
 the eleven workflows are executable.
+
+The coverage report now includes a `source_graph_sha256` field on
+each workflow row. The reconciler rejects absent, malformed or stale
+hashes and checks the `mm_upscale` coverage hash against the same
+graph fingerprint used by all three specialized audits. This binds
+the four report inputs to the **same mm_upscale graph revision**.
+It does not establish complete temporal consistency across other
+workflows or certify runtime compatibility.
 
 The report deliberately cannot return `GO`: independently reviewed runtime,
 model provenance, licence permissions, GPU inference, and output acceptance
