@@ -91,6 +91,30 @@ cross-device sync.
 Only numeric errors, codec metadata and hashes are included in
 JSON-only evidence; no MOVs or decoded audio are retained or uploaded.
 
+## Actual stereo audio/video presentation timestamps
+
+The stereo PCM path also independently inspects **timestamps from the
+encoded MOV**, not only sample identity or stream duration. The pinned
+FFmpeg decoder applies `showinfo` and `ashowinfo` to the ProRes
+video and the PCM s16le stereo track. The new stereo-specific gate
+requires two video frames with PTS **0.0 s and 0.5 s**, each of
+0.5 s duration, plus a contiguous 48 kHz **two-channel** PCM timeline
+beginning at zero, covering exactly 48,000 sample frames and ending at
+1.0 s. Every audio packet must have the exact cumulative-sample PTS,
+the stereo channel layout and the expected sample format. The
+presentation-time conversion, audio/video endpoints and every reported
+clock must agree within **1 ms**.
+
+Offline negative tests reject missing/reordered video frames, gaps or
+offsets in PCM packet timestamps, missing or padded samples, invalid
+sample rates, channel layouts, format identifiers, and altered packet
+presentation clocks. The result is metadata-only, with no media
+uploaded.
+
+This remains a **one-second synthetic PTS and channel-identity check**,
+not long-form drift, genlock, multicamera synchronisation, professional
+timecode, or Atmos/delivery acceptance.
+
 ## Non-acceptance
 
 These short synthetic checks do **not** establish sample-accurate
