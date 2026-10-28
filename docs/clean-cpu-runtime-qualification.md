@@ -218,9 +218,11 @@ VideoHelperSuite audio-mux path. A disposable `OSFTestSineAudio`
 fixture produces a 48 kHz, 440 Hz mono sine-wave alongside two black
 64×64 video frames. The harness requires an actual ProRes 4444 MOV
 with an uncompressed PCM s16le mono audio stream and decodes both
-streams independently. Signal frequency, amplitude, sample count and
-video frame content are checked; only metadata and hashes enter the
-CI artifact. This does not establish long-form sync, dialogue/Atmos
+streams independently. Exactly 48,000 samples must match the
+generated 440 Hz sine within 0.001 maximum per-sample amplitude error,
+so corruption anywhere in the one-second synthetic waveform fails.
+The ProRes video frames are also checked; only metadata and hashes
+enter the CI artifact. This does not establish long-form sync, dialogue/Atmos
 requirements, arbitrary production audio or any model inference.
 
 ## Pinned UltimateSDUpscale submodule, no mutable fallback
