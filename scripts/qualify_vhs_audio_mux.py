@@ -67,25 +67,33 @@ def validate_mux_history(record: object) -> dict:
 
 
 def check_decoded_mono_pcm(samples: array) -> dict:
-    """Validate audio frequency, amplitude, initial waveform and channel count."""
+    """Verify every sample of the fixed one-second synthetic PCM sine.
+
+    The source is exactly 48,000 float32 samples. The resulting mono
+    s16le track is decoded back to float32 with only 16-bit PCM rounding;
+    no duration padding or sample-rate conversion is part of this gate.
+    A contiguous damaged segment outside a sparse checkpoint grid must
+    fail, including corruption near the tail of the recording.
+    """
     count = len(samples)
-    if not SAMPLE_RATE - 512 <= count <= SAMPLE_RATE + 4096:
-        raise ValueError("PCM audio sample count is inconsistent with one second")
+    if count != SAMPLE_RATE:
+        raise ValueError("PCM audio sample count differs from the exact one-second source")
     if not all(math.isfinite(value) for value in samples):
         raise ValueError("PCM audio contains nonfinite samples")
-    first = samples[:SAMPLE_RATE - 1024]
-    peak = max(abs(value) for value in first)
+    peak = max(abs(value) for value in samples)
     if not 0.195 <= peak <= 0.205:
         raise ValueError("PCM audio tone peak amplitude differs")
-    checkpoints = (0, 1, 2, 11, 12, 15, 97, 111, 1024, 2048,
-                   4096, 8888, 12345, 23456, 34567, 44000)
-    max_sample_error = max(
-        abs(samples[i] - TONE_AMPLITUDE *
-            math.sin(2 * math.pi * TONE_HZ * i / SAMPLE_RATE))
-        for i in checkpoints
-    )
-    if max_sample_error > 0.003:
-        raise ValueError("Decoded PCM source frequency/phase differs")
+
+    errors = [
+        abs(value - TONE_AMPLITUDE *
+            math.sin(2 * math.pi * TONE_HZ * index / SAMPLE_RATE))
+        for index, value in enumerate(samples)
+    ]
+    max_sample_error = max(errors)
+    # A 16-bit PCM encode/decode is typically ~1/32768 from the input,
+    # leaving a 0.001 bound for narrow platform-dependent rounding.
+    if max_sample_error > 0.001:
+        raise ValueError("Decoded PCM full-waveform frequency/phase/content differs")
     return {
         "status": "synthetic_pcm_s16le_audio_verified",
         "sample_rate_hz": SAMPLE_RATE,
@@ -93,8 +101,11 @@ def check_decoded_mono_pcm(samples: array) -> dict:
         "source_tone_hz": TONE_HZ,
         "source_amplitude": TONE_AMPLITUDE,
         "samples_decoded": count,
+        "samples_compared": count,
         "peak_amplitude": round(peak, 6),
-        "maximum_checkpoint_error": round(max_sample_error, 7),
+        "maximum_full_waveform_sample_error": round(max_sample_error, 7),
+        "mean_full_waveform_sample_error": round(math.fsum(errors) / count, 7),
+        "full_waveform_validated": True,
         "sample_sha256": hashlib.sha256(samples.tobytes()).hexdigest(),
     }
 
