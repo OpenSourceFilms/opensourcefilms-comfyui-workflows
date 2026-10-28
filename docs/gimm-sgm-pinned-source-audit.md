@@ -53,6 +53,37 @@ the audit does not imply that their exact sockets, weights or CUDA
 execution are qualified. Tween's loader may download a missing model
 and uses CuPy. No such functions are executed by this source audit.
 
+## Non-destructive class-name migration candidate
+
+[The source-only candidate planner](../scripts/plan_gimm_vfi_class_migration.py)
+reviews the **same exact-pinned kijai source** and original exported UI
+graph, but never writes a replacement workflow. At these revisions,
+the two GIMM source interfaces have the following *provisional*
+class-name substitutions:
+
+| UI node ID | Historical graph type | Exact pinned kijai registration |
+|---|---|---|
+| 1 | `GIMMVFI_loader` | `DownloadAndLoadGIMMVFIModel` |
+| 2 | `GIMMVFIInterpolate` | `GIMMVFI_interpolate` |
+
+The planner statically compares **every input socket name and type**,
+required input presence, **all output types and names**, and the
+original `ComfyUI-GIMM-VFI` source revision. It constructs the
+candidate *only in memory* and verifies that restoring the two
+historical class names also restores the **entire exact input graph**,
+including all links, widget values and unrelated nodes. The CI
+artifact contains only bounded diff metadata and a hash of the
+canonical in-memory candidate, **not a deployable JSON graph**.
+Seven negative tests reject schema drift and accidental mutations.
+
+This establishes a possible **two-class GIMM migration**, not a
+completed workflow migration. The SGM source classes remain separate;
+they have not passed their full socket/link, weights or CuPy/GPU
+acceptance. Model checkpoint provenance, licence conditions and
+actual GIMM/SGM inference still require independent checks. The
+candidate's decision remains `CANDIDATE_ONLY_HOLD`, and the selected
+released workflow is **not modified** or ready for production.
+
 ## Reproducible gate
 
 [The isolated Actions job](../.github/workflows/audit-gimm-sgm-source.yml)
