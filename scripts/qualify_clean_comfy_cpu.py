@@ -142,8 +142,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         raise FileExistsError("Will not overwrite prior acceptance evidence")
     with tempfile.TemporaryDirectory(prefix="osf_cpu_qualification_") as scratch:
         scratch = Path(scratch)
-        datadir = scratch / "data"
-        datadir.mkdir()
+        # Keep server workspace in its disposable checkout. Setting an
+        # alternate ComfyUI base would also change custom-node search paths.
         env = os.environ.copy()
         env.update({
             "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1",
@@ -153,7 +153,6 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         cmd = [
             sys.executable, "main.py", "--cpu", "--offline",
             "--listen", "127.0.0.1", "--port", str(port),
-            "--base-directory", str(datadir),
         ]
         log_path = scratch / "startup.log"
         with log_path.open("w+", encoding="utf-8") as log:
