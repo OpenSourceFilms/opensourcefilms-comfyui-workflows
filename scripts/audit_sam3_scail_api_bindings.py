@@ -251,6 +251,13 @@ def audit(root: Path = ROOT) -> dict:
         results.append({"workflow": name, **result})
     if total != 12:
         raise ValueError("Unexpected total of native SAM3/SCAIL node instances")
+    if (sum(result["checked_pinned_provider_source_output_types"]
+            for result in results) != 31
+            or sum(result["vhs_nominal_image_links_without_vae"]
+                   for result in results) != 6
+            or any(result["external_source_output_types_unverified"]
+                   for result in results)):
+        raise ValueError("Selected native edges no longer match reviewed provider bindings")
     return {
         "schema": "osf-sam3-scail-public-native-api-binding-preflight-v1",
         "public_core_commit": CORE_COMMIT,
