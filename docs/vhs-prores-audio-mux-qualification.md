@@ -39,9 +39,41 @@ The uploaded evidence is **JSON only**: codec, signal validation,
 counts, maximum and mean full-waveform sample errors and hashes. Neither encoded MOV nor
 decoded waveform is uploaded.
 
+## Independent two-channel PCM16 channel identity test
+
+An additional model-free ComfyUI graph uses a **second, test-only**
+`OSFTestStereoAudio` source class in the same disposable fixture.
+It generates 48 kHz stereo audio with independently identifiable channels:
+**440 Hz at amplitude 0.20 on the left** and **660 Hz at amplitude 0.14
+on the right**. The `AUDIO` waveform has exactly one batch, two
+channels, and 48,000 source sample frames. It combines this with two
+synthetic black images using the actual pinned `VHS_VideoCombine`
+`video/ProRes` / `profile=4444` node and `save_output=false`.
+
+The separate [stereo qualification gate](../scripts/qualify_vhs_stereo_pcm_mux.py)
+uses the real ComfyUI `/prompt` and `/history` paths, validates the
+temporary `-audio.mov` filename, and retrieves the MOV only via
+loopback `/view` with the existing 2 MB limit. FFmpeg must identify
+ProRes 4444 video containing exactly two black 64×64 frames and a
+**48 kHz stereo PCM s16le track**. Decoded interleaved float32 audio
+is verified *channel by channel* against both independently generated
+sine waves for **46,976 consecutive sample frames**, not a sparse
+selection of checkpoints. Maximum permitted absolute waveform error
+is **0.003 per channel**; the two source-channel amplitudes must also
+fall within their distinct peak ranges.
+
+The negative contracts reject missing/unsafe output, mono duplicates,
+swapped left and right, wrong amplitude or frequency, odd frame
+alignment, NaNs, sample-count discrepancies, and even a single
+out-of-tolerance interior sample. This demonstrates **channel
+identity and separation** through this particular short synthetic
+VHS/ProRes PCM16 mux path, not multi-hour drift or cross-device sync.
+Only numeric errors, codec metadata and hashes are included in
+JSON-only evidence; no MOVs or decoded audio are retained or uploaded.
+
 ## Non-acceptance
 
-This short synthetic check does **not** establish sample-accurate
+These short synthetic checks do **not** establish sample-accurate
 audio/video sync for production clips, dialogue intelligibility,
 surround sound, 24-bit PCM, 96 kHz, Atmos, timecode, channel-layout
 metadata, long-duration drift, delivery-loudness compliance, arbitrary
