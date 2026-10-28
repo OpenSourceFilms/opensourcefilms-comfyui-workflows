@@ -8,6 +8,8 @@ on:
       - "scripts/audit_gimm_sgm_source_bindings.py"
       - "scripts/plan_gimm_vfi_class_migration.py"
       - "scripts/audit_sgm_segment_source_parity.py"
+      - "scripts/audit_sgm_widget_and_image_links.py"
+      - "tests/test_sgm_widget_and_image_links.py"
       - "tests/test_sgm_segment_source_parity.py"
       - "tests/test_gimm_migration_candidate.py"
       - "tests/test_gimm_source_bindings.py"
@@ -19,6 +21,8 @@ on:
       - "scripts/audit_gimm_sgm_source_bindings.py"
       - "scripts/plan_gimm_vfi_class_migration.py"
       - "scripts/audit_sgm_segment_source_parity.py"
+      - "scripts/audit_sgm_widget_and_image_links.py"
+      - "tests/test_sgm_widget_and_image_links.py"
       - "tests/test_sgm_segment_source_parity.py"
       - "tests/test_gimm_migration_candidate.py"
       - "tests/test_gimm_source_bindings.py"
@@ -52,6 +56,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_gimm_migration_candidate.py" -v
       - name: Test SGM full socket/return/link source parity without importing upstream code
         run: python -B -m unittest discover -s tests -p "test_sgm_segment_source_parity.py" -v
+      - name: Verify SGM numeric widget and IMAGE link negative contracts
+        run: python -B -m unittest discover -s tests -p "test_sgm_widget_and_image_links.py" -v
       - name: Fetch both historical exact-pinned third-party source revisions
         run: |
           set -euo pipefail
@@ -94,6 +100,14 @@ jobs:
           set -euo pipefail
           python -B scripts/audit_sgm_segment_source_parity.py             --tween-root "$RUNNER_TEMP/gimm-source-only/tween"             --output "$RUNNER_TEMP/osf-sgm-segment-schema-hold.json"
           python -B -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["status"]=="SCHEMA_PARITY_SOURCE_ONLY_HOLD" and j["segment_model_pass_through_source_signature_verified"] and not j["gpu_runtime_qualified"] and not j["inference_executed"]'             "$RUNNER_TEMP/osf-sgm-segment-schema-hold.json"
+      - name: Verify selected SGM widget domains and both IMAGE links without model execution
+        run: |
+          set -euo pipefail
+          python -B scripts/audit_sgm_widget_and_image_links.py \
+            --tween-root "$RUNNER_TEMP/gimm-source-only/tween" \
+            --output "$RUNNER_TEMP/osf-sgm-widget-image-hold.json"
+          python -B -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["status"]=="WIDGET_AND_IMAGE_WIRES_SOURCE_ONLY_HOLD" and j["total_widgets_checked"]==13 and j["all_widget_types_choices_numeric_bounds_verified"] and not j["model_or_gpu_inference_qualified"]' \
+            "$RUNNER_TEMP/osf-sgm-widget-image-hold.json"
       - name: Retain metadata-only source inspection, not third-party source
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -102,5 +116,6 @@ jobs:
             ${{ runner.temp }}/osf-gimm-source-only.json
             ${{ runner.temp }}/osf-gimm-migration-candidate.json
             ${{ runner.temp }}/osf-sgm-segment-schema-hold.json
+            ${{ runner.temp }}/osf-sgm-widget-image-hold.json
           if-no-files-found: error
           retention-days: 14
