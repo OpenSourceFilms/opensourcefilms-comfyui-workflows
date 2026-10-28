@@ -809,6 +809,18 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             try:
                 registration = _probe_server(port, child)
                 selected_coverage = registration.pop("selected_workflow_node_coverage")
+                # Independent live schema check after the server is ready.
+                # A mismatch fails immediately instead of being treated as
+                # a transient server startup/polling error.
+                from audit_sam3_scail_live_registry import verify_native_live_schemas
+                with urlopen(f"http://127.0.0.1:{port}/object_info",
+                             timeout=8) as native_resp:
+                    if native_resp.status != 200:
+                        raise ValueError("Live SAM3/SCAIL schema HTTP status invalid")
+                    payload = native_resp.read(2_500_001)
+                    if len(payload) > 2_500_000:
+                        raise ValueError("Native live registry exceeds size limit")
+                    live_native_schemas = verify_native_live_schemas(json.loads(payload))
                 synthetic = execute_synthetic(package)
                 downsample = execute_downsample_fps_synthetic(
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
@@ -843,6 +855,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "runtime": "isolated_github_actions_ubuntu_cpu_only",
         "registration": registration,
         "selected_workflow_node_coverage": selected_coverage,
+        "pinned_native_sam3_scail_live_socket_schema": live_native_schemas,
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
