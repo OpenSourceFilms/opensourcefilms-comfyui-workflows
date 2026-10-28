@@ -117,6 +117,63 @@ class ElevenWorkflowNodeCoverageTests(unittest.TestCase):
                             and not w["executable_api_prompt_proven"]
                             for w in report["workflows"]))
 
+    def test_embedded_mm_upscale_group_definitions_are_present_but_unqualified(self):
+        report = checker.audit()
+        self.assertEqual(report["embedded_group_internal_node_instances"], 89)
+        self.assertEqual(len(report["embedded_group_uuid_classes"]), 4)
+        self.assertEqual(report["missing_embedded_group_uuid_definitions"], [])
+        mm = next(row for row in report["workflows"] if
+                  row["workflow"].endswith("/mm_upscale_video_workflow.json"))
+        groups = mm["embedded_group_definition_preflight"]
+        self.assertTrue(groups["all_referenced_uuid_definitions_embedded"])
+        self.assertEqual(len(groups["embedded_definitions"]), 4)
+        self.assertEqual(groups["embedded_internal_node_instances"], 89)
+        expected = {
+            "6f5ab705-8e1b-4b53-a3f4-a35676bec4e9": 16,
+            "1434deb7-2315-427a-8ad1-73b4f683e72d": 35,
+            "3a5d7d35-9999-4738-b299-aed4dbeffd55": 28,
+            "3ed84f91-ec12-4881-a8e3-1d2fc355c673": 10,
+        }
+        self.assertEqual({
+            d["group_uuid"]: d["internal_node_instances"]
+            for d in groups["embedded_definitions"]
+        }, expected)
+        self.assertIn("easy forLoopStart",
+                      groups["unique_embedded_internal_class_ids"])
+        self.assertIn("ImageBatchJoinWithTransition",
+                      groups["unique_embedded_internal_class_ids"])
+        self.assertTrue(all(not d["runtime_registered"]
+                            and not d["internal_nodes_runtime_qualified"]
+                            and not d["executable_api_prompt_proven"]
+                            for d in groups["embedded_definitions"]))
+        self.assertFalse(groups["runtime_qualified"])
+
+    def test_embedded_group_missing_or_corrupted_definition_fails_or_reports(self):
+        group_id = "3a5d7d35-9999-4738-b299-aed4dbeffd55"
+        nodes = [{"class": group_id, "owner_hint": "comfy-core"}]
+        no_definition = checker.inspect_embedded_subgraphs({}, nodes)
+        self.assertEqual(no_definition["missing_embedded_definition_ids"],
+                         [group_id])
+        self.assertFalse(no_definition["all_referenced_uuid_definitions_embedded"])
+        definition = {"id": group_id, "nodes": [
+            {"type": "ImageBatchJoinWithTransition"}, {"type": "easy forLoopStart"},
+        ]}
+        recovered = checker.inspect_embedded_subgraphs(
+            {"definitions": {"subgraphs": [definition]}}, nodes)
+        self.assertEqual(recovered["embedded_internal_node_instances"], 2)
+        self.assertFalse(recovered["runtime_qualified"])
+        for bad in (
+            {"definitions": {"subgraphs": {}}},
+            {"definitions": {"subgraphs": [definition, definition]}},
+            {"definitions": {"subgraphs": [{**definition, "nodes": []}]}},
+            {"definitions": {"subgraphs": [
+                {**definition, "nodes": [{"type": "\nsecret"}]},
+            ]}},
+        ):
+            with self.subTest(bad=repr(bad)[:45]):
+                with self.assertRaises(ValueError):
+                    checker.inspect_embedded_subgraphs(bad, nodes)
+
     def test_report_omits_media_names_and_prompt_values(self):
         serialized = json.dumps(checker.audit(), sort_keys=True)
         self.assertNotIn("scail2_test_driving_video.mp4", serialized)
