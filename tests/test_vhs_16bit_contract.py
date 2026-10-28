@@ -94,22 +94,34 @@ class VHSInputPrecisionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "did not complete"):
             qualifier.validate_precision_history(correct, ident)
 
-    def test_control_collapse_and_precise_distinctions(self):
+    @staticmethod
+    def _grid_fixture_arrays():
         n = 2 * qualifier.FRAME_COMPONENTS
         default = array("H", [2048] * n)
         high = array("H", [2048] * n)
         for frame in range(2):
             for row in range(2):
-                offset = (frame * qualifier.FRAME_COMPONENTS
-                          + (row * 32 + 16) * 64)
-                default[offset + 16] = 2080
-                default[offset + 48] = 2080
-                high[offset + 16] = 2079
-                high[offset + 48] = 2083
+                for dy in qualifier.INTERIOR_OFFSETS:
+                    for dx in qualifier.INTERIOR_OFFSETS:
+                        offset = (frame * qualifier.FRAME_COMPONENTS
+                                  + (row * 32 + dy) * 64)
+                        default[offset + dx] = 2080
+                        default[offset + 32 + dx] = 2080
+                        high[offset + dx] = 2079
+                        high[offset + 32 + dx] = 2083
+        return default, high
+
+    def test_control_collapse_and_precise_distinctions(self):
+        default, high = self._grid_fixture_arrays()
         result = qualifier.verify_precision_contrast(default, high)
         self.assertEqual(result["default_8bit_collapsed_pairs"], 4)
         self.assertEqual(result["optin16_preserved_pairs"], 4)
         self.assertEqual(result["optin16_luma_code_level_deltas"], [4] * 4)
+        self.assertEqual(result["interior_grid_offsets"], [8, 16, 24])
+        self.assertEqual(result["interior_control_collapsed_pairs"], 36)
+        self.assertEqual(result["interior_optin16_preserved_pairs"], 36)
+        self.assertEqual(result["interior_optin16_min_luma_delta_12bit"], 4)
+        self.assertEqual(result["interior_optin16_max_luma_delta_12bit"], 4)
         self.assertFalse(result["bit_exact_source_fidelity_qualified"])
 
     def test_rejects_quantized_precise_input(self):
@@ -119,22 +131,29 @@ class VHSInputPrecisionTests(unittest.TestCase):
             qualifier.verify_precision_contrast(flat, flat)
 
     def test_rejects_wrong_default_control_and_outsize_delta(self):
-        n = 2 * qualifier.FRAME_COMPONENTS
-        default = array("H", [2048] * n)
-        precise = array("H", [2048] * n)
-        for frame in range(2):
-            for row in range(2):
-                index = (frame * qualifier.FRAME_COMPONENTS
-                         + (row * 32 + 16) * 64)
-                precise[index + 48] = 2053
+        default, precise = self._grid_fixture_arrays()
         result = qualifier.verify_precision_contrast(default, precise)
-        self.assertEqual(result["optin16_preserved_pairs"], 4)
+        self.assertEqual(result["interior_optin16_preserved_pairs"], 36)
         default[16 * 64 + 48] = 2053
         with self.assertRaisesRegex(ValueError, "default 8-bit control"):
             qualifier.verify_precision_contrast(default, precise)
-        default[16 * 64 + 48] = 2048
-        precise[16 * 64 + 48] = 2080
+        default[16 * 64 + 48] = 2080
+        precise[16 * 64 + 48] = 2110
         with self.assertRaisesRegex(ValueError, "did not retain"):
+            qualifier.verify_precision_contrast(default, precise)
+
+    def test_spatial_grid_detects_off_center_detail_loss(self):
+        default, precise = self._grid_fixture_arrays()
+        # One of the 3x3 grid points, away from all four original centers.
+        precise[8 * 64 + 40] = 2079
+        with self.assertRaisesRegex(ValueError, "spatial grid lost"):
+            qualifier.verify_precision_contrast(default, precise)
+
+    def test_spatial_grid_rejects_off_center_default_8bit_failure(self):
+        default, precise = self._grid_fixture_arrays()
+        # A subtle mistake in the nominal 8-bit control must not pass.
+        default[8 * 64 + 40] = 2081
+        with self.assertRaisesRegex(ValueError, "spatial grid did not collapse"):
             qualifier.verify_precision_contrast(default, precise)
 
 
