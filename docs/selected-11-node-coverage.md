@@ -19,6 +19,38 @@ The report is generated in a disposable CI temp directory. It is not uploaded as
 
 The report omits prompt texts, model filenames, paths to footage and images. It includes public workflow paths, node-class names, canonical dependency names and explicit negative acceptance flags.
 
+## Live registration coverage of embedded upscale subgraphs
+
+The disposable CPU runner compares the public embedded definitions of
+`mm_upscale_video_workflow.json` to actual live `/object_info`
+registration, **separately** from its 81 top-level unique class IDs.
+
+The live JSON-only report adds
+`embedded_internal_class_registration_coverage` per selected workflow,
+including each referenced embedded group UUID, its declared internal
+node-instance count and distinct class IDs, classes registered in
+this exact pinned clean CPU installation, and missing classes grouped by
+fork-native, editor/extension, unresolved nested UUID, and other.
+It reconciles the expected **four embedded definitions and 89 internal
+node instances** with the canonical source audit and fails on altered
+counts, duplicate group IDs or malformed class names. Aggregate
+`embedded_internal_node_instances`,
+`embedded_internal_unique_class_ids`,
+`embedded_registered_unique_class_ids` and
+`embedded_unregistered_unique_class_ids` appear in the CPU evidence.
+
+**These internal classes are not added to the 81 top-level distinct class
+IDs or top-level registry coverage denominator.** A UUID-shaped nested
+group class is never treated as an executable node even if its exact
+string appears in the registry. A successful internal class registration
+still proves neither the subgraph's frontend implementation nor a
+valid expanded API prompt, internal socket connections, weights, GPU
+inference, compatibility or commercial licences. Every subgraph retains
+an explicit `internal_graph_executable=false` flag.
+
+This is more specific evidence for dependency triage, not a
+declaration that the `mm_upscale` workflow will run.
+
 ## Required downstream acceptance
 
 1. Verify all **embedded subgraph internal dependencies**, including each required package, node input/output schema, extension version and licence. Confirm the four matching definitions load and execute correctly in the target ComfyUI frontend and API conversion. Other workflow group definitions, if introduced, must be validated before acceptance.
