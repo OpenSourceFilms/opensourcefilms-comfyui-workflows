@@ -22,7 +22,7 @@ without invoking the broad legacy installer:
 
 | Package | Exact source revision | Required registered class |
 |---|---|---|
-| ComfyUI-VideoHelperSuite | `2984ec4c4b93292421888f38db74a5e8802a8ff8` | `VHS_VideoCombine` |
+| ComfyUI-VideoHelperSuite | `2984ec4c4b93292421888f38db74a5e8802a8ff8` | `VHS_VideoCombine`, `VHS_SelectEveryNthImage` |
 | rgthree-comfy | `d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4` | `Any Switch (rgthree)` |
 | ComfyUI-DownsampleFPS | `4d741ef8e33b0c5111ad21033f9408acffc63651` | `DownsampleFPSNode` |
 | ComfyUI-GGUF | `6ea2651e7df66d7585f6ffee804b20e92fb38b8a` | `UnetLoaderGGUF` |
@@ -266,24 +266,32 @@ The [audit script](../scripts/audit_selected_workflow_nodes.py) reads
 each original UI/API graph without editing or executing it, extracts its
 actual node class IDs and exact source SHA-256, then compares them with
 the **real live `/object_info` class registry** of the pinned disposable
-ComfyUI + five external packages.
+ComfyUI + six external packages.
 
 The report provides per-workflow node-instance counts, distinct class
 IDs, exact registered IDs and every unregistered ID, grouped into:
 
-- **documented SCAIL/SAM3 fork-native:** `SAM3_Detect`,
-  `SAM3_VideoTrack`, `SCAIL2ColoredMask`, `WanSCAILToVideo`.
-  The specialized fork is *not* part of this clean vanilla CPU runner.
+- **native SAM3/SCAIL identifiers:** `SAM3_Detect`,
+  `SAM3_VideoTrack`, `SAM3_TrackPreview`, `SCAIL2ColoredMask`
+  and `WanSCAILToVideo` are **all five registered** on the pinned
+  public `Comfy-Org/ComfyUI` core. This corrects an earlier
+  fork-only assumption. Registration and the separately tested
+  native socket metadata do **not** establish specialized-fork parity,
+  successful model inference or licensed model weights. A historical
+  source-audit classification still uses the name `FORK_NATIVE`;
+  that is a provenance label, not evidence these classes are absent
+  from the public runtime.
 - **UI annotation/reroute:** `MarkdownNote`, `Note`, `Reroute`,
-  `Label (rgthree)`; absence from the API registry alone does not
-  establish missing execution support.
-- **UUID-typed group/subgraph unresolved:** exported UI node types
-  represented only by UUID strings. Their underlying definitions cannot
-  be inferred from the ID.
+  `Label (rgthree)`. Absence from the API registry does not alone
+  establish missing editor/frontend functionality.
+- **UUID-typed group/subgraph unresolved:** four UUID class IDs in
+  `mm_upscale_video_workflow` have matching embedded
+  `definitions.subgraphs`. Their definitions are present, but this
+  does **not** prove valid frontend expansion, API-prompt conversion,
+  internal dependencies or execution.
 - **other unregistered:** ordinary class IDs absent from this exact
-  small installation. These require further source/dependency tracing;
-  absence does not establish they are unsupported on a different fork
-  or a complete installation.
+  limited installation. They need additional source and dependency
+  evidence, not a claim that no implementation exists.
 
 This is **positive evidence only for classes actually registered** in
 the pinned clean CPU runtime. It is not an attempt to claim that all
@@ -328,18 +336,24 @@ are counts and flags only, never prompts or private media.
 
 ## Crucial non-acceptance
 
-This is **not a clean installation of all 11 selected workflows**.
-It verifies six *representative* external node-package imports in addition to
-OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
-method. It executes only the small synthetic VHS selection/GIF-encoding and rgthree routing operations described above.
-It does **not** execute GGUF or UltimateSDUpscale nodes, nor VideoHelperSuite
-external model loading or any full 11-workflow graph. It does not install
-or qualify the remaining dependencies or verify SCAIL-2, SAM3,
-Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
-workflow loading or inference. Optical-flow nodes
-are referenced by research-only graphs, so their import acceptance does not
-confer rights to research-restricted VideoMaMa or EffectErase components.
-The 11-workflow staged bundle is still not an installed runtime.
+This is **not a clean installation or inference acceptance of all 11
+selected workflows**. The runtime verifies six commit-pinned external
+packages and eight explicitly registered external class identifiers,
+along with OSF's two optical-flow node functions. Accepted execution is
+limited to the documented **synthetic CPU operations**: DownsampleFPS,
+VHS/rgthree image and codec paths, native SCAIL2ColoredMask generation,
+and the separately scoped synthetic precision and PCM/audio checks.
+
+The five SAM3/SCAIL native class IDs are present in public ComfyUI,
+and specified socket metadata has been checked, but SAM3 detection,
+SAM3 tracking, SCAIL-2/Wan model inference, GIMM-VFI CUDA execution,
+GGUF model loading, UltimateSDUpscale model inference, full graph
+conversion/execution and the remaining third-party dependencies are
+**not** accepted. Neither model weights, GPU/VRAM support, output
+quality nor complete commercial-use rights have been qualified.
+Optical-flow node imports do not confer rights to research-restricted
+VideoMaMa or EffectErase dependencies. The 11-workflow staged bundle
+remains distinct from a completely installed runtime.
 
 A successful CPU smoke is a first independent clean *ComfyUI core*
 and OSF-node registration/runtime check. The broader live-model
