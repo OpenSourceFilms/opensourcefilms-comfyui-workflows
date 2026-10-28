@@ -215,9 +215,17 @@ ComfyUI + five external packages.
 The report provides per-workflow node-instance counts, distinct class
 IDs, exact registered IDs and every unregistered ID, grouped into:
 
-- **documented SCAIL/SAM3 fork-native:** `SAM3_Detect`,
-  `SAM3_VideoTrack`, `SCAIL2ColoredMask`, `WanSCAILToVideo`.
-  The specialized fork is *not* part of this clean vanilla CPU runner.
+- **pinned upstream ComfyUI native SAM3/SCAIL2:** `SAM3_Detect`,
+  `SAM3_VideoTrack`, `SAM3_TrackPreview`, `SCAIL2ColoredMask`,
+  `WanSCAILToVideo` are defined in
+  `comfy_extras/nodes_sam3.py` and `comfy_extras/nodes_scail.py` of
+  **upstream Comfy-Org/ComfyUI commit
+  `08cf0284ff45723aa67841c80cabb0e3cb50c9d7`**. The real clean
+  CPU `/object_info` run confirms all five are registered with valid
+  node schemas. The acceptance code now **requires** this registration,
+  rather than falsely calling these classes fork-only or absent.
+  No associated model execution or functional equivalence with earlier
+  patched forks has been qualified.
 - **UI annotation/reroute:** `MarkdownNote`, `Note`, `Reroute`,
   `Label (rgthree)`; absence from the API registry alone does not
   establish missing execution support.
@@ -230,7 +238,8 @@ IDs, exact registered IDs and every unregistered ID, grouped into:
   or a complete installation.
 
 This is **positive evidence only for classes actually registered** in
-the pinned clean CPU runtime. It is not an attempt to claim that all
+the pinned clean CPU runtime. The five upstream-native class registrations
+are a strict CI requirement; other missing extensions remain diagnostics. It is not an attempt to claim that all
 eleven selected workflows now run. Missing class lists are diagnostic
 and do **not** cause the CPU smoke to fail. The audit itself fails
 closed if the manifest differs from the approved eleven, graph source
