@@ -107,7 +107,7 @@ class ElevenWorkflowNodeCoverageTests(unittest.TestCase):
                           by_name[key]["sam3_scail_native_class_ids"])
         self.assertIn("WanSCAILToVideo",
                       by_name["step6_animation_mode"][
-                          "sam3_scail_native_class_runtime_unverified"])
+                          "sam3_scail_native_class_ids"])
         self.assertEqual(by_name["mm_upscale_video_workflow"]["graph_format"],
                          "ui")
         self.assertIn("unresolved_group_uuid",
