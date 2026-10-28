@@ -86,7 +86,7 @@ def native_wan_schemas(source: str) -> dict[str, dict]:
         if schema is None:
             continue
         node_id = _literal(_kw(schema, "node_id"))
-        if not node_id or (not node_id.startswith("Wan") and node_id != "TrimVideoLatent"):
+        if node_id not in NATIVE_WAN_CLASS_IDS | UNRESOLVED_WAN_CLASS_IDS:
             continue
         if node_id in result:
             raise ValueError("Duplicate native Wan node_id")
