@@ -97,7 +97,7 @@ A fourth `VHS_VideoCombine` output uses pinned upstream
 The harness retrieves the MOV only over the loopback `/view` API,
 enforces strict temporary filename/subfolder and 2 MB size limits,
 and requires a QuickTime/MP4 `ftyp` signature. The CPU FFmpeg decoder
-must identify a real **ProRes 4444** stream with `yuv444p10le` storage,
+must identify a real **ProRes 4444** stream with `yuv444p12le` storage,
 decode exactly two 64×64 RGB24 frames, and verify **every pixel**
 against the red/blue source colours in order within a 24/255 maximum
 absolute channel error. Only observed errors, decoded-frame SHA-256
@@ -112,11 +112,11 @@ and checks the reported profile *and* 4:4:4 storage. This does not
 establish that the upstream HQ profile behaves correctly for every
 codec or pixel format.
 
-**Precision boundary:** Although the ProRes 4444 stream uses 10-bit
+**Precision boundary:** Although the ProRes 4444 stream uses 12-bit
 4:4:4 storage, these source frames originate as 8-bit colour
 constants and are checked only after RGB24 decoding. Successful
-codec identification is **not** a 10-bit source-fidelity test.
-No 10-bit sensor/input source is created or evaluated.
+codec identification is **not** a 12-bit source-fidelity test.
+No 12-bit sensor/input source is created or evaluated.
 
 These tests qualify narrow CPU VideoHelperSuite selection and GIF,
 H.264, H.265 and ProRes 4444 encoding paths plus rgthree routing.
