@@ -877,18 +877,23 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     if len(payload) > 2_500_000:
                         raise ValueError("Live native registry exceeds size limit")
                     live_native_schemas = verify_native_live_schemas(json.loads(payload))
-                    live_registry = json.loads(payload)
                     from audit_selected_four_live_api_links import (
                         analyze_live_api_links, load_selected_api_graphs,
                     )
                     live_selected_api_links = analyze_live_api_links(
-                        live_registry, load_selected_api_graphs()
+                        json.loads(payload), load_selected_api_graphs()
                     )
                 synthetic = execute_synthetic(package)
                 downsample = execute_downsample_fps_synthetic(
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
                 external_graph = execute_model_free_external_prompt(port, child)
+                # Actual pinned VHS_LoadVideo upload decoder: generated H264 only,
+                # no VAE, returns IMAGE on its first output to PreviewImage.
+                from qualify_vhs_loadvideo_cpu import execute_vhs_loadvideo_cpu
+                vhs_upload_image_decode = execute_vhs_loadvideo_cpu(
+                    port, child, comfy
+                )
                 from qualify_vhs_audio_mux import execute_synthetic_vhs_pcm_mux
                 pcm_audio_mux = execute_synthetic_vhs_pcm_mux(port, child)
                 from qualify_vhs_stereo_pcm_mux import execute_synthetic_vhs_stereo_mux
@@ -939,6 +944,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
+        "vhs_loadvideo_actual_no_vae_image_decode": vhs_upload_image_decode,
         "synthetic_video_audio_pcm_mux": pcm_audio_mux,
         "synthetic_vhs_stereo_pcm_mux": stereo_pcm_mux,
         "scail_native_cpu_mask_execution": scail_mask_result,
