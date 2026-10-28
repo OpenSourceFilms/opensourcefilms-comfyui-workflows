@@ -162,6 +162,14 @@ bit-for-bit equality is neither expected nor claimed. This is *not*
 colour-managed camera input, HDR transfer-function preservation,
 professional DI fidelity, or a full workflow test.
 
+The [separate pinned VideoHelperSuite input-precision audit](vhs-prores-input-precision.md)
+now explicitly checks the upstream `video/ProRes` preset and node
+conversion branches: the preset leaves `input_color_depth` unspecified
+and the node defaults to `tensor_to_bytes` / `rgb24`, so
+distinguishable 12-bit input values collapse **before encoding**.
+The direct FFmpeg positive result remains valid but does **not**
+demonstrate a high-bit-depth ComfyUI/VHS input path.
+
 All raw source and decoded samples plus temporary MOV remain only on
 the disposable runner. The 12-bit result is recorded separately in
 `independent_real_12bit_ffmpeg_roundtrip` inside the JSON-only evidence,

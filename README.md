@@ -166,7 +166,10 @@ observed format discrepancy is documented separately. An additional
 **independent direct-FFmpeg test** generates genuine planar 12-bit YUV444
 sample values, encodes/decodes ProRes 4444 and checks that subtle 12-bit
 differences survive within a bounded error. This does **not** establish
-12-bit input support through ComfyUI or VideoHelperSuite. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
+12-bit input support through ComfyUI or VideoHelperSuite. A
+[separate source-verified VHS precision audit](docs/vhs-prores-input-precision.md)
+confirms the pinned ProRes preset defaults to 8-bit RGB input and
+demonstrates loss of subtle 12-bit source distinctions before FFmpeg. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
 and a fail-closed guard against a mutable download. It is not GPU/model
 or 11-workflow acceptance.
 

@@ -750,6 +750,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
     if version != COMFY_SHA:
         raise ValueError("Unreviewed ComfyUI source SHA")
     external_versions = verify_external_node_sources(comfy / "custom_nodes")
+    from audit_vhs_prores_precision import audit_pinned_vhs_prores_precision
+    vhs_source_precision = audit_pinned_vhs_prores_precision(
+        comfy / "custom_nodes" / "ComfyUI-VideoHelperSuite"
+    )
     usdu_submodule = verify_usdu_submodule(comfy / "custom_nodes")
     guard = Path(__file__).resolve().parent / "usdu_offline_guard"
     if (guard.is_symlink() or not (guard / "sitecustomize.py").is_file()
@@ -825,6 +829,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
         "independent_real_12bit_ffmpeg_roundtrip": real_12bit_roundtrip,
+        "pinned_vhs_prores_input_precision": vhs_source_precision,
         "model_weights_installed": False,
         "third_party_custom_nodes_installed": True,
         "third_party_source_commits": external_versions,
