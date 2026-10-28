@@ -21,8 +21,12 @@ PREPARE = ROOT / "runpod" / "commercial-compatible" / "prepare.py"
 CPU_DRIVER = ROOT / "scripts" / "qualify_clean_comfy_cpu.py"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
-# These five node classes were authored as native features of the modified
-# SCAIL/SAM3 ComfyUI fork. They are NOT in vanilla ComfyUI by implication.
+# These five SCAIL/SAM3 node IDs originated in the specialized fork.
+# At public Comfy-Org/ComfyUI@08cf0284ff45723aa67841c80cabb0e3cb50c9d7,
+# they are also present in comfy_extras/nodes_sam3.py/nodes_scail.py,
+# and have passed live /object_info registration in an isolated CPU runner.
+# This SOURCE-ONLY preflight does not verify any live class registration,
+# model weights, native input schemas, or inference compatibility.
 FORK_NATIVE = frozenset({
     "SAM3_Detect", "SAM3_VideoTrack", "SAM3_TrackPreview",
     "SCAIL2ColoredMask", "WanSCAILToVideo",
@@ -99,7 +103,7 @@ def classify_node(node: dict, cpu_registry: dict[str, str]) -> str:
     if UUID.fullmatch(name):
         return "unresolved_group_uuid"
     if name in FORK_NATIVE:
-        return "requires_modified_scail_sam3_fork"
+        return "sam3_scail_native_class_runtime_unverified"
     if name in cpu_registry:
         return "class_registered_on_clean_cpu_only"
     if name in EDITOR_OR_LAYOUT_TYPES:
@@ -138,7 +142,7 @@ def audit(root: Path = ROOT) -> dict:
             statuses[classification] += 1
             all_unique.add(node["class"])
         summary.update(statuses)
-        fork = sorted(by_status["requires_modified_scail_sam3_fork"])
+        native = sorted(by_status["sam3_scail_native_class_runtime_unverified"])
         results.append({
             "workflow": path,
             "graph_format": graph_format,
@@ -148,7 +152,7 @@ def audit(root: Path = ROOT) -> dict:
             "node_classes_by_status": {
                 k: sorted(v) for k, v in sorted(by_status.items()) if v
             },
-            "requires_modified_scail_sam3_fork": fork,
+            "sam3_scail_native_class_ids": native,
             "requires_model_weight_and_gpu_acceptance": True,
             "gpu_inference_verified": False,
             "executable_api_prompt_proven": False,
@@ -166,7 +170,7 @@ def audit(root: Path = ROOT) -> dict:
         "unique_node_class_count": len(all_unique),
         "node_instance_status_counts": dict(sorted(summary.items())),
         "cpu_registration_contract_classes": dict(sorted(cpu.items())),
-        "fork_native_required_classes": sorted(FORK_NATIVE),
+        "sam3_scail_historic_native_class_ids": sorted(FORK_NATIVE),
         "unresolved_uuid_node_classes": sorted(c for c in all_unique
                                                if UUID.fullmatch(c)),
         "gpu_inference_verified": False,
