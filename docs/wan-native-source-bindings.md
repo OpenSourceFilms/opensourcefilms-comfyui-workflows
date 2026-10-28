@@ -36,6 +36,18 @@ The pinned public `comfy_extras/nodes_wan.py` does **not** define:
 
 The auditor records occurrence counts and deterministic hashes of the five *public workflow files*, but does not include prompts, model filenames, widget values, media paths or footage. The resulting metadata-only JSON is retained for 14 days in a GitHub Actions artifact. A run can be **successful as an audit** while `all_wan_class_ids_available=false` and `wan_workflows_executable=false`, which are explicit negative acceptance flags. Unexpected changes to the missing-class baseline or native sockets **fail closed** rather than becoming an implicit acceptance.
 
+## External candidate source identified, licensing HOLD
+
+A distinct [pinned external-provider source audit](wan-fmlf-provider-candidate.md)
+has now identified `wallen0322/ComfyUI-Wan22FMLF` at
+`7140cd224396aff9fd909ab0041c3fbf81b92b0c` as a **candidate**
+implementing all three non-core class names listed above. The candidate
+declares sockets matching the selected UI exports, but the pinned repository
+has **no detected licence file or GitHub licence**. It is not approved for
+commercial distribution/use or runtime installation, and these tests do not
+establish live node registration, GPU model inference or output validity.
+"Unresolved" above continues to mean unresolved **in pinned ComfyUI core**.
+
 ## Execution and rights limitations
 
 These are **UI/editor exports**, not automatically executable ComfyUI `/prompt` dictionaries. This check does not import models, install custom Wan extensions, convert graphs to API prompts, verify graph links and types, allocate GPUs, check weights or validate outputs. A native matching class name alone does not prove version/schema parity with a historical specialized workflow. Commercial suitability remains conditional on each dependency's actual licence and version.
