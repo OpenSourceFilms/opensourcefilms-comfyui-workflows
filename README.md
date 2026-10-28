@@ -122,8 +122,12 @@ commercially cleared installation, nor a clean-install compatibility guarantee.
 ```
 
 The installer also copies OSF's `mask_propagate_optical_flow` node. It
-does not download model weights. Review the individual upstream rights
-and exact installed commits before use. To also clone the two explicitly
+does not download model weights. It **skips pre-existing node directories
+without validating their Git origin or revision** and warns accordingly.
+Review the individual upstream rights and exact installed commits before
+use. [Fresh-directory simulated installer tests](docs/legacy-installer-fresh-root-smoke.md)
+exercise clone and checkout failure handling but do not establish actual
+upstream availability, ComfyUI node imports or GPU execution. To also clone the two explicitly
 excluded restricted packages for research workflows:
 
 ```bash
