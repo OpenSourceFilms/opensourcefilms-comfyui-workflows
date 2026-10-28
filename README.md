@@ -168,6 +168,11 @@ differences survive within a bounded error. This does **not** establish
 and a fail-closed guard against a mutable download. It is not GPU/model
 or 11-workflow acceptance.
 
+A separate [live selected-11 CPU registry comparison](docs/selected-11-node-coverage.md)
+now contrasts source graph class names with the actual vanilla ComfyUI
+`/object_info` inventory. Registered class schemas are **not** evidence
+that full workflows execute or that the modified SCAIL-2 fork is installed.
+
 Once separately installed and validated, open UI-format workflows via
 **Workflow → Open**. The `sam3_custompkg_probe.json` file is an API-format
 prompt and is not a normal UI-canvas graph.
