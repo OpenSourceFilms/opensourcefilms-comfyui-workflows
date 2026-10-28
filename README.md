@@ -89,7 +89,7 @@ Verify independently before any commercial distribution.
 | `frame_interpolation_test.json` | 4-way interpolation comparison | BiM-VFI (research/education only) |
 | `tween_interpolate_loop.json` | Looping interpolation via ComfyUI-Tween | BiM-VFI (research/education only) |
 
-A separate [live node-class coverage audit](docs/clean-cpu-runtime-qualification.md#real-eleven-workflow-node-registration-coverage) compares the actual class IDs in **all eleven selected commercial-compatible UI/API graphs** with the `/object_info` registry of the isolated pinned clean ComfyUI CPU test. It reports registered IDs, missing fork-native and custom-node IDs, UI annotations and unresolved UUID-typed groups, without installing the full dependency set or claiming GPU/model inference compatibility.
+A separate [live node-class coverage audit](docs/clean-cpu-runtime-qualification.md#real-eleven-workflow-node-registration-coverage) compares the actual class IDs in **all eleven selected commercial-compatible UI/API graphs** with the `/object_info` registry of the isolated pinned clean ComfyUI CPU test. It reports registered and missing node IDs, explicitly verifies the five SAM3/SCAIL2 classes already present in pinned upstream ComfyUI, and retains UI/group/remaining extension gates without claiming GPU or model inference compatibility.
 
 For a no-GPU structural check of exported graphs, use the
 [offline workflow validator](docs/validate-workflows.md). It does not check model
@@ -97,9 +97,9 @@ availability or runtime correctness.
 
 For the **eleven selected commercial-compatible workflows**, the
 [source-only node-class coverage preflight](docs/selected-11-node-coverage.md)
-audits both ComfyUI UI and API exports, identifies native SCAIL-2/SAM3 fork
-requirements and unresolved group nodes, and distinguishes pinned clean-CPU
-node registrations from unverified extensions. It is **not** an assertion
+audits both ComfyUI UI and API exports, identifies upstream-native SAM3/SCAIL2
+classes at the pinned ComfyUI core revision and group-node integration gates,
+and distinguishes live CPU class registrations from unverified extensions. It is **not** an assertion
 that all eleven workflows run, are GPU-qualified or have cleared model rights.
 
 For byte-level verification of delivered native `SaveImage` sequences, use the
