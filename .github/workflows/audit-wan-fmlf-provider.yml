@@ -1,0 +1,66 @@
+name: Audit candidate Wan FMLF provider source and licence HOLD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-wan-fmlf-provider.yml"
+      - "scripts/audit_wan_fmlf_provider_candidate.py"
+      - "tests/test_wan_fmlf_provider_candidate.py"
+      - "docs/wan-fmlf-provider-candidate.md"
+      - "workflows/commercial-compatible/wan22_fmlf_first_middle_last_frame.json"
+      - "workflows/commercial-compatible/video_wan2_2_14B_fmlf2v.json"
+  pull_request:
+    paths:
+      - ".github/workflows/audit-wan-fmlf-provider.yml"
+      - "scripts/audit_wan_fmlf_provider_candidate.py"
+      - "tests/test_wan_fmlf_provider_candidate.py"
+      - "docs/wan-fmlf-provider-candidate.md"
+      - "workflows/commercial-compatible/wan22_fmlf_first_middle_last_frame.json"
+      - "workflows/commercial-compatible/video_wan2_2_14B_fmlf2v.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wan-fmlf-provider-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout public OSF workflow source without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Check candidate and licence-HOLD contracts without upstream code
+        run: python -B -m unittest discover -s tests -p "test_wan_fmlf_provider_candidate.py" -v
+      - name: Fetch reviewed public candidate revision as inert source
+        run: |
+          set -euo pipefail
+          dst="${{ runner.temp }}/osf-wan-fmlf-source"
+          sha="7140cd224396aff9fd909ab0041c3fbf81b92b0c"
+          git init "$dst"
+          git -C "$dst" remote add origin "https://github.com/wallen0322/ComfyUI-Wan22FMLF.git"
+          git -C "$dst" fetch --no-tags --depth=1 origin "$sha"
+          git -C "$dst" checkout --detach "$sha"
+          test "$(git -C "$dst" rev-parse HEAD)" = "$sha"
+      - name: Compare exact source AST sockets with two selected Wan UI exports
+        run: |
+          python -B scripts/audit_wan_fmlf_provider_candidate.py \
+            --source-root "${{ runner.temp }}/osf-wan-fmlf-source" \
+            --report "${{ runner.temp }}/osf-wan-fmlf-source-hold.json"
+      - name: Retain metadata and explicit rights HOLD only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: osf-wan-fmlf-source-hold
+          path: ${{ runner.temp }}/osf-wan-fmlf-source-hold.json
+          if-no-files-found: error
+          retention-days: 14
