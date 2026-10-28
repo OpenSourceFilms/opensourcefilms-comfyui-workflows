@@ -71,7 +71,7 @@ class StereoMuxContractTests(unittest.TestCase):
         self.assertEqual(decoded["channels"], 2)
         self.assertEqual(decoded["channel_frequencies_hz"], [440, 660])
         self.assertEqual(decoded["decoded_sample_frames"], 48000)
-        self.assertEqual(decoded["checked_sample_frames"], 46976)
+        self.assertEqual(decoded["checked_sample_frames"], 48000)
         self.assertLess(decoded["maximum_channel_errors"][0], 0.00001)
         self.assertLess(decoded["maximum_channel_errors"][1], 0.00001)
         self.assertFalse(decoded["binary_media_uploaded"])
@@ -100,6 +100,29 @@ class StereoMuxContractTests(unittest.TestCase):
         source[2 * 22222] = float("nan")
         with self.assertRaisesRegex(ValueError, "nonfinite"):
             gate.check_decoded_stereo_pcm(source)
+
+    def test_rejects_tail_corruption_on_both_channels(self):
+        for channel in (0, 1):
+            for position in (46976, 47998, 47999):
+                with self.subTest(channel=channel, position=position):
+                    payload = samples()
+                    payload[2 * position + channel] += 0.02
+                    with self.assertRaisesRegex(
+                        ValueError, "identity, phase or leakage"
+                    ):
+                        gate.check_decoded_stereo_pcm(payload)
+
+    def test_rejects_any_stereo_audio_padding_or_truncation(self):
+        original = samples()
+        for invalid in (
+            original[:-2],
+            original + array("f", [0.0, 0.0]),
+            original + array("f", [0.0, 0.0] * 1024),
+            original + array("f", [0.0, 0.0] * 4096),
+        ):
+            with self.subTest(actual_frames=len(invalid) // 2):
+                with self.assertRaisesRegex(ValueError, "exactly 48000"):
+                    gate.check_decoded_stereo_pcm(invalid)
 
     def test_fixture_contains_no_media_loaders_and_is_test_only(self):
         text = (ROOT / "tests" / "fixtures" / "comfy_synthetic_audio" /
