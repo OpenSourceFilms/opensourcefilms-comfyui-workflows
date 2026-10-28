@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/qualify_vhs_loadvideo_cpu.py"
+      - "tests/test_vhs_loadvideo_cpu_contract.py"
       - "scripts/qualify_vhs_audio_mux.py"
       - "scripts/qualify_vhs_stereo_pcm_mux.py"
       - "tests/test_vhs_stereo_pcm_contract.py"
@@ -45,6 +47,8 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/qualify_vhs_loadvideo_cpu.py"
+      - "tests/test_vhs_loadvideo_cpu_contract.py"
       - "scripts/qualify_vhs_audio_mux.py"
       - "scripts/qualify_vhs_stereo_pcm_mux.py"
       - "tests/test_vhs_stereo_pcm_contract.py"
@@ -126,6 +130,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_sam3_scail_live_registry.py" -v
       - name: Test disposable VHS ProRes HQ 422 contracts before external installs
         run: python -B -m unittest discover -s tests -p "test_vhs_prores_hq422_contract.py" -v
+      - name: Verify live loader test's no-network control-flow contracts
+        run: python -B -m unittest discover -s tests -p "test_vhs_loadvideo_cpu_contract.py" -v
       - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
         env:
           COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
@@ -189,7 +195,7 @@ jobs:
           # No Florence model/weights are downloaded or executed here.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0" "matplotlib==3.10.6"
           python -m pip check
-      - name: Audit workflows, codecs, VHS precision, SCAIL and native SAM3 preview
+      - name: Audit graph, codecs, live VHS upload decode, precision, SCAIL and SAM3
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"

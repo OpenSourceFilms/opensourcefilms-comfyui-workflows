@@ -334,6 +334,37 @@ multi-type input, input/output values during inference, running the
 three selected API workflows or model/GPU compatibility. The results
 are counts and flags only, never prompts or private media.
 
+## Actual pinned VHS_LoadVideo no-VAE IMAGE-branch test
+
+A separate synthetic **runtime** gate, implemented in
+[`qualify_vhs_loadvideo_cpu.py`](../scripts/qualify_vhs_loadvideo_cpu.py),
+complements the source-only VHS-to-native SAM3 link audit. On the disposable
+clean ComfyUI CPU runner, pinned `imageio-ffmpeg` generates exactly two
+64×64 H.264 frames, red then blue, from hardcoded RGB bytes. The temporary
+MP4 is written **only** into that disposable ComfyUI `input/` directory,
+must not overwrite any existing file, and is unlinked in `finally` after
+the test.
+
+The runner submits a **real ComfyUI `/prompt` graph** with pinned
+`VHS_LoadVideo` output 0 connected to native `PreviewImage.images`.
+It uses the eight saved loader field names from the selected three
+SAM3/SCAIL API workflow exports, including `format=AnimateDiff`,
+`frame_load_cap=49`, `force_rate=0`, and deliberately omits
+optional `vae` and `meta_batch`. The graph must complete successfully,
+yield exactly two temporary PNG preview records and return frames with
+full-pixel red/blue RGB error at most **24/255** per channel.
+The temporary PNGs are retrieved from the loopback ComfyUI `/view` API
+with size and safe-name/type/subfolder limits. Only source and decoded
+pixel hashes, dimensions, frame count and maximum errors enter JSON evidence.
+
+This is stronger than source-typing evidence because the **actual pinned
+loader executes video decoding and emits an IMAGE-compatible batch**.
+It still does **not** exercise any real user footage, SAM3 tracking,
+SCAIL2 or Wan model, does not verify 49 loaded frames or real frame rates,
+and does not qualify GPU, VRAM, rights, production reliability or
+high-bit-depth video decoding. The synthetic input is 8-bit H.264.
+No media binaries are uploaded or retained outside the runner.
+
 ## Crucial non-acceptance
 
 This is **not a clean installation or inference acceptance of all 11

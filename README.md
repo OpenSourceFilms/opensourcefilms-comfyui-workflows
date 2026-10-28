@@ -183,6 +183,10 @@ differences survive within a bounded error. This does **not** establish
 [separate source-verified VHS precision audit](docs/vhs-prores-input-precision.md)
 confirms the pinned ProRes preset defaults to 8-bit RGB input and
 demonstrates loss of subtle 12-bit source distinctions before FFmpeg.
+A [separate real VHS_LoadVideo CPU decode gate](docs/clean-cpu-runtime-qualification.md#actual-pinned-vhs_loadvideo-no-vae-image-branch-test)
+loads a generated two-frame H.264 MP4 through pinned `VHS_LoadVideo` into native
+`PreviewImage`, verifies both output frames and uses no optional VAE.
+This is not SAM3/SCAIL inference or proof of production video decode.
 A [disposable synthetic ProRes + PCM audio mux gate](docs/vhs-prores-audio-mux-qualification.md)
 checks the actual pinned VHS audio path with two generated video frames
 and a generated 48 kHz mono tone. It decodes both streams and requires
