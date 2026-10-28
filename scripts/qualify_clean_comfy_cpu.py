@@ -19,7 +19,7 @@ import sys
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 COMFY_SHA = "08cf0284ff45723aa67841c80cabb0e3cb50c9d7"
 CLASSES = ("MaskPropagateOpticalFlow", "MaskPropagateFromFlow")
@@ -173,6 +173,90 @@ def _probe_server(port: int, child: subprocess.Popen, *, seconds: int = 120) -> 
     raise TimeoutError("ComfyUI did not register expected nodes: " + last_reason)
 
 
+def build_model_free_external_prompt() -> dict:
+    """One fixed, minimal VHS + rgthree + core preview graph.
+
+    Uses only a black synthetic image batch. No file inputs, text prompts,
+    model loaders, user-supplied parameters or pretrained weights.
+    """
+    return {
+        "1": {"class_type": "EmptyImage", "inputs": {
+            "width": 64, "height": 64, "batch_size": 4,
+        }},
+        "2": {"class_type": "VHS_SelectEveryNthImage", "inputs": {
+            "images": ["1", 0], "select_every_nth": 2,
+            "skip_first_images": 0,
+        }},
+        "3": {"class_type": "Any Switch (rgthree)", "inputs": {
+            "any_01": ["2", 0],
+        }},
+        "4": {"class_type": "PreviewImage", "inputs": {
+            "images": ["3", 0],
+        }},
+    }
+
+
+def validate_model_free_external_history(history: object, prompt_id: str) -> dict:
+    """Require real preview outputs proving VHS selection and rgthree routing."""
+    if not isinstance(history, dict):
+        raise ValueError("Malformed ComfyUI history")
+    record = history.get(prompt_id)
+    if not isinstance(record, dict):
+        raise ValueError("Missing external synthetic prompt history")
+    state = record.get("status", {})
+    if not isinstance(state, dict) or state.get("completed") is not True:
+        raise ValueError("External synthetic prompt did not complete successfully")
+    outputs = record.get("outputs", {})
+    images = outputs.get("4", {}).get("images") if isinstance(outputs, dict) else None
+    if not isinstance(images, list) or len(images) != 2:
+        raise ValueError("External model-free VHS/rgthree graph returned wrong image count")
+    if any(not isinstance(image, dict)
+           or not isinstance(image.get("filename"), str)
+           or image.get("type") != "temp" for image in images):
+        raise ValueError("External graph returned invalid preview metadata")
+    return {
+        "status": "synthetic_api_graph_executed",
+        "classes": ["EmptyImage", "VHS_SelectEveryNthImage",
+                    "Any Switch (rgthree)", "PreviewImage"],
+        "source_image_count": 4,
+        "selected_image_count": len(images),
+        "route": "core EmptyImage -> VHS every-second image -> rgthree Any Switch -> core PreviewImage",
+        "model_weights_used": False,
+        "binary_outputs_uploaded": False,
+    }
+
+
+def execute_model_free_external_prompt(port: int, child: subprocess.Popen,
+                                       *, timeout_seconds: int = 60) -> dict:
+    graph = build_model_free_external_prompt()
+    payload = json.dumps({"prompt": graph}).encode("utf-8")
+    req = Request(
+        f"http://127.0.0.1:{port}/prompt",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(req, timeout=12) as resp:
+        if resp.status != 200:
+            raise RuntimeError("ComfyUI rejected model-free external prompt")
+        response = json.loads(resp.read(100_000))
+    prompt_id = response.get("prompt_id") if isinstance(response, dict) else None
+    if not isinstance(prompt_id, str) or len(prompt_id) > 100 or not prompt_id:
+        raise ValueError("Missing external synthetic graph prompt ID")
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if child.poll() is not None:
+            raise RuntimeError("ComfyUI exited before external graph completed")
+        with urlopen(f"http://127.0.0.1:{port}/history/{prompt_id}", timeout=8) as resp:
+            if resp.status != 200:
+                raise RuntimeError("ComfyUI history response status not 200")
+            history = json.loads(resp.read(150_000))
+        if isinstance(history, dict) and prompt_id in history:
+            return validate_model_free_external_history(history, prompt_id)
+        time.sleep(1)
+    raise TimeoutError("External synthetic VHS/rgthree graph did not complete")
+
+
 def _load_osf_classes(path: Path):
     module_file = path / "__init__.py"
     if not module_file.is_file() or module_file.is_symlink():
@@ -320,6 +404,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                 downsample = execute_downsample_fps_synthetic(
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
+                external_graph = execute_model_free_external_prompt(port, child)
             except Exception as exc:
                 log.flush()
                 log.seek(0)
@@ -345,12 +430,14 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "registration": registration,
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
+        "external_model_free_api_graph": external_graph,
         "model_weights_installed": False,
         "third_party_custom_nodes_installed": True,
         "third_party_source_commits": external_versions,
         "pinned_usdu_submodule": usdu_submodule,
         "third_party_nodes_imported": registration["external_classes"],
-        "third_party_graphs_executed": False,
+        "third_party_graphs_executed": True,
+        "third_party_graph_scope": "one four-node synthetic VHS+rgthree API graph only",
         "gpu_or_model_inference_qualified": False,
         "eleven_workflows_qualified": False,
     }
