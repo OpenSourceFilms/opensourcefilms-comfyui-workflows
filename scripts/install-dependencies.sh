@@ -56,6 +56,7 @@ install_pkg() {
 
     if [ -d "$dest" ]; then
         echo "skip $name (already present at $dest)"
+        echo "WARNING: existing $name was not checked for Git origin, revision or node imports; verify it independently." >&2
         return 0
     fi
 
