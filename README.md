@@ -169,7 +169,11 @@ differences survive within a bounded error. This does **not** establish
 12-bit input support through ComfyUI or VideoHelperSuite. A
 [separate source-verified VHS precision audit](docs/vhs-prores-input-precision.md)
 confirms the pinned ProRes preset defaults to 8-bit RGB input and
-demonstrates loss of subtle 12-bit source distinctions before FFmpeg. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
+demonstrates loss of subtle 12-bit source distinctions before FFmpeg.
+A separate [test of the explicit opt-in 16-bit VHS input path](docs/vhs-prores-16bit-qualification.md)
+compares the same test-only ComfyUI tensor through default 8-bit and
+locally configured 16-bit ProRes paths. The CI-only preset is not deployed,
+and this precision comparison is not a production colour-fidelity claim. UltimateSDUpscale requires its exact nested GPLv3 Git submodule
 and a fail-closed guard against a mutable download. It is not GPU/model
 or 11-workflow acceptance.
 

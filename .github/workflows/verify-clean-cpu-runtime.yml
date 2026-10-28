@@ -14,6 +14,9 @@ on:
       - "runpod/commercial-compatible/prepare.py"
       - "DEPENDENCIES.lock"
       - "scripts/qualify_prores_12bit.py"
+      - "scripts/qualify_vhs_16bit.py"
+      - "tests/test_vhs_16bit_contract.py"
+      - "tests/fixtures/comfy_12bit_source/**"
       - "scripts/audit_vhs_prores_precision.py"
       - "tests/test_vhs_prores_precision_contract.py"
       - "tests/test_true_12bit_prores_contract.py"
@@ -33,6 +36,9 @@ on:
       - "runpod/commercial-compatible/prepare.py"
       - "DEPENDENCIES.lock"
       - "scripts/qualify_prores_12bit.py"
+      - "scripts/qualify_vhs_16bit.py"
+      - "tests/test_vhs_16bit_contract.py"
+      - "tests/fixtures/comfy_12bit_source/**"
       - "scripts/audit_vhs_prores_precision.py"
       - "tests/test_vhs_prores_precision_contract.py"
       - "tests/test_true_12bit_prores_contract.py"
@@ -72,6 +78,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_vhs_prores_precision_contract.py" -v
       - name: Test synthetic video frame timing and cadence contracts
         run: python -B -m unittest discover -s tests -p "test_synthetic_video_timing.py" -v
+      - name: Test VHS input precision contrast contract without external installs
+        run: python -B -m unittest discover -s tests -p "test_vhs_16bit_contract.py" -v
       - name: Fetch exact reviewed upstream ComfyUI commit into runner scratch
         env:
           COMFY_SHA: 08cf0284ff45723aa67841c80cabb0e3cb50c9d7
@@ -83,6 +91,7 @@ jobs:
           git -C "${{ runner.temp }}/osf-disposable-ComfyUI" checkout --detach "$COMFY_SHA"
           test "$(git -C "${{ runner.temp }}/osf-disposable-ComfyUI" rev-parse HEAD)" = "$COMFY_SHA"
           cp -R custom_nodes/mask_propagate_optical_flow "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
+          cp -R tests/fixtures/comfy_12bit_source "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
       - name: Fetch five exact reviewed public custom-node commits
         run: |
           set -euo pipefail
@@ -129,7 +138,7 @@ jobs:
           # requirement is provided by the already installed headless wheel.
           python -m pip install --disable-pip-version-check "imageio-ffmpeg==0.6.0" "gguf==0.13.0"
           python -m pip check
-      - name: Audit 11 workflows, VHS precision, codecs, PTS cadence and 12bit source
+      - name: Audit selected workflows, VHS 16bit precision contrast and codec paths
         env:
           HF_HUB_OFFLINE: "1"
           TRANSFORMERS_OFFLINE: "1"

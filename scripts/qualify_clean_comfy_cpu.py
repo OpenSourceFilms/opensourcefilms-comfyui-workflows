@@ -764,6 +764,13 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         comfy / "custom_nodes" / "ComfyUI-VideoHelperSuite"
     )
     usdu_submodule = verify_usdu_submodule(comfy / "custom_nodes")
+    from qualify_vhs_16bit import prepare_disposable_16bit_preset
+    vhs_precision_preset = prepare_disposable_16bit_preset(comfy)
+    precision_fixture = comfy / "custom_nodes" / "comfy_12bit_source"
+    if (precision_fixture.is_symlink() or not precision_fixture.is_dir()
+            or (precision_fixture / "__init__.py").is_symlink()
+            or not (precision_fixture / "__init__.py").is_file()):
+        raise ValueError("Disposable 12-bit precision source node missing")
     guard = Path(__file__).resolve().parent / "usdu_offline_guard"
     if (guard.is_symlink() or not (guard / "sitecustomize.py").is_file()
             or (guard / "sitecustomize.py").is_symlink()):
@@ -807,6 +814,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
                 external_graph = execute_model_free_external_prompt(port, child)
+                from qualify_vhs_16bit import execute_disposable_vhs_precision
+                vhs_precision_result = execute_disposable_vhs_precision(port, child)
                 # Independent FFmpeg path, not a ComfyUI/VHS input precision claim.
                 from qualify_prores_12bit import qualify_genuine_12bit_ffmpeg
                 real_12bit_roundtrip = qualify_genuine_12bit_ffmpeg()
@@ -837,6 +846,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
+        "vhs_optin_16bit_source_vs_default_8bit": {
+            "preset": vhs_precision_preset,
+            "result": vhs_precision_result,
+        },
         "independent_real_12bit_ffmpeg_roundtrip": real_12bit_roundtrip,
         "pinned_vhs_prores_input_precision": vhs_source_precision,
         "model_weights_installed": False,
