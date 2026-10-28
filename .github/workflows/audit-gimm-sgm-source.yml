@@ -7,6 +7,8 @@ on:
       - ".github/workflows/audit-gimm-sgm-source.yml"
       - "scripts/audit_gimm_sgm_source_bindings.py"
       - "scripts/plan_gimm_vfi_class_migration.py"
+      - "scripts/audit_sgm_source_socket_parity.py"
+      - "tests/test_sgm_source_socket_parity.py"
       - "tests/test_gimm_migration_candidate.py"
       - "tests/test_gimm_source_bindings.py"
       - "DEPENDENCIES.lock"
@@ -16,6 +18,8 @@ on:
       - ".github/workflows/audit-gimm-sgm-source.yml"
       - "scripts/audit_gimm_sgm_source_bindings.py"
       - "scripts/plan_gimm_vfi_class_migration.py"
+      - "scripts/audit_sgm_source_socket_parity.py"
+      - "tests/test_sgm_source_socket_parity.py"
       - "tests/test_gimm_migration_candidate.py"
       - "tests/test_gimm_source_bindings.py"
       - "DEPENDENCIES.lock"
@@ -46,6 +50,8 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_gimm_source_bindings.py" -v
       - name: Test non-deployable GIMM two-class migration contract offline
         run: python -B -m unittest discover -s tests -p "test_gimm_migration_candidate.py" -v
+      - name: Check SGM inherited socket, model-link and failure-path contracts offline
+        run: python -B -m unittest discover -s tests -p "test_sgm_source_socket_parity.py" -v
       - name: Fetch both historical exact-pinned third-party source revisions
         run: |
           set -euo pipefail
@@ -83,6 +89,14 @@ jobs:
             --output "$RUNNER_TEMP/osf-gimm-migration-candidate.json"
           python -B -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["status"]=="CANDIDATE_ONLY_HOLD" and j["changes_count"]==2 and j["original_graph_untouched"] and not j["end_to_end_workflow_qualified"]' \
             "$RUNNER_TEMP/osf-gimm-migration-candidate.json"
+      - name: Verify both pinned SGM sources, all inherited sockets and model/output wiring
+        run: |
+          set -euo pipefail
+          python -B scripts/audit_sgm_source_socket_parity.py \
+            --tween-root "$RUNNER_TEMP/gimm-source-only/tween" \
+            --output "$RUNNER_TEMP/osf-sgm-source-socket-parity.json"
+          python -B -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["status"]=="SOURCE_INTERFACE_PARITY_ONLY_HOLD" and j["sgm_loader_and_segment_source_schema_parity"] and not j["whole_workflow_qualified"] and not j["checkpoint_provenance_license_and_cupy_qualified"]' \
+            "$RUNNER_TEMP/osf-sgm-source-socket-parity.json"
       - name: Retain metadata-only source inspection, not third-party source
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -90,5 +104,6 @@ jobs:
           path: |
             ${{ runner.temp }}/osf-gimm-source-only.json
             ${{ runner.temp }}/osf-gimm-migration-candidate.json
+            ${{ runner.temp }}/osf-sgm-source-socket-parity.json
           if-no-files-found: error
           retention-days: 14
