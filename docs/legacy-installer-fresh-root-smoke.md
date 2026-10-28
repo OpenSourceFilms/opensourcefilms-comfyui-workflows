@@ -18,6 +18,9 @@ The test matrix verifies:
 | Explicit `INSTALL_RESTRICTED=1` | Research-only clone paths exercised only on opt-in |
 | Partial failure during a clone | Nonzero exit; partial directory removed; error reported |
 | Failure checking out a pinned revision | Nonzero exit; wrong default-branch checkout removed |
+| Existing regular file at a planned checkout path | Nonzero exit; user-owned file preserved; no Git clone for that package |
+| Existing dangling symlink at a planned checkout path | Nonzero exit; symlink and target preserved; no Git clone for that package |
+| Existing symlink to a directory | Existing directory skipped with explicit unverified-origin warning; **not** accepted as a verified checkout |
 | Missing ComfyUI directory | Nonzero exit before any Git commands |
 
 This is more meaningful than testing a successful copy into a directory where
@@ -29,7 +32,12 @@ checkout directories and records requested references.
 **Existing-directory gap:** the legacy installer skips *any* directory
 with a matching node name without checking its actual Git origin, commit or
 import status. A prior installation or user-modified directory therefore
-cannot be regarded as verified by a successful rerun. The legacy default
+cannot be regarded as verified by a successful rerun.
+Pre-existing **non-directory** paths, including dangling symlinks,
+now fail closed and are preserved without invoking `git clone` or clone-failure
+cleanup. This prevents the previous possibility of deleting a user-owned
+file or dangling symlink after an unsuccessful clone. It does not improve
+the existing-directory authenticity gap or establish runtime compatibility. The legacy default
 also references mutable upstream `main` branches and contains packages
 associated with research-only workflows. Its exit code is **not a claim of
 reproducibility, commercial permission or graph execution**.
