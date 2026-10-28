@@ -65,6 +65,98 @@ class LiveSelectedClassCoverageTests(unittest.TestCase):
                       row["unregistered_class_ids_by_category"])
         self.assertEqual(len(row["source_sha256"]), 64)
 
+    def test_embedded_upscale_groups_reconcile_89_internal_instances(self):
+        source = live_audit.load_selected_graphs()
+        output = live_audit.coverage_from_registry(
+            source, {
+                "SaveImage": {"input": {}},
+                "UnetLoaderGGUF": {"input": {}},
+            }
+        )
+        key = "workflows/commercial-compatible/mm_upscale_video_workflow.json"
+        row = output["per_workflow"][key]
+        embedded = row["embedded_internal_class_registration_coverage"]
+        self.assertEqual(embedded["status"],
+                         "embedded_internal_live_class_registration_only")
+        self.assertEqual(embedded["embedded_group_count"], 4)
+        self.assertEqual(embedded["embedded_node_instances"], 89)
+        self.assertEqual(output["embedded_internal_node_instances"], 89)
+        self.assertGreater(output["embedded_internal_unique_class_ids"], 0)
+        self.assertEqual(
+            output["embedded_internal_unique_class_ids"],
+            output["embedded_registered_unique_class_ids"]
+            + output["embedded_unregistered_unique_class_ids"],
+        )
+        self.assertTrue(output[
+            "embedded_internal_class_ids_are_separate_from_top_level_81"
+        ])
+        self.assertFalse(embedded["subgraph_expansion_or_execution_verified"])
+        self.assertFalse(output["embedded_internal_graphs_executable"])
+        self.assertEqual(
+            len(embedded["groups"]), 4,
+        )
+        self.assertTrue(all(
+            g["internal_graph_executable"] is False
+            and len(g["group_uuid"]) == 36
+            for g in embedded["groups"]
+        ))
+        self.assertEqual(output["unique_graph_class_ids"], 81)
+        self.assertEqual(
+            output["per_workflow"][
+                "workflows/commercial-compatible/sam3_custompkg_probe.json"
+            ]["embedded_internal_class_registration_coverage"],
+            None,
+        )
+
+    def test_uuid_group_references_not_mistaken_for_runtime_registration(self):
+        source = live_audit.load_selected_graphs()
+        mm = next(w for w in source["workflows"]
+                  if w["workflow"].endswith("/mm_upscale_video_workflow.json"))
+        groups = mm["embedded_group_definition_preflight"]
+        names = set(groups["unique_embedded_internal_class_ids"])
+        # Malicious or accidentally matching UUID names do not turn
+        # frontend group references into executable classes.
+        live = {name: {"input": {}} for name in names}
+        extra = live_audit.embedded_internal_registration_coverage(
+            groups, live, live_audit._source_module(ROOT)
+        )
+        unregistered = extra["unregistered_unique_internal_class_ids_by_category"]
+        self.assertEqual(
+            unregistered.get("unresolved_group_uuid", []),
+            sorted(n for n in names
+                   if live_audit._source_module(ROOT).UUID.fullmatch(n)),
+        )
+        self.assertFalse(extra["subgraph_expansion_or_execution_verified"])
+        self.assertEqual(extra["embedded_node_instances"], 89)
+
+    def test_malformed_embedded_source_rejected_fail_closed(self):
+        import copy
+        source = live_audit.load_selected_graphs()
+        mm = next(w for w in source["workflows"]
+                  if w["workflow"].endswith("/mm_upscale_video_workflow.json"))
+        groups = mm["embedded_group_definition_preflight"]
+        module = live_audit._source_module(ROOT)
+        malformed = copy.deepcopy(groups)
+        malformed["embedded_internal_node_instances"] += 1
+        with self.assertRaisesRegex(ValueError, "do not reconcile"):
+            live_audit.embedded_internal_registration_coverage(
+                malformed, {"SaveImage": {}}, module
+            )
+        malformed = copy.deepcopy(groups)
+        malformed["embedded_definitions"].append(
+            malformed["embedded_definitions"][0]
+        )
+        with self.assertRaisesRegex(ValueError, "Malformed canonical"):
+            live_audit.embedded_internal_registration_coverage(
+                malformed, {"SaveImage": {}}, module
+            )
+        malformed = copy.deepcopy(groups)
+        malformed["embedded_definitions"][0]["internal_unique_class_ids"] = [""]
+        with self.assertRaisesRegex(ValueError, "Malformed canonical"):
+            live_audit.embedded_internal_registration_coverage(
+                malformed, {"SaveImage": {}}, module
+            )
+
     def test_missing_or_malformed_live_registry_fails(self):
         inventory = live_audit.load_selected_graphs()
         for invalid in (None, [], {}, {12: {}}, {"": {}}):
