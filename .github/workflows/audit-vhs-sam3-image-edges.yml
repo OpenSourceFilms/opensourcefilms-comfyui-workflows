@@ -1,0 +1,70 @@
+name: Audit pinned VHS to native SAM3 API IMAGE edges
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-vhs-sam3-image-edges.yml"
+      - "scripts/audit_vhs_sam3_api_image_edges.py"
+      - "scripts/audit_sam3_scail_api_bindings.py"
+      - "tests/test_vhs_sam3_api_image_edges.py"
+      - "workflows/commercial-compatible/step4_5_sam3_mask.json"
+      - "workflows/commercial-compatible/step6_animation_mode.json"
+      - "workflows/commercial-compatible/step7_replacement_mode.json"
+  pull_request:
+    paths:
+      - ".github/workflows/audit-vhs-sam3-image-edges.yml"
+      - "scripts/audit_vhs_sam3_api_image_edges.py"
+      - "scripts/audit_sam3_scail_api_bindings.py"
+      - "tests/test_vhs_sam3_api_image_edges.py"
+      - "workflows/commercial-compatible/step4_5_sam3_mask.json"
+      - "workflows/commercial-compatible/step6_animation_mode.json"
+      - "workflows/commercial-compatible/step7_replacement_mode.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pinned-vhs-sam3-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-source-edges:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - name: Checkout OSF source without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Choose Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Execute no-network mutation regressions
+        run: python -B -m unittest discover -s tests -p "test_vhs_sam3_api_image_edges.py" -v
+      - name: Fetch exact pinned VHS source without running upstream code
+        env:
+          UPSTREAM_VHS_SHA: 2984ec4c4b93292421888f38db74a5e8802a8ff8
+        run: |
+          set -euo pipefail
+          dst="${{ runner.temp }}"/pinned-vhs-api-source
+          git init "$dst"
+          git -C "$dst" remote add origin https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+          git -C "$dst" fetch --no-tags --depth=1 origin "$UPSTREAM_VHS_SHA"
+          git -C "$dst" checkout --detach "$UPSTREAM_VHS_SHA"
+          test "$(git -C "$dst" rev-parse HEAD)" = "$UPSTREAM_VHS_SHA"
+      - name: Prove saved VHS load mode and six exact native IMAGE edges
+        run: |
+          set -euo pipefail
+          python -B scripts/audit_vhs_sam3_api_image_edges.py \
+            --vhs-checkout "${{ runner.temp }}"/pinned-vhs-api-source \
+            --output "${{ runner.temp }}"/vhs-sam3-edges.json
+      - name: Upload metadata-only evidence, never model weights or media
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: osf-vhs-sam3-api-source-edges
+          path: ${{ runner.temp }}/vhs-sam3-edges.json
+          if-no-files-found: error
+          retention-days: 14
