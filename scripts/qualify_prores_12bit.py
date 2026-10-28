@@ -119,6 +119,30 @@ def validate_genuine_12bit_roundtrip(source: bytes, decoded: bytes) -> dict:
                 raise ValueError("12-bit ProRes lost a sub-8-bit luma distinction")
             preserved_pairs += 1
 
+    # Protect both chroma planes from small precision losses that pass the
+    # global ±8-code tolerance. These 15 pairs differ by as little as five
+    # 12-bit codes within the same 8-bit quantization bucket.
+    chroma_positions = (0, 33, 33 * WIDTH, 33 * WIDTH + 33)
+    chroma_by_plane = {"Cb": 0, "Cr": 0}
+    for frame in range(FRAMES):
+        for plane, label in ((1, "Cb"), (2, "Cr")):
+            plane_start = frame * frame_stride + plane * SAMPLES_PER_PLANE
+            for index, left in enumerate(chroma_positions):
+                for right in chroma_positions[index + 1:]:
+                    a, b = plane_start + left, plane_start + right
+                    if not (original[a] < original[b]
+                            and original[a] >> 4 == original[b] >> 4):
+                        continue
+                    if recovered[a] >= recovered[b]:
+                        raise ValueError(
+                            "12-bit ProRes lost a sub-8-bit chroma distinction"
+                        )
+                    chroma_by_plane[label] += 1
+    # The exact deterministic test pattern is itself part of acceptance.
+    # A changed source that silently drops comparisons must fail closed.
+    if chroma_by_plane != {"Cb": 9, "Cr": 6}:
+        raise ValueError("12-bit ProRes chroma comparison baseline changed")
+
     return {
         "status": "real_12bit_yuv444p_roundtrip_verified",
         "source_format": "yuv444p12le",
@@ -132,6 +156,8 @@ def validate_genuine_12bit_roundtrip(source: bytes, decoded: bytes) -> dict:
         "maximum_observed_error_12bit": max(errors),
         "mean_absolute_error_12bit": round(sum(errors) / len(errors), 4),
         "sub_8bit_luma_distinctions_preserved": preserved_pairs,
+        "sub_8bit_chroma_distinctions_preserved": sum(chroma_by_plane.values()),
+        "sub_8bit_chroma_distinctions_by_plane": chroma_by_plane,
         "source_sha256": hashlib.sha256(source).hexdigest(),
         "decoded_frame_sha256": frame_hashes,
         "video_binary_uploaded": False,

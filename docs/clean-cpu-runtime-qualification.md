@@ -145,10 +145,11 @@ The same isolated CI job also runs
 **separate, model-free FFmpeg integration test**, not as an additional
 ComfyUI/VHS node. It constructs two 64×64 frames of genuine planar
 `yuv444p12le` source samples, with nonuniform patterns in **all three
-12-bit planes**. The patterns contain four controlled luma comparisons,
-each between values differing by only five 12-bit code levels and
-mapping to the **same 8-bit code**. They make silent 8-bit truncation or
-rounding observable.
+12-bit planes**. The patterns contain **four luma** and **fifteen chroma**
+(Cb: nine; Cr: six) controlled comparisons within the same 8-bit
+quantization bucket, with differences as small as five 12-bit code
+levels. They expose silent precision collapse in both luma and chroma
+that can otherwise remain within the general reconstruction tolerance.
 
 The job feeds these raw 12-bit source bytes directly to the installed
 `imageio-ffmpeg==0.6.0` executable with `prores_ks`,
@@ -156,10 +157,12 @@ The job feeds these raw 12-bit source bytes directly to the installed
 It then identifies actual ProRes **4444** storage in the temporary MOV,
 decodes back to planar `yuv444p12le` and verifies **every 12-bit
 component** of both frames, with a maximum absolute permitted error
-of **8/4095**. All four sub-8-bit luma distinctions must remain
-strictly ordered after decoding. The public offline tests reject
-8-bit quantization, reversed frames, truncation, out-of-range values
-and even a single excessive sample error.
+of **8/4095**. All four fine luma distinctions and fifteen
+fine chroma distinctions must remain strictly ordered after decoding.
+The public offline tests reject 8-bit quantization, reversed frames,
+truncation, out-of-range values, excessive single-sample error and
+a **single Cb sample losing its sub-8-bit distinction despite remaining
+inside the general 8/4095 error threshold**.
 
 This proves a **bounded-error 12-bit source-to-ProRes-to-12-bit output
 roundtrip for that particular synthetic pattern**. ProRes is lossy;
@@ -179,9 +182,9 @@ demonstrate a high-bit-depth ComfyUI/VHS input path.
 All raw source and decoded samples plus temporary MOV remain only on
 the disposable runner. The 12-bit result is recorded separately in
 `independent_real_12bit_ffmpeg_roundtrip` inside the JSON-only evidence,
-including source/output hashes, 12-bit maximum/mean error, and the
-four preserved fine-grained comparisons. No image/video binaries are
-published.
+including source/output hashes, 12-bit maximum/mean error,
+four preserved luma and fifteen preserved chroma comparisons with
+per-plane counts. No image/video binaries are published.
 
 ## Pinned Florence2 model/run registration, no inference
 
