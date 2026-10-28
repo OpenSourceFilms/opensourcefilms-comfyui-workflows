@@ -8,7 +8,6 @@ HOLDs, rather than being interpreted as compatibility.
 from __future__ import annotations
 
 from collections import Counter
-import hashlib
 import json
 from pathlib import Path
 
@@ -66,15 +65,26 @@ def _source_output(info: dict, name: str, slot: int) -> str:
     return typ
 
 
-def _linked_type_match(produced: str, accepted: str | None) -> str:
-    """Only exact type membership is a positive type proof.
+def _linked_type_match(produced: str, accepted: str | None,
+                       *, destination_class: str, field: str) -> str:
+    """Require a literal type match, except one reviewed native union socket.
 
-    A wildcard, union containing wildcard, or COMBO input never counts
-    as typed compatibility without explicit downstream execution.
+    Pinned public ComfyUI exposes SCAIL2ColoredMask.ref_track_data as the
+    comma-separated runtime multi-type string SAM3_TRACK_DATA,MASK.
+    Source-schema audits denote that exact union with a pipe. Do not
+    globally split comma strings or assume other serialized unions.
     """
     if accepted is None or produced == "*" or accepted == "*":
         return "unresolved_dynamic"
-    possibilities = accepted.split("|")
+    if "," in accepted:
+        if (destination_class == "SCAIL2ColoredMask"
+                and field == "ref_track_data"
+                and accepted == "SAM3_TRACK_DATA,MASK"):
+            possibilities = ("SAM3_TRACK_DATA", "MASK")
+        else:
+            return "unresolved_dynamic"
+    else:
+        possibilities = accepted.split("|")
     if produced in possibilities:
         return "exact_type_match"
     if "*" in possibilities:
@@ -121,7 +131,10 @@ def analyze_live_api_links(registry: object, graph_by_name: object) -> dict:
                     continue
                 source_type = _source_output(registry, source_name, link[1])
                 target_type = _declared_input(registry, class_name, field)
-                category = _linked_type_match(source_type, target_type)
+                category = _linked_type_match(
+                    source_type, target_type,
+                    destination_class=class_name, field=field,
+                )
                 statuses[category] += 1
                 if category == "incompatible":
                     incompatible.append({
