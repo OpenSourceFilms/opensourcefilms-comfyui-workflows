@@ -47,7 +47,7 @@ def classify_missing(class_id: str, source: object = None) -> str:
     if source is None:
         source = _source_module(ROOT)
     if class_id in source.FORK_NATIVE:
-        return "documented_scail_sam3_fork_native"
+        return "historic_sam3_scail_class_unregistered"
     if class_id in source.EDITOR_OR_LAYOUT_TYPES:
         return "editor_or_extension_type_unqualified"
     if source.UUID.fullmatch(class_id):
@@ -116,7 +116,7 @@ def coverage_from_registry(source_audit: dict, live: object) -> dict:
             "unregistered_class_ids_by_category": {
                 cat: [c for c in absent if classification[c] == cat]
                 for cat in (
-                    "documented_scail_sam3_fork_native",
+                    "historic_sam3_scail_class_unregistered",
                     "editor_or_extension_type_unqualified",
                     "unresolved_group_uuid",
                     "other_unregistered_in_current_cpu_installation",
@@ -136,7 +136,7 @@ def coverage_from_registry(source_audit: dict, live: object) -> dict:
         "unique_graph_class_ids": len(seen),
         "registered_unique_class_ids": len(registered),
         "unregistered_unique_class_ids": len(missing_all),
-        "missing_documented_fork_native": sorted(
+        "missing_historic_sam3_scail_native": sorted(
             c for c in missing_all if c in source.FORK_NATIVE
         ),
         "missing_other_unregistered": sorted(
