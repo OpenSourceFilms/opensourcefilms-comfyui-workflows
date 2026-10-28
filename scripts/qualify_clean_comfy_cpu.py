@@ -181,7 +181,7 @@ RASTER_LIMIT = 2_000_000
 
 
 def build_model_free_external_prompt() -> dict:
-    """Four distinct colours, every-second VHS selection, rgthree, previews and GIF.
+    """Four distinct colours, VHS selection, rgthree, previews, GIF and H.264.
 
     All image content is authored by native EmptyImage; no file inputs,
     model loaders, private media or user-supplied prompt fields.
@@ -219,6 +219,17 @@ def build_model_free_external_prompt() -> dict:
             "loop_count": 0,
             "filename_prefix": "osf_synthetic_vhs_gif",
             "format": "image/gif",
+            "pingpong": False,
+            "save_output": False,
+        }},
+        "12": {"class_type": "VHS_VideoCombine", "inputs": {
+            "images": ["9", 0],
+            "frame_rate": 2,
+            "loop_count": 0,
+            "filename_prefix": "osf_synthetic_vhs_h264",
+            "format": "video/h264-mp4",
+            "pix_fmt": "yuv420p",
+            "crf": 0,
             "pingpong": False,
             "save_output": False,
         }},
@@ -260,11 +271,18 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
         raise ValueError("External model-free VHS/rgthree graph returned wrong image count")
     if not isinstance(gifs, list) or len(gifs) != 1:
         raise ValueError("External synthetic GIF encoder returned wrong output count")
+    h264s = outputs.get("12", {}).get("gifs") if isinstance(
+        outputs.get("12"), dict) else None
+    if not isinstance(h264s, list) or len(h264s) != 1:
+        raise ValueError("External synthetic H264 encoder returned wrong output count")
     for preview in previews:
         _validated_temp_asset(preview, "png")
     gif = _validated_temp_asset(gifs[0], "gif")
     if gifs[0].get("format") != "image/gif":
         raise ValueError("Unexpected external GIF codec")
+    _validated_temp_asset(h264s[0], "mp4")
+    if h264s[0].get("format") != "video/h264-mp4":
+        raise ValueError("Unexpected external MP4 codec")
     return {
         "status": "synthetic_api_graph_executed",
         "classes": ["EmptyImage", "ImageBatch", "VHS_SelectEveryNthImage",
@@ -272,7 +290,8 @@ def validate_model_free_external_history(history: object, prompt_id: str) -> dic
         "source_image_count": 4,
         "selected_image_count": len(previews),
         "gif_count": len(gifs),
-        "route": "four colored core images -> VHS every-second -> rgthree -> previews + VHS GIF",
+        "h264_mp4_count": len(h264s),
+        "route": "four colored core images -> VHS every-second -> rgthree -> previews + GIF/H264",
         "model_weights_used": False,
         "binary_outputs_uploaded": False,
     }
@@ -329,16 +348,88 @@ def verify_model_free_raster_content(port: int, record: dict) -> dict:
                 raise ValueError("VHS GIF frame duration differs from two FPS")
     if hashes != gif_hashes:
         raise ValueError("VHS GIF pixels differ from rgthree-routed previews")
+    h264 = verify_h264_video(port, outputs["12"]["gifs"][0])
     return {
         "content": "exact_full_frame_RGB_verified",
         "expected_selected_rgb": [list(color) for color in EXPECTED_RGB],
         "preview_frame_sha256": hashes,
         "gif_frame_sha256": gif_hashes,
         "gif_frames": 2,
+        "h264_mp4": h264,
         "gif_frame_duration_ms": 500,
-        "temporary_assets_inspected": 3,
+        "temporary_assets_inspected": 4,
         "binary_outputs_uploaded": False,
     }
+
+
+def validate_h264_decoded_rgb(raw: bytes) -> dict:
+    """Enforce all decoded pixels and frame order with bounded YUV roundtrip error.
+
+    Unlike the PNG/GIF assertions, H.264/yuv420p necessarily changes RGB by
+    small amounts during colour conversion. Reject content beyond tolerance.
+    """
+    pixels_per_frame = 64 * 64 * 3
+    if len(raw) != 2 * pixels_per_frame:
+        raise ValueError("H264 decoded frame count or dimensions differ")
+    max_errors = []
+    frame_hashes = []
+    for index, rgb in enumerate(EXPECTED_RGB):
+        frame = raw[index * pixels_per_frame:(index + 1) * pixels_per_frame]
+        error = max(
+            max(abs(value - target) for value in frame[channel::3])
+            for channel, target in enumerate(rgb)
+        )
+        if error > 24:
+            raise ValueError("H264 decoded RGB differs from expected red/blue order")
+        frame_hashes.append(_sha(frame))
+        max_errors.append(error)
+    return {
+        "codec": "h264",
+        "pixel_format_requested": "yuv420p",
+        "frames_decoded": 2,
+        "width": 64,
+        "height": 64,
+        "expected_rgb": [list(rgb) for rgb in EXPECTED_RGB],
+        "maximum_absolute_channel_error": max_errors,
+        "maximum_permitted_channel_error": 24,
+        "decoded_frame_sha256": frame_hashes,
+        "content": "bounded_full_frame_rgb_verified",
+        "binary_outputs_uploaded": False,
+    }
+
+
+def verify_h264_video(port: int, item: dict) -> dict:
+    """Decode an actual temporary VHS H.264 MP4 using pinned CPU FFmpeg.
+
+    Verifies codec identity and all decoded pixels. The MP4 is placed only
+    in a temporary scratch directory and not retained in CI artifacts.
+    """
+    from imageio_ffmpeg import get_ffmpeg_exe
+
+    data = _fetch_temporary_asset(port, item, "mp4")
+    if len(data) < 12 or data[4:8] != b"ftyp":
+        raise ValueError("H264 asset lacks an MP4 ftyp signature")
+    with tempfile.TemporaryDirectory(prefix="osf_h264_cpu_") as scratch:
+        video = Path(scratch) / "synthetic.mp4"
+        video.write_bytes(data)
+        args = [
+            get_ffmpeg_exe(), "-hide_banner", "-nostdin",
+            "-i", str(video), "-map", "0:v:0", "-vsync", "0",
+            "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1",
+        ]
+        result = subprocess.run(
+            args, capture_output=True, timeout=30, check=True,
+        )
+        stderr = result.stderr.decode("utf-8", "replace")
+        if not re.search(r"Video:\s+h264\b", stderr, flags=re.IGNORECASE):
+            raise ValueError("FFmpeg did not identify the encoded stream as H264")
+        output = validate_h264_decoded_rgb(result.stdout)
+        return {
+            **output,
+            "container": "mp4",
+            "output_mp4_sha256": _sha(data),
+            "mp4_size_bytes": len(data),
+        }
 
 
 def execute_model_free_external_prompt(port: int, child: subprocess.Popen,
