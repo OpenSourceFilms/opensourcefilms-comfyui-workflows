@@ -200,6 +200,18 @@ upstream GPLv3, not OSF-owned or relicensed by OSF.
 The pinned GIMM-VFI source also declares `cupy-cuda12x`; this CPU test
 cannot certify its CUDA/kernel compatibility.
 
+## Selected eleven-workflow class registration diagnostic
+
+The clean CPU runtime also compares its actual loopback `/object_info`
+registry with the strict [eleven-workflow class inventory](selected-11-node-coverage.md).
+It reports the registered and unregistered source class names for each
+selected graph, with 11-graph totals and separate holds for the modified
+SAM3/SCAIL-2 fork and unresolved UUID group nodes. The test must see
+the six previously qualified pinned class registrations and valid
+input/output schemas. This is live **class-registration evidence** only:
+a UI workflow is not converted to an API prompt, and no model weights,
+GPU inference or selected workflow graph execution occurs.
+
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
