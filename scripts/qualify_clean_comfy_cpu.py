@@ -854,6 +854,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
              "assert urllib.request.urlretrieve is sitecustomize._reject_urlretrieve"],
             env=env, check=True, capture_output=True, text=True, timeout=15,
         )
+        from qualify_vhs_no_vae_video_cpu import prepare_synthetic_video_input
+        vhs_loader_source = prepare_synthetic_video_input(comfy)
         cmd = [
             sys.executable, "main.py", "--cpu", "--offline",
             "--listen", "127.0.0.1", "--port", str(port),
@@ -882,6 +884,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
                 external_graph = execute_model_free_external_prompt(port, child)
+                from qualify_vhs_no_vae_video_cpu import execute_no_vae_video_graph
+                vhs_no_vae_video = execute_no_vae_video_graph(
+                    port, child, fetch_asset=_fetch_temporary_asset
+                )
                 from qualify_vhs_audio_mux import execute_synthetic_vhs_pcm_mux
                 pcm_audio_mux = execute_synthetic_vhs_pcm_mux(port, child)
                 from qualify_vhs_stereo_pcm_mux import execute_synthetic_vhs_stereo_mux
@@ -931,6 +937,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
+        "vhs_real_video_no_vae_image_path": {
+            **vhs_loader_source,
+            **vhs_no_vae_video,
+        },
         "synthetic_video_audio_pcm_mux": pcm_audio_mux,
         "synthetic_vhs_stereo_pcm_mux": stereo_pcm_mux,
         "scail_native_cpu_mask_execution": scail_mask_result,
