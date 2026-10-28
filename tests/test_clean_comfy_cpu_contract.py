@@ -42,6 +42,49 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Missing or symlinked"):
                 qualifier._load_osf_classes(Path(td))
 
+    def test_requires_three_actual_external_node_schemas(self):
+        classes = qualifier.EXTERNAL_NODE_PINS
+        document = {
+            name: {"input": {"required": {}}, "output": ["ANY"]}
+            for spec in classes.values() for name in spec["classes"]
+        }
+        actual = qualifier.ensure_external_object_info(document, classes)
+        self.assertEqual(set(actual), set(classes))
+        missing = next(iter(classes.values()))["classes"][0]
+        del document[missing]
+        with self.assertRaisesRegex(ValueError, "Missing external"):
+            qualifier.ensure_external_object_info(document, classes)
+        document[missing] = {"input": {"required": {}}, "output": "ANY"}
+        with self.assertRaisesRegex(ValueError, "Invalid external"):
+            qualifier.ensure_external_object_info(document, classes)
+
+    def test_pinned_source_revision_inventory_is_fail_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            nodes = Path(td)
+            expected = qualifier.EXTERNAL_NODE_PINS
+            for package in expected:
+                (nodes / package).mkdir()
+            def fake_revparse(args, **_kwargs):
+                name = Path(args[2]).name
+                return mock.Mock(stdout=expected[name]["sha"] + "\n")
+            with mock.patch.object(qualifier.subprocess, "run",
+                                   side_effect=fake_revparse):
+                report = qualifier.verify_external_node_sources(nodes)
+                self.assertEqual(report, {
+                    name: value["sha"] for name, value in sorted(expected.items())
+                })
+            old = nodes / "rgthree-comfy"
+            old.rmdir()
+            old.symlink_to(nodes / "ComfyUI-VideoHelperSuite")
+            with self.assertRaisesRegex(ValueError, "symlinked"):
+                qualifier.verify_external_node_sources(nodes)
+            old.unlink()
+            old.mkdir()
+            with mock.patch.object(qualifier.subprocess, "run",
+                                   return_value=mock.Mock(stdout="0" * 40 + "\n")):
+                with self.assertRaisesRegex(ValueError, "Unapproved external"):
+                    qualifier.verify_external_node_sources(nodes)
+
     def test_requires_pinned_comfyui_sha_and_no_existing_evidence_file(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
