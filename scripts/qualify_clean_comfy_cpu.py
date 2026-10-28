@@ -731,6 +731,29 @@ def execute_downsample_fps_synthetic(node_directory: Path) -> dict:
     }
 
 
+def qualify_selected_11_live_registry(port: int) -> dict:
+    """Reuse the source-only 11-graph inventory against actual loopback object_info.
+
+    This is registration evidence only, never a GPU/model/loadability claim.
+    """
+    script = Path(__file__).resolve().parent / "audit-selected-11-node-coverage.py"
+    if script.is_symlink() or not script.is_file():
+        raise ValueError("Missing or symlinked selected-11 source auditor")
+    spec = importlib.util.spec_from_file_location("osf_live_selected11_cpu", script)
+    if spec is None or spec.loader is None:
+        raise ValueError("Cannot import selected-11 source auditor")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with urlopen(f"http://127.0.0.1:{port}/object_info", timeout=10) as resp:
+        if resp.status != 200:
+            raise ValueError("Selected-11 registry HTTP status is not 200")
+        data = resp.read(2_500_000)
+        if len(data) >= 2_500_000:
+            raise ValueError("Selected-11 registry exceeds bounded response size")
+        object_info = json.loads(data)
+    return module.compare_live_registry(module.audit(), object_info)
+
+
 def qualify(comfy: Path, report: Path, port: int) -> dict:
     comfy = comfy.resolve(strict=True)
     package = comfy / "custom_nodes" / "mask_propagate_optical_flow"
@@ -781,6 +804,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             )
             try:
                 registration = _probe_server(port, child)
+                live_11_registry = qualify_selected_11_live_registry(port)
                 synthetic = execute_synthetic(package)
                 downsample = execute_downsample_fps_synthetic(
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
@@ -812,6 +836,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "upstream_comfyui_commit": version,
         "runtime": "isolated_github_actions_ubuntu_cpu_only",
         "registration": registration,
+        "selected_11_live_cpu_class_registry": live_11_registry,
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
