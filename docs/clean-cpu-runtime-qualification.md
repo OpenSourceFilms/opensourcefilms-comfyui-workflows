@@ -16,7 +16,7 @@ checkout's requirements into the isolated runner Python environment plus
 and `pip check` must pass.
 
 The job copies OSF's own optical-flow node into that scratch
-ComfyUI installation. It additionally fetches **exactly five public,
+ComfyUI installation. It additionally fetches **exactly six public,
 commit-pinned third-party packages** to the same disposable checkout,
 without invoking the broad legacy installer:
 
@@ -27,16 +27,17 @@ without invoking the broad legacy installer:
 | ComfyUI-DownsampleFPS | `4d741ef8e33b0c5111ad21033f9408acffc63651` | `DownsampleFPSNode` |
 | ComfyUI-GGUF | `6ea2651e7df66d7585f6ffee804b20e92fb38b8a` | `UnetLoaderGGUF` |
 | ComfyUI_UltimateSDUpscale | `a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df` | `UltimateSDUpscale` |
+| ComfyUI-Florence2 | `9ece3de914214c5f581d725167bc9d0eeb0d1120` | `DownloadAndLoadFlorence2Model`, `Florence2Run` |
 
 The job requires actual Git HEAD to match each pinned SHA, installs
-`imageio-ffmpeg==0.6.0` and `gguf==0.13.0` with CPU/headless
+`imageio-ffmpeg==0.6.0`, `gguf==0.13.0` and `matplotlib==3.10.6` with CPU/headless
 OpenCV provided by the core test, and disables persistence of the checkout
 credential. These packages are independent upstream software with their
 own GPL/MIT/Apache terms; they are neither vendored nor relicensed by OSF.
 The runner then starts ComfyUI with
 `--cpu --offline --listen 127.0.0.1`, checks the real
-`/object_info` API for both registered OSF nodes **and the five selected
-external package classes**, executes both OSF functions on
+`/object_info` API for both registered OSF nodes **and the six selected
+external package registrations**, executes both OSF functions on
 generated 48×48 tensors: zero-flow propagation and static
 Farneback optical flow. It also executes the actual DownsampleFPS frame-drop
 method on eight synthetic CPU frames (8 fps to 4 fps), checking expected
@@ -177,6 +178,33 @@ including source/output hashes, 12-bit maximum/mean error, and the
 four preserved fine-grained comparisons. No image/video binaries are
 published.
 
+## Pinned Florence2 model/run registration, no inference
+
+The selected `mm_upscale_video_workflow.json` contains editor nodes
+`DownloadAndLoadFlorence2Model` and `Florence2Run`. The clean CPU
+acceptance checks out `kijai/ComfyUI-Florence2` at exact upstream commit
+`9ece3de914214c5f581d725167bc9d0eeb0d1120` from
+`DEPENDENCIES.lock`. It loads the real upstream package in disposable
+ComfyUI and requires both classes in live `/object_info`.
+
+A supplementary socket contract requires the loader to accept
+`model` and `precision` and emit `FL2MODEL`; it requires
+`Florence2Run` to accept `image: IMAGE`,
+`florence2_model: FL2MODEL`, `text_input: STRING`, `task`
+and `fill_mask: BOOLEAN`, and emit
+`IMAGE, MASK, STRING, JSON` in that order. No model or captioning
+operation is invoked. The upstream `loadmodel` method can call
+Hugging Face `snapshot_download` when weights are absent, so
+**do not invoke it in this no-weight acceptance stage**.
+The disposable CI process sets `HF_HUB_OFFLINE=1` and
+`TRANSFORMERS_OFFLINE=1`, but those environment settings
+are not a general network-isolation guarantee.
+
+This test establishes only pinned code installation, class registration,
+and socket type/name compatibility. It does **not** establish that the
+specified Florence2 weights are available, permitted for every commercial
+use, loadable on GPU, or that `mm_upscale` itself can run.
+
 ## Pinned UltimateSDUpscale submodule, no mutable fallback
 
 The pinned `ssitu/ComfyUI_UltimateSDUpscale` source at
@@ -281,7 +309,7 @@ are counts and flags only, never prompts or private media.
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
-It verifies five *representative* external node imports in addition to
+It verifies six *representative* external node-package imports in addition to
 OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
 method. It executes only the small synthetic VHS selection/GIF-encoding and rgthree routing operations described above.
 It does **not** execute GGUF or UltimateSDUpscale nodes, nor VideoHelperSuite
