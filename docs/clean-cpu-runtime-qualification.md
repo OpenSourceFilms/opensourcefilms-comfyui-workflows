@@ -33,8 +33,9 @@ credential. These packages are independent upstream software with their
 own GPL/MIT/Apache terms; they are neither vendored nor relicensed by OSF.
 The runner then starts ComfyUI with
 `--cpu --offline --listen 127.0.0.1`, checks the real
-`/object_info` API for both registered OSF nodes, and executes their
-functions on generated 48×48 tensors: zero-flow propagation and static
+`/object_info` API for both registered OSF nodes **and the three selected
+external package classes**, and executes only the OSF functions on
+generated 48×48 tensors: zero-flow propagation and static
 Farneback optical flow. It checks shape, finite values, initial-mask
 preservation and zero-motion consistency, and records output hashes.
 The loopback process is terminated in all normal and exceptional paths.
