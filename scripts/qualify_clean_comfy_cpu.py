@@ -882,6 +882,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
                 )
                 external_graph = execute_model_free_external_prompt(port, child)
+                from qualify_vhs_audio_mux import execute_synthetic_vhs_pcm_mux
+                pcm_audio_mux = execute_synthetic_vhs_pcm_mux(port, child)
                 from qualify_scail_native_mask_cpu import execute_scail_cpu_graph
                 scail_mask_result = execute_scail_cpu_graph(
                     port, child, fetch_asset=_fetch_temporary_asset
@@ -923,6 +925,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
+        "synthetic_video_audio_pcm_mux": pcm_audio_mux,
         "scail_native_cpu_mask_execution": scail_mask_result,
         "vhs_optin_16bit_source_vs_default_8bit": {
             "preset": vhs_precision_preset,

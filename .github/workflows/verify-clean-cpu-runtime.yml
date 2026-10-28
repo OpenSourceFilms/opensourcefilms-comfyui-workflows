@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/qualify_vhs_audio_mux.py"
+      - "tests/test_vhs_audio_mux_contract.py"
+      - "tests/fixtures/comfy_synthetic_audio/**"
       - "scripts/qualify_vhs_prores_hq422.py"
       - "tests/test_vhs_prores_hq422_contract.py"
       - "scripts/audit_sam3_scail_api_bindings.py"
@@ -38,6 +41,9 @@ on:
     paths:
       - ".github/workflows/verify-clean-cpu-runtime.yml"
       - "scripts/qualify_clean_comfy_cpu.py"
+      - "scripts/qualify_vhs_audio_mux.py"
+      - "tests/test_vhs_audio_mux_contract.py"
+      - "tests/fixtures/comfy_synthetic_audio/**"
       - "scripts/qualify_vhs_prores_hq422.py"
       - "tests/test_vhs_prores_hq422_contract.py"
       - "scripts/audit_sam3_scail_api_bindings.py"
@@ -90,6 +96,8 @@ jobs:
           python-version: "3.12"
       - name: Test CPU smoke driver before external installs
         run: python -B -m unittest discover -s tests -p "test_clean_comfy_cpu_contract.py" -v
+      - name: Test offline synthetic audio mux and fail-closed PCM validator
+        run: python -B -m unittest discover -s tests -p "test_vhs_audio_mux_contract.py" -v
       - name: Test actual 12-bit source and quantization rejection contracts
         run: python -B -m unittest discover -s tests -p "test_true_12bit_prores_contract.py" -v
       - name: Validate all selected 11 graph class IDs and profile inventory
@@ -119,6 +127,7 @@ jobs:
           git -C "${{ runner.temp }}/osf-disposable-ComfyUI" checkout --detach "$COMFY_SHA"
           test "$(git -C "${{ runner.temp }}/osf-disposable-ComfyUI" rev-parse HEAD)" = "$COMFY_SHA"
           cp -R custom_nodes/mask_propagate_optical_flow "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
+          cp -R tests/fixtures/comfy_synthetic_audio "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
           cp -R tests/fixtures/comfy_scail_cpu_source "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
           cp -R tests/fixtures/comfy_12bit_source "${{ runner.temp }}/osf-disposable-ComfyUI/custom_nodes/"
       - name: Fetch six exact reviewed public custom-node commits

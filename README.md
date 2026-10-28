@@ -183,6 +183,13 @@ differences survive within a bounded error. This does **not** establish
 [separate source-verified VHS precision audit](docs/vhs-prores-input-precision.md)
 confirms the pinned ProRes preset defaults to 8-bit RGB input and
 demonstrates loss of subtle 12-bit source distinctions before FFmpeg.
+A [disposable synthetic ProRes + PCM audio mux gate](docs/vhs-prores-audio-mux-qualification.md)
+checks the actual pinned VHS audio path with two generated video frames
+and a generated 48 kHz mono tone. It decodes both streams and requires
+ProRes 4444 video plus uncompressed PCM s16le audio, without processing
+any production footage or soundtrack. It does **not** qualify dialogue,
+multichannel audio or production sync.
+
 A separate [test of the explicit opt-in 16-bit VHS input path](docs/vhs-prores-16bit-qualification.md)
 compares the same test-only ComfyUI tensor through default 8-bit and
 locally configured 16-bit ProRes paths. The CI-only preset is not deployed,
