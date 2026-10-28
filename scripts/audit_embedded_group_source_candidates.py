@@ -91,7 +91,7 @@ def collect(root: Path = ROOT) -> dict:
         commit = source["commit"]
         if not re.fullmatch(r"[0-9a-f]{40}", commit):
             raise ValueError("Invalid candidate commit: " + hint)
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", source["repository"]):
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*", source["repository"]):
             raise ValueError("Invalid candidate repository: " + hint)
         if source["license"] not in ("MIT", "GPL-3.0"):
             raise ValueError("Unreviewed candidate licence: " + hint)
