@@ -57,11 +57,21 @@ def verify_native_live_schemas(registry: object) -> dict:
             declared, props = _typed_socket(declared_fields[name], class_id, name)
             key = class_id + "." + name
             if typ == "COMBO":
-                if (not isinstance(declared, list) or not declared
-                        or any(not isinstance(x, str) for x in declared)):
-                    raise ValueError("Native public combo type mismatch: " + key)
-                # The source snapshot publishes exactly these three options.
-                if key == "SCAIL2ColoredMask.sort_by" and set(declared) != {
+                # Old ComfyUI exposes enum options as first-list type.
+                # New io.Combo.Input may expose "COMBO" plus metadata.
+                if isinstance(declared, list):
+                    options = declared
+                elif declared == "COMBO":
+                    options = props.get("options", props.get("values"))
+                else:
+                    raise ValueError("Native public combo type mismatch: " + key
+                                     + ", live kind " + type(declared).__name__)
+                if (not isinstance(options, list) or not options
+                        or any(not isinstance(x, str) for x in options)):
+                    raise ValueError("Native public combo option metadata invalid: " + key
+                                     + ", live kind " + type(declared).__name__
+                                     + ", option kind " + type(options).__name__)
+                if key == "SCAIL2ColoredMask.sort_by" and set(options) != {
                     "none", "left_to_right", "area"
                 }:
                     raise ValueError("Native public enum options mismatch: " + key)
