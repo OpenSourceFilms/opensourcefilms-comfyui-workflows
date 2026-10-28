@@ -215,9 +215,15 @@ ComfyUI + five external packages.
 The report provides per-workflow node-instance counts, distinct class
 IDs, exact registered IDs and every unregistered ID, grouped into:
 
-- **documented SCAIL/SAM3 fork-native:** `SAM3_Detect`,
-  `SAM3_VideoTrack`, `SCAIL2ColoredMask`, `WanSCAILToVideo`.
-  The specialized fork is *not* part of this clean vanilla CPU runner.
+- **historically SCAIL/SAM3 fork-native:** `SAM3_Detect`,
+  `SAM3_VideoTrack`, `SAM3_TrackPreview`, `SCAIL2ColoredMask`,
+  `WanSCAILToVideo`. All five **actually register in the pinned
+  public ComfyUI core**, as verified by this live CPU audit. The source
+  exists in upstream `comfy_extras/nodes_sam3.py` and
+  `comfy_extras/nodes_scail.py`. An absent entry would still be reported
+  separately, but the special fork is no longer presumed a prerequisite
+  merely for these class IDs. Node schema, weight-loading and inference
+  compatibility with the original fork remain **unverified**.
 - **UI annotation/reroute:** `MarkdownNote`, `Note`, `Reroute`,
   `Label (rgthree)`; absence from the API registry alone does not
   establish missing execution support.
