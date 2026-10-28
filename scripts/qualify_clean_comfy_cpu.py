@@ -297,6 +297,14 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
             "CUDA_VISIBLE_DEVICES": "", "PYTHONUNBUFFERED": "1",
             "PYTHONPATH": str(guard) + os.pathsep + env.get("PYTHONPATH", ""),
         })
+        # Check the interpreter will actually load our no-download guard
+        # before running any third-party package initialization.
+        subprocess.run(
+            [sys.executable, "-c",
+             "import sitecustomize, urllib.request; "
+             "assert urllib.request.urlretrieve is sitecustomize._reject_urlretrieve"],
+            env=env, check=True, capture_output=True, text=True, timeout=15,
+        )
         cmd = [
             sys.executable, "main.py", "--cpu", "--offline",
             "--listen", "127.0.0.1", "--port", str(port),
