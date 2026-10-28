@@ -66,7 +66,9 @@ class PcmMuxContractTests(unittest.TestCase):
         self.assertEqual(result["sample_rate_hz"], 48000)
         self.assertEqual(result["channels"], 1)
         self.assertEqual(result["samples_decoded"], 48000)
-        self.assertLess(result["maximum_checkpoint_error"], 0.0001)
+        self.assertEqual(result["samples_compared"], 48000)
+        self.assertTrue(result["full_waveform_validated"])
+        self.assertLess(result["maximum_full_waveform_sample_error"], 0.0001)
         self.assertFalse(result.get("binary_media_uploaded", False))
 
     def test_pcm_rejects_empty_silent_wrong_frequency_or_amplitude(self):
@@ -85,6 +87,46 @@ class PcmMuxContractTests(unittest.TestCase):
         ):
             with self.subTest(length=len(bad)):
                 with self.assertRaises(ValueError):
+                    gate.check_decoded_mono_pcm(bad)
+
+    def test_all_sample_validation_rejects_uncharted_tail_silence(self):
+        original = array("f", (
+            0.2 * math.sin(2 * math.pi * 440 * i / 48000)
+            for i in range(48000)
+        ))
+        # The former 16-point checkpoint gate ended at index 44000 and
+        # would have accepted corruption in this entire final segment.
+        corrupted = array("f", original)
+        for i in range(45000, 48000):
+            corrupted[i] = 0.0
+        self.assertEqual(gate.check_decoded_mono_pcm(original)["samples_compared"],
+                         48000)
+        with self.assertRaisesRegex(ValueError, "full-waveform"):
+            gate.check_decoded_mono_pcm(corrupted)
+
+    def test_all_sample_validation_rejects_single_off_grid_error(self):
+        original = array("f", (
+            0.2 * math.sin(2 * math.pi * 440 * i / 48000)
+            for i in range(48000)
+        ))
+        corrupted = array("f", original)
+        corrupted[45001] += 0.01
+        with self.assertRaisesRegex(ValueError, "full-waveform"):
+            gate.check_decoded_mono_pcm(corrupted)
+        corrupted = array("f", original)
+        corrupted[25001] -= 0.005
+        with self.assertRaisesRegex(ValueError, "full-waveform"):
+            gate.check_decoded_mono_pcm(corrupted)
+
+    def test_audio_mux_fails_closed_on_padding_and_truncation(self):
+        original = array("f", (
+            0.2 * math.sin(2 * math.pi * 440 * i / 48000)
+            for i in range(48000)
+        ))
+        for bad in (original[:-1], original + array("f", [0.0]),
+                    original + array("f", [0.0] * 1000)):
+            with self.subTest(count=len(bad)):
+                with self.assertRaisesRegex(ValueError, "exact one-second"):
                     gate.check_decoded_mono_pcm(bad)
 
     def test_no_production_fixture_or_weights_in_accepted_graph(self):
