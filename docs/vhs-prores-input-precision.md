@@ -1,6 +1,6 @@
 # VideoHelperSuite ProRes input-precision boundary
 
-**Status: 12-bit input fidelity through the pinned VideoHelperSuite/ComfyUI path is NOT qualified.**
+**Status:** The default pinned VideoHelperSuite ProRes preset truncates tensor inputs to 8-bit. A separate disposable CPU test **has verified preservation of four controlled sub-8-bit luma distinctions** using an opt-in 16-bit input preset. Calibrated, bit-exact or production 12-bit source fidelity is **not qualified**.
 
 This is separate from the [accepted direct FFmpeg 12-bit ProRes roundtrip](clean-cpu-runtime-qualification.md#independent-real-12-bit-prores-source-and-fidelity-gate), which bypasses VideoHelperSuite.
 
@@ -45,20 +45,47 @@ Offline regressions reject a changed default, missing `rgb24` or
 `tensor_to_bytes` path, unexpected encoder format and missing
 upstream node definition.
 
-## Requirements for eventual ComfyUI/VHS high-bit-depth acceptance
+## Later live ComfyUI/VHS evidence: opt-in 16-bit input
 
-A positive acceptance would need a **separately reviewed,
-reproducible format configuration** explicitly selecting
-`input_color_depth=16bit`, an actual ComfyUI tensor with controlled
-sub-8-bit component variation, real VideoHelperSuite encoding,
-verification of the encoded codec/pixel format, and high-bit-depth
-decoding that demonstrates those specific distinctions survive.
-It should also evaluate RGB-to-YUV transforms, transfer functions,
-matrix/range metadata, image dimensions and target codec profile.
+The separate [experimental 16-bit input qualification](vhs-prores-16bit-qualification.md)
+has **already completed** the limited test previously proposed here.
+[PR #37](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/pull/37)
+merged at `9172f21cd77b71819e63eaacfffa9d8d3907669b`; its
+[independent merged-main CPU run](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/actions/runs/40634457603)
+and [public regressions](https://github.com/OpenSourceFilms/opensourcefilms-comfyui-workflows/actions/runs/40634457613)
+both passed.
 
-That is **not** implied by the direct FFmpeg ProRes 4444 result or by
-the existing 8-bit `EmptyImage` VHS codec graph.
+On **identical** generated two-frame 64×64 float32 ComfyUI `IMAGE`
+tensors containing controlled 12-bit-indexed grayscale values, the
+actual pinned `VHS_VideoCombine` ran twice:
 
-No production dependencies or upstream formats have been changed by
-this audit. No GPUs, models, project footage or existing RunPod
-ComfyUI instances are involved.
+- The unmodified upstream `video/ProRes` default accepted 8-bit
+  `rgb24` input and collapsed **all four** tested fine-value pairs.
+- A **CI-only, untracked copy** of that preset adding only
+  `"input_color_depth": "16bit"` sent 16-bit `rgb48` input.
+  All **four** tested pairs remained distinct after ProRes 4444
+  encoding and 12-bit `yuv444p12le` decoding, with differences of
+  **[4, 4, 4, 4] code levels** on the decoded 12-bit scale.
+
+This is **actual ComfyUI node execution**, not just a source audit or
+a direct-FFmpeg demonstration. It establishes the specific fine-detail
+preservation comparison under the reviewed temporary preset. The default
+upstream ProRes preset remains 8-bit, and the opt-in preset was **not
+published as a production configuration**. The test does not establish
+bit-exact 12-bit source fidelity, calibrated RGB/YUV conversion,
+colour-transfer and range metadata, HDR camera input, or full resolution,
+duration and workflow reliability.
+
+## Remaining requirements for production high-bit-depth acceptance
+
+Qualify an explicitly approved and reproducible high-bit-depth preset
+across representative frame dimensions, gradients, colour matrices,
+range/transfer functions, realistic scene variation, frame timing,
+and source precision. Independently review the exact dependency versions
+and deployment rights. A successful synthetic A/B comparison must not
+be treated as an accepted production format or full 11-workflow GPU/model
+qualification.
+
+No production dependencies, upstream formats or RunPod ComfyUI
+instances were changed by either isolated test. No GPUs, models or
+project footage were used.
