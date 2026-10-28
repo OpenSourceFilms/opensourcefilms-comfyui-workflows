@@ -129,6 +129,74 @@ class PcmMuxContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "exact one-second"):
                     gate.check_decoded_mono_pcm(bad)
 
+    @staticmethod
+    def _actual_media_timestamp_trace(*, audio_shift=0, truncate_samples=0,
+                                      video_shift=0, video_second_shift=0,
+                                      audio_gap_after_packet=None):
+        lines = []
+        for index in range(2):
+            seconds = index * 0.5 + video_shift
+            if index == 1:
+                seconds += video_second_shift
+            lines.append(
+                f"[Parsed_showinfo_0 @ 0x01] n: {index:3} pts: {index * 8192} "
+                f"pts_time:{seconds:g} duration:8192 duration_time:0.5 "
+                "fmt:yuv444p12le"
+            )
+        running = 0
+        remaining = 48000 - truncate_samples
+        index = 0
+        while remaining > 0:
+            count = min(1024, remaining)
+            pts = running + audio_shift
+            if audio_gap_after_packet is not None and index > audio_gap_after_packet:
+                pts += 1024
+            lines.append(
+                f"[Parsed_ashowinfo_0 @ 0x02] n:{index} pts:{pts} "
+                f"pts_time:{pts / 48000:.7f} fmt:s16 channels:1 "
+                f"chlayout:mono rate:48000 nb_samples:{count}"
+            )
+            running += count
+            remaining -= count
+            index += 1
+        return "\n".join(lines)
+
+    def test_actual_mux_presentation_timeline_checks_every_pcm_packet(self):
+        data = self._actual_media_timestamp_trace()
+        result = gate.verify_synthetic_mux_timestamps(data)
+        self.assertEqual(result["status"],
+                         "synthetic_audio_video_presentation_timeline_verified")
+        self.assertEqual(result["video_presentation_seconds"], [0.0, 0.5])
+        self.assertEqual(result["audio_first_sample_pts"], 0)
+        self.assertEqual(result["audio_samples_covered"], 48000)
+        self.assertEqual(result["audio_packets_inspected"], 47)
+        self.assertEqual(result["video_stream_end_seconds"], 1.0)
+        self.assertEqual(result["audio_stream_end_seconds"], 1.0)
+        self.assertFalse(result["binary_media_uploaded"])
+
+    def test_mux_timestamps_reject_stream_shift_and_pcm_discontinuity(self):
+        invalid = [
+            ({"audio_shift": 1024}, "Audio PCM timestamps"),
+            ({"audio_gap_after_packet": 18}, "Audio PCM timestamps"),
+            ({"truncate_samples": 1}, "Audio timestamp coverage"),
+            ({"video_shift": 0.04}, "Video timestamps"),
+            ({"video_second_shift": 0.05}, "Video timestamps"),
+        ]
+        for params, expected in invalid:
+            with self.subTest(params=params):
+                with self.assertRaisesRegex(ValueError, expected):
+                    gate.verify_synthetic_mux_timestamps(
+                        self._actual_media_timestamp_trace(**params)
+                    )
+
+    def test_mux_timestamps_reject_missing_or_duplicate_video_frames(self):
+        data = self._actual_media_timestamp_trace()
+        lines = data.splitlines()
+        for invalid in ("\n".join(lines[1:]),
+                        "\n".join([lines[0], lines[0], *lines[2:]])):
+            with self.assertRaises(ValueError):
+                gate.verify_synthetic_mux_timestamps(invalid)
+
     def test_no_production_fixture_or_weights_in_accepted_graph(self):
         graph = gate.build_synthetic_audio_mux_graph()
         self.assertEqual(
