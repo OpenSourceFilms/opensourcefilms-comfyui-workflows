@@ -73,7 +73,7 @@ class FreshRootLegacyInstallerTests(unittest.TestCase):
         )
         executable.chmod(0o755)
         self.default_nodes = set(re.findall(
-            r"(?m)^([A-Za-z0-9_.-]+)\|https://github\.com/",
+            r"([A-Za-z0-9_.-]+)\|https://github\.com/",
             INSTALLER.read_text(encoding="utf-8"),
         )) - RESEARCH
         self.assertGreaterEqual(len(self.default_nodes), 12)
