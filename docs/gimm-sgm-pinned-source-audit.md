@@ -48,10 +48,12 @@ kijai `DownloadAndLoadGIMMVFIModel` class.
 **A matching node name alone is not equivalent to compatible socket
 schema or model-type semantics.**
 
-The two SGM node class names are present in the pinned Tween mapping;
-the audit does not imply that their exact sockets, weights or CUDA
-execution are qualified. Tween's loader may download a missing model
-and uses CuPy. No such functions are executed by this source audit.
+The two SGM class names appear in the pinned Tween mapping. A separate
+source-only check below now verifies their exact UI socket types,
+inheritance, output ports and two selected graph links. Weights, model
+provenance, all other links and CUDA execution remain unqualified.
+Tween's loader may download a missing model and uses CuPy.
+No such functions are executed by either source audit.
 
 ## Non-destructive class-name migration candidate
 
@@ -83,6 +85,40 @@ acceptance. Model checkpoint provenance, licence conditions and
 actual GIMM/SGM inference still require independent checks. The
 candidate's decision remains `CANDIDATE_ONLY_HOLD`, and the selected
 released workflow is **not modified** or ready for production.
+
+## SGM loader and segment socket parity (source only)
+
+The separate [SGM socket audit](../scripts/audit_sgm_source_socket_parity.py)
+inspects the pinned `ComfyUI-Tween@91947c0b8c795cf504d3848274d4217f0432a324`
+`__init__.py` registration and `nodes.py` via static Python AST. It does
+**not** import Tween or invoke its CuPy, checkpoint or auto-download paths.
+
+It validates all three `LoadSGMVFIModel` input sockets
+(`model_path` COMBO, `tta` BOOLEAN, `num_key_points` FLOAT), its
+`SGM_VFI_MODEL` output, and every inherited
+`SGMVFISegmentInterpolate` socket. The latter has the base
+`SGMVFIInterpolate` inputs plus two required integer
+`segment_index` and `segment_size` sockets, and returns `IMAGE`
+and `SGM_VFI_MODEL`. The parser rejects unreviewed dynamic
+registration, changes to the base/subclass relationship or mutations
+beyond exactly these two inherited socket additions.
+
+The same audit checks exact UI graph socket names/types, source
+revision metadata, widget counts, model link ID 18 from loader
+node 21 to segment node 22, and the segment image-output link ID 27.
+It rejects changed or absent link records, reversed/missing source
+bindings and incompatible output ports. It verifies no graph JSON
+was modified and uploads only aggregate metadata, not model paths,
+widget values or rewritten workflows.
+
+A **successful** source-parity check is reported as
+`SOURCE_INTERFACE_PARITY_ONLY_HOLD`: it establishes that these two
+**SGM interfaces and reviewed connections** match the exact pinned
+source. It does **not** establish that the nodes execute successfully,
+that the SGM model checkpoint is available or legally usable, that
+the model's CuPy/CUDA dependencies work, or that all other GIMM/SGM
+graph connections and model semantics are compatible. Those gates
+remain unresolved and the original graph remains unchanged.
 
 ## Reproducible gate
 
