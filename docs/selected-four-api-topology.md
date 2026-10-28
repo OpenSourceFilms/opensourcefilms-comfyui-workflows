@@ -56,7 +56,7 @@ exports remain handled by the separate UI/embedded-group audits.
 The [isolated clean ComfyUI CPU job](../.github/workflows/verify-clean-cpu-runtime.yml)
 also evaluates [`audit_selected_four_live_api_links.py`](../scripts/audit_selected_four_live_api_links.py)
 against the **actual** `/object_info` registry on the pinned public
-ComfyUI revision with its five approved, commit-pinned external packages.
+ComfyUI revision with its reviewed, commit-pinned external packages.
 It reads the original four selected API exports, comprising **60 nodes
 and 82 link references**, without reading their prompt strings or
 model filenames into the emitted report.
