@@ -24,14 +24,19 @@ encoded media.
 The pinned FFmpeg decoder independently requires a ProRes 4444 video
 stream with exactly two black 64×64 frames and an **uncompressed
 mono PCM s16le audio stream at 48 kHz**. It decodes audio to float32,
-checks sample count close to one second, peak amplitude around 0.2,
-and deterministic waveform checkpoints against the expected 440 Hz
-sine. Incorrect or missing audio, silent tracks, wrong tone/frequency,
-wrong output format, excessive sample deviations, and missing video
-frames fail closed.
+requires exactly 48,000 samples for the fixed one-second source
+(no accepted padding), a peak amplitude around 0.2, and compares
+**every one of the 48,000 decoded samples** against the analytic 440 Hz
+sine at matching sample indices. The maximum absolute error must be
+at most 0.001 per float32 sample, allowing a margin for 16-bit PCM
+quantisation. Unlike the earlier 16-checkpoint gate, this rejects
+corruption at any position, including a 3,000-sample silent tail or
+an isolated off-grid sample error. Incorrect or missing audio, padding,
+truncation, wrong tone/frequency, wrong output format and missing
+video frames fail closed.
 
 The uploaded evidence is **JSON only**: codec, signal validation,
-counts, maximum sample error and hashes. Neither encoded MOV nor
+counts, maximum and mean full-waveform sample errors and hashes. Neither encoded MOV nor
 decoded waveform is uploaded.
 
 ## Non-acceptance
