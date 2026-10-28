@@ -16,7 +16,7 @@ checkout's requirements into the isolated runner Python environment plus
 and `pip check` must pass.
 
 The job copies OSF's own optical-flow node into that scratch
-ComfyUI installation. It additionally fetches **exactly four public,
+ComfyUI installation. It additionally fetches **exactly five public,
 commit-pinned third-party packages** to the same disposable checkout,
 without invoking the broad legacy installer:
 
@@ -26,6 +26,7 @@ without invoking the broad legacy installer:
 | rgthree-comfy | `d92cad68a6e92a1c5d4032d3ac53f79ea44b08e4` | `Any Switch (rgthree)` |
 | ComfyUI-DownsampleFPS | `4d741ef8e33b0c5111ad21033f9408acffc63651` | `DownsampleFPSNode` |
 | ComfyUI-GGUF | `6ea2651e7df66d7585f6ffee804b20e92fb38b8a` | `UnetLoaderGGUF` |
+| ComfyUI_UltimateSDUpscale | `a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df` | `UltimateSDUpscale` |
 
 The job requires actual Git HEAD to match each pinned SHA, installs
 `imageio-ffmpeg==0.6.0` and `gguf==0.13.0` with CPU/headless
@@ -34,7 +35,7 @@ credential. These packages are independent upstream software with their
 own GPL/MIT/Apache terms; they are neither vendored nor relicensed by OSF.
 The runner then starts ComfyUI with
 `--cpu --offline --listen 127.0.0.1`, checks the real
-`/object_info` API for both registered OSF nodes **and the four selected
+`/object_info` API for both registered OSF nodes **and the five selected
 external package classes**, executes both OSF functions on
 generated 48×48 tensors: zero-flow propagation and static
 Farneback optical flow. It also executes the actual DownsampleFPS frame-drop
@@ -49,18 +50,33 @@ versions, registration, synthetic output hashes and explicit exclusions.
 No generated images, model weights, third-party source or logs containing
 personal paths are uploaded.
 
-## Next dependency gate: unpinned initialization fetch
+## Pinned UltimateSDUpscale submodule, no mutable fallback
 
-The pinned `ComfyUI_UltimateSDUpscale@a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df`
-source contains a Git submodule at `repositories/ultimate_sd_upscale`.
-Its `__init__.py` attempts to download
-`Coyote-A/ultimate-upscale-for-automatic1111/archive/master.zip` when that
-submodule directory is empty. A Git checkout without its submodule may
-therefore execute **unreviewed mutable upstream bytes at import time**.
-Do not import this package in clean acceptance until the exact submodule
-commit and license are verified, checked out explicitly, and the fallback
-network download is disabled or otherwise made fail-closed. This is an
-installation provenance boundary, not a claim of malicious behaviour.
+The pinned `ssitu/ComfyUI_UltimateSDUpscale` source at
+`a5547db9e1d07d3318bb21e9e9c474f4c1e9c8df` contains the Git
+submodule `repositories/ultimate_sd_upscale`. Its gitlink resolves to
+`Coyote-A/ultimate-upscale-for-automatic1111` at the exact commit
+`2322caa480535b1011a1f9c18126d85ea444f146`. Both repositories
+include GPLv3 licence text. The workflow explicitly fetches that
+*exact* gitlink commit, checks `git ls-tree` against the parent's tracked
+gitlink and verifies the nested source revision and required nonempty
+`scripts/ultimate-upscale.py` and `LICENSE` before startup.
+
+**Known unsafe default:** If the submodule directory is empty, the pinned
+wrapper's `__init__.py` invokes `urllib.request.urlretrieve` against a
+mutable `master.zip` URL. In addition to requiring the populated gitlink,
+the disposable ComfyUI Python process preloads
+[the targeted no-download guard](../scripts/usdu_offline_guard/sitecustomize.py),
+which *rejects every `urllib.request.urlretrieve` call* at runtime. The
+qualification script verifies that the interpreter actually loaded that
+guard before executing the external node import. This is specific to the
+observed pinned code path; it is **not** general network isolation or a
+claim that any other network API is blocked.
+
+The test checks `UltimateSDUpscale` appears in the live ComfyUI class
+registry, **not** that upscaling or diffusion works. No model weights or
+Automatic1111 installation are used. This code and nested source remain
+upstream GPLv3, not OSF-owned or relicensed by OSF.
 
 The pinned GIMM-VFI source also declares `cupy-cuda12x`; this CPU test
 cannot certify its CUDA/kernel compatibility.
@@ -68,9 +84,9 @@ cannot certify its CUDA/kernel compatibility.
 ## Crucial non-acceptance
 
 This is **not a clean installation of all 11 selected workflows**.
-It verifies four *representative* external node imports in addition to
+It verifies five *representative* external node imports in addition to
 OSF's own two node functions and executes the DownsampleFPS CPU frame-drop
-method. It does **not** execute VideoHelperSuite, rgthree or GGUF nodes,
+method. It does **not** execute VideoHelperSuite, rgthree, GGUF or UltimateSDUpscale nodes,
 or the rest of the dependency set. It does not verify SCAIL-2, SAM3,
 Wan2.2, GIMM-VFI, model licences, model weights, GPU/CUDA/VRAM,
 workflow loading or inference. Optical-flow nodes
