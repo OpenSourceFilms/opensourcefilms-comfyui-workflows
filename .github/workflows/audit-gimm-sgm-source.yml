@@ -1,0 +1,77 @@
+name: Audit pinned GIMM and SGM source bindings (HOLD)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-gimm-sgm-source.yml"
+      - "scripts/audit_gimm_sgm_source_bindings.py"
+      - "tests/test_gimm_source_bindings.py"
+      - "DEPENDENCIES.lock"
+      - "workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json"
+  pull_request:
+    paths:
+      - ".github/workflows/audit-gimm-sgm-source.yml"
+      - "scripts/audit_gimm_sgm_source_bindings.py"
+      - "tests/test_gimm_source_bindings.py"
+      - "DEPENDENCIES.lock"
+      - "workflows/commercial-compatible/gimm_sgm_vfi_video_interpolate.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osf-gimm-sgm-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-only-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout OSF source without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Select Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Run offline no-import regression contracts
+        run: python -B -m unittest discover -s tests -p "test_gimm_source_bindings.py" -v
+      - name: Fetch both historical exact-pinned third-party source revisions
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/gimm-source-only"
+          mkdir -p "$root"
+          fetch_pinned() {
+            local dest="$1" url="$2" sha="$3"
+            git init "$root/$dest"
+            git -C "$root/$dest" remote add origin "$url"
+            git -C "$root/$dest" sparse-checkout init --no-cone
+            printf '/__init__.py\n/nodes.py\n' > "$root/$dest/.git/info/sparse-checkout"
+            git -C "$root/$dest" fetch --no-tags --depth=1 origin "$sha"
+            git -C "$root/$dest" checkout --detach "$sha"
+            test "$(git -C "$root/$dest" rev-parse HEAD)" = "$sha"
+            test -s "$root/$dest/nodes.py"
+          }
+          fetch_pinned "gimm" "https://github.com/kijai/ComfyUI-GIMM-VFI.git" "4c9a3123762af85e7c796e41737da0b70c75d72d"
+          fetch_pinned "tween" "https://github.com/Ethanfel/ComfyUI-Tween.git" "91947c0b8c795cf504d3848274d4217f0432a324"
+          test -s "$root/tween/__init__.py"
+      - name: Require explicit GIMM source incompatibility HOLD evidence
+        run: |
+          set -euo pipefail
+          python -B scripts/audit_gimm_sgm_source_bindings.py \
+            --gimm-root "$RUNNER_TEMP/gimm-source-only/gimm" \
+            --tween-root "$RUNNER_TEMP/gimm-source-only/tween" \
+            --output "$RUNNER_TEMP/osf-gimm-source-only.json"
+          python -B -c 'import json,sys; j=json.load(open(sys.argv[1])); assert j["status"]=="HOLD" and j["gimm_loader_missing_from_both_pins"] and not j["source_binding_qualified"]' \
+            "$RUNNER_TEMP/osf-gimm-source-only.json"
+      - name: Retain metadata-only source inspection, not third-party source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: osf-gimm-source-only-hold
+          path: ${{ runner.temp }}/osf-gimm-source-only.json
+          if-no-files-found: error
+          retention-days: 14
