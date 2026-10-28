@@ -94,7 +94,8 @@ def validate_sam3_preview_pixels(raw: bytes) -> dict:
     return {
         "status": "native_sam3_track_preview_cpu_executed",
         "native_class": NATIVE,
-        "source": "synthetic_two_identity_bitpacked_track",
+        "source": "synthetic_two_identity_crossing_bitpacked_track",
+        "track_index_colours_preserved_after_crossing": True,
         "resolution": [WIDTH, HEIGHT],
         "frames": FRAME_COUNT,
         "fps_requested": FPS,
