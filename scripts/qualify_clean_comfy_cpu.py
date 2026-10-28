@@ -876,7 +876,14 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     payload = native_resp.read(2_500_001)
                     if len(payload) > 2_500_000:
                         raise ValueError("Live native registry exceeds size limit")
-                    live_native_schemas = verify_native_live_schemas(json.loads(payload))
+                    live_registry = json.loads(payload)
+                    live_native_schemas = verify_native_live_schemas(live_registry)
+                    from audit_selected_four_live_api_links import (
+                        analyze_live_api_links, load_selected_api_graphs,
+                    )
+                    live_selected_api_links = analyze_live_api_links(
+                        live_registry, load_selected_api_graphs()
+                    )
                 synthetic = execute_synthetic(package)
                 downsample = execute_downsample_fps_synthetic(
                     comfy / "custom_nodes" / "ComfyUI-DownsampleFPS"
@@ -928,6 +935,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "registration": registration,
         "selected_workflow_node_coverage": selected_coverage,
         "pinned_native_sam3_scail_live_socket_schema": live_native_schemas,
+        "selected_four_live_api_socket_link_audit": live_selected_api_links,
         "synthetic_execution": synthetic,
         "external_synthetic_execution": downsample,
         "external_model_free_api_graph": external_graph,
