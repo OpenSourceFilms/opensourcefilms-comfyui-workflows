@@ -19,6 +19,35 @@ The report is generated in a disposable CI temp directory. It is not uploaded as
 
 The report omits prompt texts, model filenames, paths to footage and images. It includes public workflow paths, node-class names, canonical dependency names and explicit negative acceptance flags.
 
+
+## Live registry comparison on disposable CPU
+
+The independent [clean ComfyUI CPU acceptance job](../.github/workflows/verify-clean-cpu-runtime.yml)
+now obtains the real `/object_info` response from the pinned vanilla ComfyUI
+core and the five installed pinned external packages, and compares it to
+**this exact source-only 11-graph inventory**. It requires actual API
+`input` and `output` schema fields for every matched class and all six
+previously accepted pinned class registrations. It explicitly rejects
+any appearance of the five modified-fork native types or the four
+unresolved group UUID classes on this clean vanilla deployment.
+
+The JSON-only acceptance artifact records, for each selected workflow,
+the list and count of class names actually registered *in that one
+specific CPU environment*, and those still absent from it. It also
+records the aggregate registered/missing counts across the 81 distinct
+source node-type strings. Names are node class identifiers only.
+**No source graph values, model paths, user prompt text, footage,
+raw object-info schemas, weights or binary media are uploaded.**
+
+A missing name means **not registered in this deliberately minimal
+CPU install**, not globally nonexistent. A registered name means only
+the class schema appeared in `/object_info`; it does not mean the
+selected UI export is a valid API prompt, any model weight is available,
+the node executes successfully, or a model/use licence is cleared.
+The report permanently keeps workflow execution, rights and GPU flags
+**false**. This is a diagnostic dependency gap map, **not an
+installation-ready or production-deployment certificate**.
+
 ## Required downstream acceptance
 
 1. Resolve every UUID/group definition, verify owner/source and runtime class for all unqualified dependencies. Pin and review licences separately.
