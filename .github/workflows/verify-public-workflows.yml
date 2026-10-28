@@ -47,5 +47,7 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_*.py" -v
       - name: Validate every published workflow graph
         run: python scripts/validate-workflow-json.py workflows > "${{ runner.temp }}/graph-audit.json"
+      - name: Inventory eleven selected API/UI node requirements without claiming runtime
+        run: python scripts/audit-selected-11-node-coverage.py --output "${{ runner.temp }}/selected-11-node-coverage.json"
       - name: Reject common private values and cache metadata
         run: python scripts/check-workflow-publication.py workflows > "${{ runner.temp }}/publication-audit.json"
