@@ -152,13 +152,13 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
 
     def test_model_free_external_prompt_uses_four_distinct_source_colours(self):
         graph = qualifier.build_model_free_external_prompt()
-        self.assertEqual(set(graph), {str(i) for i in range(1, 14)})
+        self.assertEqual(set(graph), {str(i) for i in range(1, 15)})
         self.assertEqual(
-            [graph[str(i)]["class_type"] for i in range(1, 14)],
+            [graph[str(i)]["class_type"] for i in range(1, 15)],
             ["EmptyImage"] * 4 + ["ImageBatch"] * 3
             + ["VHS_SelectEveryNthImage", "Any Switch (rgthree)",
                "PreviewImage", "VHS_VideoCombine", "VHS_VideoCombine",
-               "VHS_VideoCombine"],
+               "VHS_VideoCombine", "VHS_VideoCombine"],
         )
         self.assertEqual(
             [graph[str(i)]["inputs"]["color"] for i in range(1, 5)],
@@ -194,6 +194,11 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertEqual(graph["13"]["inputs"]["crf"], 0)
         self.assertEqual(graph["13"]["inputs"]["images"], ["9", 0])
         self.assertFalse(graph["13"]["inputs"]["save_output"])
+        self.assertEqual(graph["14"]["inputs"]["format"], "video/ProRes")
+        self.assertEqual(graph["14"]["inputs"]["profile"], "hq")
+        self.assertEqual(graph["14"]["inputs"]["images"], ["9", 0])
+        self.assertEqual(graph["14"]["inputs"]["frame_rate"], 2)
+        self.assertFalse(graph["14"]["inputs"]["save_output"])
         self.assertFalse(any(
             "Load" in spec["class_type"] or "Sampler" in spec["class_type"]
             for spec in graph.values()
@@ -206,7 +211,8 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
                 "filename": name, "type": "temp", "subfolder": "",
                 **({"format": "image/gif"} if suffix == "gif" else
                    {"format": "video/h264-mp4"} if suffix == "mp4" else
-                   {"format": "video/h265-mp4"} if suffix == "hevc" else {}),
+                   {"format": "video/h265-mp4"} if suffix == "hevc" else
+                   {"format": "video/ProRes"} if suffix == "prores" else {}),
             }
         record = {ident: {
             "status": {"completed": True, "status_str": "success"},
@@ -216,6 +222,7 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
                 "11": {"gifs": [event("clip.gif", "gif")]},
                 "12": {"gifs": [event("clip.mp4", "mp4")]},
                 "13": {"gifs": [event("hevc.mp4", "hevc")]},
+                "14": {"gifs": [event("prores.mov", "prores")]},
             },
         }}
         valid = qualifier.validate_model_free_external_history(record, ident)
@@ -223,6 +230,7 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         self.assertEqual(valid["gif_count"], 1)
         self.assertEqual(valid["h264_mp4_count"], 1)
         self.assertEqual(valid["h265_mp4_count"], 1)
+        self.assertEqual(valid["prores_mov_count"], 1)
         self.assertFalse(valid["model_weights_used"])
         self.assertFalse(valid["binary_outputs_uploaded"])
         record[ident]["outputs"]["10"]["images"].pop()
@@ -241,6 +249,10 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "H265 encoder returned wrong output count"):
             qualifier.validate_model_free_external_history(record, ident)
         record[ident]["outputs"]["13"]["gifs"].append(event("hevc.mp4", "hevc"))
+        record[ident]["outputs"]["14"]["gifs"].clear()
+        with self.assertRaisesRegex(ValueError, "ProRes encoder returned wrong output count"):
+            qualifier.validate_model_free_external_history(record, ident)
+        record[ident]["outputs"]["14"]["gifs"].append(event("prores.mov", "prores"))
         record[ident]["status"]["completed"] = False
         with self.assertRaisesRegex(ValueError, "did not complete"):
             qualifier.validate_model_free_external_history(record, ident)
@@ -289,6 +301,26 @@ class CleanRuntimeSmokeContractTests(unittest.TestCase):
             with self.subTest(len=len(bad)):
                 with self.assertRaisesRegex(ValueError, "H265 decoded"):
                     qualifier.validate_h265_decoded_rgb(bad)
+
+    def test_prores_decoded_content_checks_colour_and_rejects_bad_frames(self):
+        pixels = 64 * 64
+        red = bytes((255, 0, 0)) * pixels
+        blue = bytes((0, 0, 255)) * pixels
+        exact = qualifier.validate_prores_decoded_rgb(red + blue)
+        self.assertEqual(exact["codec"], "prores")
+        self.assertEqual(exact["frames_decoded"], 2)
+        self.assertEqual(exact["maximum_absolute_channel_error"], [0, 0])
+        self.assertFalse(exact["high_bit_depth_fidelity_qualified"])
+        near = bytes((243, 5, 2)) * pixels + bytes((4, 2, 244)) * pixels
+        self.assertEqual(
+            qualifier.validate_prores_decoded_rgb(near)["maximum_absolute_channel_error"],
+            [12, 11],
+        )
+        for bad in (red, blue + red,
+                    bytes((220, 0, 0)) * pixels + blue):
+            with self.subTest(length=len(bad)):
+                with self.assertRaisesRegex(ValueError, "ProRes decoded"):
+                    qualifier.validate_prores_decoded_rgb(bad)
 
     def test_temporary_asset_metadata_rejects_absolute_and_parent_paths(self):
         proper = {"filename": "synthetic_temp_00001_.png",
