@@ -46,8 +46,8 @@ def classify_missing(class_id: str, source: object = None) -> str:
     """Classify missing IDs conservatively; registered status comes from HTTP."""
     if source is None:
         source = _source_module(ROOT)
-    if class_id in source.FORK_NATIVE:
-        return "documented_scail_sam3_fork_native"
+    if class_id in source.PINNED_UPSTREAM_SAM_SCAIL:
+        return "upstream_sam_scail_not_registered_here"
     if class_id in source.EDITOR_OR_LAYOUT_TYPES:
         return "editor_or_extension_type_unqualified"
     if source.UUID.fullmatch(class_id):
@@ -71,6 +71,15 @@ def coverage_from_registry(source_audit: dict, live: object) -> dict:
             or len(source_audit.get("workflows", [])) != 11):
         raise ValueError("Coverage must use the canonical 11-workflow source report")
     source = _source_module(ROOT)
+    native = source.PINNED_UPSTREAM_SAM_SCAIL
+    if not native.issubset(live):
+        raise ValueError("Expected pinned upstream SAM3/SCAIL class not registered")
+    for name in native:
+        schema = live[name]
+        if (not isinstance(schema, dict)
+                or not isinstance(schema.get("input"), dict)
+                or not isinstance(schema.get("output"), list)):
+            raise ValueError("Malformed pinned upstream SAM3/SCAIL class schema")
     seen = set()
     registered = set()
     missing_all = set()
@@ -116,7 +125,7 @@ def coverage_from_registry(source_audit: dict, live: object) -> dict:
             "unregistered_class_ids_by_category": {
                 cat: [c for c in absent if classification[c] == cat]
                 for cat in (
-                    "documented_scail_sam3_fork_native",
+                    "upstream_sam_scail_not_registered_here",
                     "editor_or_extension_type_unqualified",
                     "unresolved_group_uuid",
                     "other_unregistered_in_current_cpu_installation",
@@ -136,8 +145,11 @@ def coverage_from_registry(source_audit: dict, live: object) -> dict:
         "unique_graph_class_ids": len(seen),
         "registered_unique_class_ids": len(registered),
         "unregistered_unique_class_ids": len(missing_all),
-        "missing_documented_fork_native": sorted(
-            c for c in missing_all if c in source.FORK_NATIVE
+        "missing_upstream_sam_scail_classes": sorted(
+            c for c in missing_all if c in source.PINNED_UPSTREAM_SAM_SCAIL
+        ),
+        "registered_upstream_sam_scail_classes": sorted(
+            c for c in registered if c in source.PINNED_UPSTREAM_SAM_SCAIL
         ),
         "missing_other_unregistered": sorted(
             c for c in missing_all
