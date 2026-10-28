@@ -71,7 +71,7 @@ class StereoMuxContractTests(unittest.TestCase):
         self.assertEqual(decoded["channels"], 2)
         self.assertEqual(decoded["channel_frequencies_hz"], [440, 660])
         self.assertEqual(decoded["decoded_sample_frames"], 48000)
-        self.assertEqual(decoded["checked_sample_frames"], 46976)
+        self.assertEqual(decoded["checked_sample_frames"], 48000)
         self.assertLess(decoded["maximum_channel_errors"][0], 0.00001)
         self.assertLess(decoded["maximum_channel_errors"][1], 0.00001)
         self.assertFalse(decoded["binary_media_uploaded"])
@@ -98,6 +98,33 @@ class StereoMuxContractTests(unittest.TestCase):
             gate.check_decoded_stereo_pcm(samples()[:-1])
         source = samples()
         source[2 * 22222] = float("nan")
+        with self.assertRaisesRegex(ValueError, "nonfinite"):
+            gate.check_decoded_stereo_pcm(source)
+
+    def test_rejects_padding_truncation_and_silent_tail(self):
+        for frames in (47999, 48001, 49024, 52096):
+            with self.subTest(frames=frames):
+                with self.assertRaisesRegex(ValueError, "exactly one second"):
+                    gate.check_decoded_stereo_pcm(samples(frames=frames))
+
+        # Previous 46,976-prefix acceptance did not inspect these final
+        # 1,024 frames. Both channels must retain their source identity.
+        tail = samples()
+        for frame in range(46976, 48000):
+            tail[2 * frame] = 0.0
+            tail[2 * frame + 1] = 0.0
+        with self.assertRaisesRegex(ValueError, "identity, phase or leakage"):
+            gate.check_decoded_stereo_pcm(tail)
+
+    def test_rejects_single_late_sample_corruption_and_nonfinite_tail(self):
+        for channel in (0, 1):
+            source = samples()
+            source[2 * 47999 + channel] += 0.02
+            with self.subTest(channel=channel):
+                with self.assertRaisesRegex(ValueError, "identity, phase or leakage"):
+                    gate.check_decoded_stereo_pcm(source)
+        source = samples()
+        source[2 * 47998 + 1] = float("nan")
         with self.assertRaisesRegex(ValueError, "nonfinite"):
             gate.check_decoded_stereo_pcm(source)
 
