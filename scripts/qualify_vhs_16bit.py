@@ -28,6 +28,8 @@ FRAME_COMPONENTS = 3 * PIXELS
 BYTE_LENGTH = 2 * FRAME_COMPONENTS * 2
 MAX_BYTES = 2_000_000
 EXPECTED_PAIR_COUNT = 4
+INTERIOR_OFFSETS = (8, 16, 24)
+EXPECTED_INTERIOR_PAIR_COUNT = 2 * 2 * len(INTERIOR_OFFSETS) ** 2
 
 
 def prepare_disposable_16bit_preset(comfy: Path) -> dict:
@@ -169,6 +171,25 @@ def _pairs(samples: array) -> list[tuple[int, int]]:
     return pairs
 
 
+def _interior_pairs(samples: array) -> list[tuple[int, int]]:
+    """Sample a 3x3 interior grid per left/right tile pair in each frame.
+
+    The source tiles are 32x32 uniform grayscale fields. Points at offsets
+    8/16/24 avoid the codec's block-boundary transitions while covering
+    36 spatially distributed matched comparisons instead of four centers.
+    """
+    pairs = []
+    for frame in range(2):
+        for row in range(2):
+            for dy in INTERIOR_OFFSETS:
+                for dx in INTERIOR_OFFSETS:
+                    offset = (frame * FRAME_COMPONENTS
+                              + (row * 32 + dy) * 64)
+                    pairs.append((samples[offset + dx],
+                                  samples[offset + 32 + dx]))
+    return pairs
+
+
 def verify_precision_contrast(default8: array, optin16: array) -> dict:
     if (len(default8) != 2 * FRAME_COMPONENTS
             or len(optin16) != 2 * FRAME_COMPONENTS):
@@ -182,6 +203,17 @@ def verify_precision_contrast(default8: array, optin16: array) -> dict:
     deltas = [right - left for left, right in b]
     if any(not 1 <= change <= 20 for change in deltas):
         raise ValueError("VHS opt-in 16-bit path did not retain fine source levels")
+
+    control_grid = _interior_pairs(default8)
+    precise_grid = _interior_pairs(optin16)
+    if (len(control_grid) != EXPECTED_INTERIOR_PAIR_COUNT
+            or len(precise_grid) != EXPECTED_INTERIOR_PAIR_COUNT):
+        raise ValueError("VHS spatial grid comparisons incomplete")
+    if any(left != right for left, right in control_grid):
+        raise ValueError("VHS default 8-bit spatial grid did not collapse source pairs")
+    precise_grid_deltas = [right - left for left, right in precise_grid]
+    if any(not 1 <= change <= 20 for change in precise_grid_deltas):
+        raise ValueError("VHS opt-in 16-bit spatial grid lost fine source differences")
     return {
         "status": "vhs_16bit_input_sub8bit_levels_preserved",
         "source": "synthetic 12-bit-indexed RGB float IMAGE",
@@ -191,6 +223,11 @@ def verify_precision_contrast(default8: array, optin16: array) -> dict:
         "default_8bit_collapsed_pairs": len(a),
         "optin16_preserved_pairs": len(b),
         "optin16_luma_code_level_deltas": deltas,
+        "interior_grid_offsets": list(INTERIOR_OFFSETS),
+        "interior_control_collapsed_pairs": len(control_grid),
+        "interior_optin16_preserved_pairs": len(precise_grid),
+        "interior_optin16_min_luma_delta_12bit": min(precise_grid_deltas),
+        "interior_optin16_max_luma_delta_12bit": max(precise_grid_deltas),
         "frames": 2,
         "dimensions": [64, 64],
         "sample_count_per_output": 2 * FRAME_COMPONENTS,
