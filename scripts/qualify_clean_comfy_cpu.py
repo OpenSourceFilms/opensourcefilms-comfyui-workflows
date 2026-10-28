@@ -876,8 +876,8 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                     payload = native_resp.read(2_500_001)
                     if len(payload) > 2_500_000:
                         raise ValueError("Live native registry exceeds size limit")
+                    live_native_schemas = verify_native_live_schemas(json.loads(payload))
                     live_registry = json.loads(payload)
-                    live_native_schemas = verify_native_live_schemas(live_registry)
                     from audit_selected_four_live_api_links import (
                         analyze_live_api_links, load_selected_api_graphs,
                     )
