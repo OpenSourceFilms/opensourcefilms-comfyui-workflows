@@ -890,6 +890,10 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
                 scail_mask_result = execute_scail_cpu_graph(
                     port, child, fetch_asset=_fetch_temporary_asset
                 )
+                from qualify_sam3_native_preview_cpu import execute_sam3_trackpreview_cpu
+                sam3_track_preview = execute_sam3_trackpreview_cpu(
+                    port, child, fetch_asset=_fetch_temporary_asset
+                )
                 from qualify_vhs_16bit import execute_disposable_vhs_precision
                 vhs_precision_result = execute_disposable_vhs_precision(port, child)
                 from qualify_vhs_chroma_16bit import execute_disposable_vhs_rgb_precision
@@ -930,6 +934,7 @@ def qualify(comfy: Path, report: Path, port: int) -> dict:
         "synthetic_video_audio_pcm_mux": pcm_audio_mux,
         "synthetic_vhs_stereo_pcm_mux": stereo_pcm_mux,
         "scail_native_cpu_mask_execution": scail_mask_result,
+        "native_sam3_track_preview_cpu": sam3_track_preview,
         "vhs_optin_16bit_source_vs_default_8bit": {
             "preset": vhs_precision_preset,
             "result": vhs_precision_result,
