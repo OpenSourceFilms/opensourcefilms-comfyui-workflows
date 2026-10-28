@@ -83,6 +83,23 @@ class SelectedFourLiveLinkTests(unittest.TestCase):
         result = audit.analyze_live_api_links(registry, self.graphs)
         self.assertGreater(result["dynamic_type_links_unverified"], 0)
 
+    def test_only_reviewed_sam3_scail_comma_union_accepts_mask(self):
+        registry = deepcopy(self.registry)
+        registry["SAM3_Detect"]["output"][0] = "MASK"
+        registry["SCAIL2ColoredMask"]["input"]["required"]["ref_track_data"] = [
+            "SAM3_TRACK_DATA,MASK", {}
+        ]
+        result = audit.analyze_live_api_links(registry, self.graphs)
+        self.assertEqual(result["registered_exact_type_links"], 82)
+        self.assertEqual(result["incompatible_registered_links"], 0)
+        self.assertEqual(result["dynamic_type_links_unverified"], 0)
+        registry["CLIPTextEncode"]["input"]["required"]["clip"] = [
+            "IMAGE,MASK", {}
+        ]
+        result = audit.analyze_live_api_links(registry, self.graphs)
+        self.assertGreater(result["dynamic_type_links_unverified"], 0)
+        self.assertLess(result["registered_exact_type_links"], 82)
+
     def test_rejects_missing_producer_slot_and_destination_input(self):
         registry = deepcopy(self.registry)
         registry["CheckpointLoaderSimple"]["output"] = ["MODEL"]
